@@ -1,0 +1,184 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/montserrat";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+    /* Doggo Mundo Brand Colors */
+    /* Primary: Navy #222D56 */
+    /* Accent: Sky Blue #69B4F2 */
+    /* Destructive: Red #E21818 */
+    /* Surface soft: Light Blue #DFEEFB */
+
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.25 0.04 265);  /* Navy-tinted dark */
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.25 0.04 265);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.25 0.04 265);
+    --primary: oklch(0.28 0.08 265);      /* Navy #222D56 */
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.95 0.01 250);    /* Very light blue tint */
+    --secondary-foreground: oklch(0.28 0.08 265);
+    --muted: oklch(0.96 0.008 250);
+    --muted-foreground: oklch(0.5 0.02 265);
+    --accent: oklch(0.74 0.12 245);       /* Sky Blue #69B4F2 */
+    --accent-foreground: oklch(0.25 0.06 265);
+    --destructive: oklch(0.53 0.24 27);   /* Red #E21818 */
+    --border: oklch(0.91 0.01 250);
+    --input: oklch(0.91 0.01 250);
+    --ring: oklch(0.74 0.12 245);         /* Sky Blue for focus rings */
+    --chart-1: oklch(0.74 0.12 245);      /* Sky #69B4F2 */
+    --chart-2: oklch(0.45 0.14 265);      /* Dark Blue */
+    --chart-3: oklch(0.53 0.24 27);       /* Red #E21818 */
+    --chart-4: oklch(0.72 0.08 70);       /* Warm */
+    --chart-5: oklch(0.68 0.13 245);      /* Mid Blue */
+    --radius: 0.625rem;
+
+    /* Soft surface: light blue brand tone */
+    --surface-soft: oklch(0.95 0.02 245); /* Light Blue #DFEEFB */
+    --surface-soft-foreground: oklch(0.25 0.06 265);
+}
+
+.dark {
+    --background: oklch(0.17 0.03 265);
+    --foreground: oklch(0.95 0.01 245);
+    --card: oklch(0.22 0.04 265);
+    --card-foreground: oklch(0.95 0.01 245);
+    --popover: oklch(0.22 0.04 265);
+    --popover-foreground: oklch(0.95 0.01 245);
+    --primary: oklch(0.74 0.12 245);      /* Sky blue in dark mode */
+    --primary-foreground: oklch(0.17 0.03 265);
+    --secondary: oklch(0.28 0.05 265);
+    --secondary-foreground: oklch(0.95 0.01 245);
+    --muted: oklch(0.28 0.05 265);
+    --muted-foreground: oklch(0.65 0.03 245);
+    --accent: oklch(0.35 0.06 265);
+    --accent-foreground: oklch(0.95 0.01 245);
+    --destructive: oklch(0.65 0.2 25);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.55 0.1 245);
+    --chart-1: oklch(0.74 0.12 245);
+    --chart-2: oklch(0.55 0.14 265);
+    --chart-3: oklch(0.65 0.2 25);
+    --chart-4: oklch(0.72 0.08 70);
+    --chart-5: oklch(0.68 0.13 245);
+    --surface-soft: oklch(0.22 0.04 265);
+    --surface-soft-foreground: oklch(0.95 0.01 245);
+}
+
+@theme inline {
+    --font-sans: 'Montserrat Variable', 'Geist Variable', sans-serif;
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --color-surface-soft: var(--surface-soft);
+    --color-surface-soft-foreground: var(--surface-soft-foreground);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* Booking success animations */
+@keyframes check-draw {
+  0% {
+    stroke-dashoffset: 60;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes circle-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes confetti-rise {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx, 0), var(--dy, -120px)) rotate(var(--rot, 180deg));
+    opacity: 0;
+  }
+}
+
+.animate-circle-pop {
+  animation: circle-pop 450ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-check-draw {
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  animation: check-draw 400ms 350ms ease-out forwards;
+}
+
+.animate-confetti {
+  animation: confetti-rise 1.6s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-circle-pop,
+  .animate-check-draw,
+  .animate-confetti {
+    animation: none !important;
+  }
+  .animate-check-draw {
+    stroke-dashoffset: 0;
+  }
+}

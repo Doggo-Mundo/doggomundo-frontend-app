@@ -1,0 +1,85 @@
+export type SubscriptionStatus =
+  | "active"
+  | "paused"
+  | "cancelled"
+  | "past_due";
+
+export const SUBSCRIPTION_STATUS_LABEL: Record<SubscriptionStatus, string> = {
+  active: "Activa",
+  paused: "Pausada",
+  cancelled: "Cancelada",
+  past_due: "Pago pendiente",
+};
+
+export type BillingInterval = "monthly" | "quarterly";
+
+export const BILLING_INTERVAL_LABEL: Record<BillingInterval, string> = {
+  monthly: "Mensual",
+  quarterly: "Trimestral",
+};
+
+export type CycleStatus = "open" | "closed";
+
+export const CYCLE_STATUS_LABEL: Record<CycleStatus, string> = {
+  open: "Abierto",
+  closed: "Cerrado",
+};
+
+export interface PlanEntitlement {
+  service: string;
+  service_name: string;
+  quantity_per_cycle: number;
+}
+
+export interface MembershipPlan {
+  id: string;
+  name: string;
+  description: string;
+  price_monthly: string;
+  billing_interval: BillingInterval;
+  billing_interval_display: string;
+  terms: string;
+  entitlements: PlanEntitlement[];
+}
+
+export interface EntitlementBalance {
+  id: string;
+  service: string;
+  service_name: string;
+  included_qty: number;
+  used_qty: number;
+  remaining_qty: number;
+}
+
+export interface Subscription {
+  id: string;
+  plan: string;
+  plan_name: string;
+  status: SubscriptionStatus;
+  status_display: string;
+  start_date: string;
+  current_period_start: string;
+  current_period_end: string;
+  active_balances: EntitlementBalance[];
+  cycles_count: number;
+  created_at: string;
+}
+
+export interface SubscriptionCycle {
+  id: string;
+  period_start: string;
+  period_end: string;
+  status: CycleStatus;
+  status_display: string;
+  invoiced_at: string | null;
+  balances: EntitlementBalance[];
+}
+
+export interface SubscribePayload {
+  plan: string;
+}
+
+export interface MySubscriptionsParams {
+  /** Omit to get active + paused. Pass "cancelled" to see cancelled ones. */
+  status?: SubscriptionStatus;
+}
