@@ -189,6 +189,16 @@ const DaycareBookPage = lazy(() =>
     default: m.DaycareBookPage,
   })),
 );
+const DaycareDaysPage = lazy(() =>
+  import("@/features/daycare/pages/DaycareDaysPage").then((m) => ({
+    default: m.DaycareDaysPage,
+  })),
+);
+const DaycareDayDetailPage = lazy(() =>
+  import("@/features/daycare/pages/DaycareDayDetailPage").then((m) => ({
+    default: m.DaycareDayDetailPage,
+  })),
+);
 
 function SuspendedFallback() {
   return (
@@ -271,6 +281,11 @@ export function AppRouter() {
                 element={<DaycareEnrollPage />}
               />
               <Route path="/daycare/book" element={<DaycareBookPage />} />
+              <Route path="/daycare/days" element={<DaycareDaysPage />} />
+              <Route
+                path="/daycare/days/:id"
+                element={<DaycareDayDetailPage />}
+              />
             </Route>
           </Route>
         </Route>
