@@ -62,7 +62,7 @@ export function useRegister() {
 
 interface VerifyEmailRequest {
   email: string;
-  otp: string;
+  otp_code: string;
 }
 
 export function useVerifyEmail() {

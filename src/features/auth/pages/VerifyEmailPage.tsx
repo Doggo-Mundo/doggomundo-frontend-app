@@ -43,7 +43,7 @@ export function VerifyEmailPage() {
 
   async function onSubmit(data: VerifyFormValues) {
     try {
-      await verify.mutateAsync({ email, otp: data.otp });
+      await verify.mutateAsync({ email, otp_code: data.otp });
       toast.success("Tu email fue verificado. Ya puedes iniciar sesión.");
       navigate("/login", { replace: true });
     } catch (err) {
