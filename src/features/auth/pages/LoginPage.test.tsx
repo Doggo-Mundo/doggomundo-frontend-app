@@ -100,7 +100,7 @@ describe("LoginPage — success flow", () => {
     expect(localStorage.getItem("refresh_token")).toBe("r-token");
   });
 
-  it("rejects admin users with the 'cuenta administrativa' message", async () => {
+  it("lets admin/staff users into the customer app (single account)", async () => {
     useAuthStore.getState().logout();
     server.use(
       http.post(`${API}/auth/login/`, () =>
@@ -118,9 +118,8 @@ describe("LoginPage — success flow", () => {
     await user.type(screen.getByLabelText(/contraseña/i), "pw");
     await user.click(screen.getByRole("button", { name: /entrar/i }));
 
-    expect(
-      await screen.findByText(/cuenta es administrativa/i),
-    ).toBeInTheDocument();
-    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    await waitFor(() =>
+      expect(useAuthStore.getState().isAuthenticated).toBe(true),
+    );
   });
 });

@@ -46,11 +46,6 @@ export function useAuthRestore() {
 
         if (cancelled) return;
 
-        if (user.user_type !== "CUSTOMER") {
-          localStorage.removeItem("refresh_token");
-          return;
-        }
-
         login(tokenData.access, newRefresh, user);
       } catch {
         if (!cancelled) localStorage.removeItem("refresh_token");

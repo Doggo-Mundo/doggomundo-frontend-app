@@ -42,13 +42,6 @@ export function LoginPage() {
   async function onSubmit(data: LoginFormValues) {
     try {
       const result = await login.mutateAsync(data);
-      if (result.user.user_type !== "CUSTOMER") {
-        setError("root", {
-          message:
-            "Esta cuenta es administrativa. Entra al panel de admin.",
-        });
-        return;
-      }
       authLogin(result.access, result.refresh, result.user);
       navigate(from, { replace: true });
     } catch (err) {

@@ -2,7 +2,6 @@ import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { AuthGuard } from "@/components/layout/AuthGuard";
-import { CustomerGuard } from "@/components/layout/CustomerGuard";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { useAuthRestore } from "@/hooks/use-auth-restore";
 
@@ -225,10 +224,9 @@ export function AppRouter() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-        {/* Authenticated + customer-only */}
+        {/* Authenticated users (any role can use the customer app) */}
         <Route element={<AuthGuard />}>
-          <Route element={<CustomerGuard />}>
-            <Route element={<AppShell />}>
+          <Route element={<AppShell />}>
               <Route path="/" element={<HomePage />} />
 
               <Route path="/profile" element={<ProfilePage />} />
@@ -288,7 +286,6 @@ export function AppRouter() {
               />
             </Route>
           </Route>
-        </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
