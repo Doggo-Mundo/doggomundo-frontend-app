@@ -24,6 +24,11 @@ export function formatTime(dateString: string): string {
   return format(zonedDate, "HH:mm");
 }
 
+/** Hour of day (0–23) in Mexico_City local time. Used to group slots. */
+export function getLocalHour(dateString: string): number {
+  return toZonedTime(new Date(dateString), TIMEZONE).getHours();
+}
+
 export function formatDayLabel(dateString: string): string {
   const zonedDate = toZonedTime(new Date(dateString), TIMEZONE);
   return format(zonedDate, "EEE d 'de' MMM", { locale: es });

@@ -227,8 +227,10 @@ describe("Booking wizard — happy path", () => {
       await screen.findByRole("button", { name: /corte completo/i }),
     );
 
-    // Step 4: slot — the slot's start is UTC 16:00 which renders as MX local 10:00
-    await user.click(await screen.findByRole("button", { name: "10:00" }));
+    // Step 4: slot — the slot's start is UTC 16:00 which renders as MX local
+    // 10:00. The button's accessible name also includes the duration label
+    // ("10:00 30 min"), so match on the time substring.
+    await user.click(await screen.findByRole("button", { name: /10:00/ }));
 
     // Step 5: pet
     await user.click(await screen.findByRole("button", { name: /nala/i }));
