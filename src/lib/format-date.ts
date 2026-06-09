@@ -58,13 +58,21 @@ export function localDayBoundsUTC(
 }
 
 /**
- * Returns true when `dateString` is less than 24h away from now.
- * Matches the backend rule: customers cannot cancel / reschedule inside 24h.
+ * Hours of advance notice the customer must give to cancel or reschedule
+ * their own appointment without admin intervention. Mirrors
+ * `CUSTOMER_CANCELLATION_WINDOW_HOURS` on the backend — keep in sync.
  */
-export function isWithin24h(dateString: string): boolean {
+export const CANCELLATION_WINDOW_HOURS = 12;
+
+/**
+ * Returns true when `dateString` is less than the cancellation-window
+ * threshold away from now. Matches the backend rule: customers cannot
+ * cancel / reschedule inside the window.
+ */
+export function isWithinCancellationWindow(dateString: string): boolean {
   const target = new Date(dateString).getTime();
   const diffMs = target - Date.now();
-  return diffMs < 24 * 60 * 60 * 1000;
+  return diffMs < CANCELLATION_WINDOW_HOURS * 60 * 60 * 1000;
 }
 
 export function formatAgeFromBirth(birthDate: string | null): string | null {

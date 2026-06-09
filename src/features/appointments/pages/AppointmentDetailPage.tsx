@@ -28,9 +28,10 @@ import {
 } from "@/api/hooks/use-appointments";
 import { usePets } from "@/api/hooks/use-pets";
 import {
+  CANCELLATION_WINDOW_HOURS,
   formatLongDate,
   formatTime,
-  isWithin24h,
+  isWithinCancellationWindow,
 } from "@/lib/format-date";
 import type { AppointmentItem } from "@/types/appointment";
 
@@ -77,10 +78,10 @@ export function AppointmentDetailPage() {
     );
   }
 
-  const within24h = isWithin24h(appointment.scheduled_start);
+  const withinWindow = isWithinCancellationWindow(appointment.scheduled_start);
   const terminal = isTerminal(appointment.status);
   const canCancel =
-    !terminal && !within24h && appointment.status === "scheduled";
+    !terminal && !withinWindow && appointment.status === "scheduled";
   const headline =
     primaryItem(appointment.items)?.service_name ??
     appointment.business_unit_name;
@@ -177,10 +178,10 @@ export function AppointmentDetailPage() {
 
       {!terminal && (
         <div className="space-y-2">
-          {within24h && (
+          {withinWindow && (
             <p className="rounded-md bg-muted p-3 text-xs text-muted-foreground">
-              Falta menos de 24 horas para tu cita. Si necesitas hacer cambios,
-              llámanos a la sucursal.
+              Falta menos de {CANCELLATION_WINDOW_HOURS} horas para tu cita. Si
+              necesitas hacer cambios, llámanos a la sucursal.
             </p>
           )}
           <Button

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   formatRelativeAppointment,
   formatTime,
-  isWithin24h,
+  isWithinCancellationWindow,
   localDayBoundsUTC,
   toLocalDateISO,
 } from "./format-date";
@@ -32,7 +32,7 @@ describe("localDayBoundsUTC", () => {
   });
 });
 
-describe("isWithin24h", () => {
+describe("isWithinCancellationWindow", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-10T12:00:00Z"));
@@ -43,19 +43,25 @@ describe("isWithin24h", () => {
   });
 
   it("is true for a moment 1h in the future", () => {
-    expect(isWithin24h("2026-05-10T13:00:00Z")).toBe(true);
+    expect(isWithinCancellationWindow("2026-05-10T13:00:00Z")).toBe(true);
   });
 
   it("is true for a moment in the past", () => {
-    expect(isWithin24h("2026-05-09T12:00:00Z")).toBe(true);
+    expect(isWithinCancellationWindow("2026-05-09T12:00:00Z")).toBe(true);
   });
 
-  it("is false for a moment >24h away", () => {
-    expect(isWithin24h("2026-05-11T13:00:00Z")).toBe(false);
+  it("is false for a moment >12h away", () => {
+    // 13h ahead → outside the 12h window
+    expect(isWithinCancellationWindow("2026-05-11T01:00:00Z")).toBe(false);
   });
 
-  it("is false at exactly 24h boundary", () => {
-    expect(isWithin24h("2026-05-11T12:00:00Z")).toBe(false);
+  it("is false at exactly the 12h boundary", () => {
+    expect(isWithinCancellationWindow("2026-05-11T00:00:00Z")).toBe(false);
+  });
+
+  it("is true just inside the 12h boundary", () => {
+    // 11h59m ahead → inside the window
+    expect(isWithinCancellationWindow("2026-05-10T23:59:00Z")).toBe(true);
   });
 });
 

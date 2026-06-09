@@ -34,7 +34,7 @@ describe("AppointmentDetailPage — cancel button rules", () => {
     vi.useRealTimers();
   });
 
-  it("enables cancel when >24h ahead and status is scheduled", async () => {
+  it("enables cancel when outside the cancellation window and status is scheduled", async () => {
     const appt = setupAppointment(
       makeAppointment({
         id: "a-future",
@@ -58,11 +58,12 @@ describe("AppointmentDetailPage — cancel button rules", () => {
     ).not.toBeDisabled();
   });
 
-  it("disables cancel and shows the 24h notice when <24h ahead", async () => {
+  it("disables cancel and shows the window notice when inside the window", async () => {
     const appt = setupAppointment(
       makeAppointment({
         id: "a-soon",
-        scheduled_start: "2026-05-10T20:00:00Z", // +8h
+        // +8h from NOW — inside the 12h customer cancellation window.
+        scheduled_start: "2026-05-10T20:00:00Z",
         status: "scheduled",
       }),
     );
@@ -81,7 +82,7 @@ describe("AppointmentDetailPage — cancel button rules", () => {
       screen.getByRole("button", { name: /cancelar cita/i }),
     ).toBeDisabled();
     expect(
-      screen.getByText(/falta menos de 24 horas/i),
+      screen.getByText(/falta menos de 12 horas/i),
     ).toBeInTheDocument();
   });
 
