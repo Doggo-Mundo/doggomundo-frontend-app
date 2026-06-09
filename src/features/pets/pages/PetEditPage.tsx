@@ -1,8 +1,10 @@
+import { useRef } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import { Bone, Camera, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,7 +26,9 @@ import {
 import { FormErrors } from "@/components/shared/FormErrors";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { PetAvatar } from "@/features/pets/components/PetAvatar";
 import { BackLink } from "@/features/pets/components/BackLink";
+import { profileFields } from "@/features/pets/lib/pet-missing";
 import { mapApiErrors } from "@/features/auth/lib/map-api-errors";
 import {
   useBreeds,
@@ -33,7 +37,9 @@ import {
   usePet,
   useUpdatePetBasic,
   useUpdatePetComplete,
+  useUpdatePetPhoto,
 } from "@/api/hooks/use-pets";
+import { cn } from "@/lib/utils";
 import { GENDER_LABEL } from "@/types/pet";
 import type { Pet, Gender } from "@/types/pet";
 
@@ -63,6 +69,8 @@ const COMPLETE_KEYS = [
   "health_notes",
   "allergies",
 ] as const satisfies readonly (keyof FormValues)[];
+
+const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024;
 
 export function PetEditPage() {
   const { id } = useParams<{ id: string }>();
@@ -102,9 +110,11 @@ function PetEditForm({ pet }: FormProps) {
   const navigate = useNavigate();
   const updateBasic = useUpdatePetBasic(pet.id);
   const updateComplete = useUpdatePetComplete(pet.id);
+  const updatePhoto = useUpdatePetPhoto(pet.id);
   const { data: breeds = [], isLoading: breedsLoading } = useBreeds();
   const { data: foodTypes = [], isLoading: foodTypesLoading } = useFoodTypes();
   const { data: foodBrands = [], isLoading: foodBrandsLoading } = useFoodBrands();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     register,
@@ -126,6 +136,36 @@ function PetEditForm({ pet }: FormProps) {
     },
   });
 
+  const fields = profileFields(pet);
+  const filledCount = fields.filter((f) => f.filled).length;
+  const completion = pet.onboarding_completion_percentage;
+  const isComplete = completion >= 100;
+
+  async function handlePhotoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("El archivo debe ser una imagen.");
+      return;
+    }
+    if (file.size > MAX_PHOTO_SIZE_BYTES) {
+      toast.error("La imagen es muy grande. Máximo 5 MB.");
+      return;
+    }
+    try {
+      const updated = await updatePhoto.mutateAsync(file);
+      if (updated.onboarding_completion_percentage >= 100) {
+        celebrateCompletion();
+        navigate("/book", { replace: true });
+        return;
+      }
+      toast.success("Foto subida. ¡+1 huesito 🦴!");
+    } catch {
+      toast.error("No pudimos subir la foto. Intenta de nuevo.");
+    }
+  }
+
   async function onSubmit(data: FormValues) {
     const basicChanges: Record<string, unknown> = {};
     BASIC_KEYS.forEach((k) => {
@@ -146,13 +186,23 @@ function PetEditForm({ pet }: FormProps) {
     }
 
     try {
+      let last: Pet | null = null;
       if (Object.keys(basicChanges).length > 0) {
-        await updateBasic.mutateAsync(basicChanges);
+        last = await updateBasic.mutateAsync(basicChanges);
       }
       if (Object.keys(completeChanges).length > 0) {
-        await updateComplete.mutateAsync(completeChanges);
+        last = await updateComplete.mutateAsync(completeChanges);
       }
-      toast.success("Perfil actualizado.");
+
+      // When the user crosses the finish line we send them straight to the
+      // booking flow (per product spec) instead of the detail page.
+      if (last && last.onboarding_completion_percentage >= 100) {
+        celebrateCompletion();
+        navigate("/book", { replace: true });
+        return;
+      }
+
+      toast.success("Perfil actualizado. ¡Sigue así! 🦴");
       navigate(`/pets/${pet.id}`, { replace: true });
     } catch (err) {
       mapApiErrors(err, setError, "No pudimos guardar los cambios.");
@@ -166,9 +216,62 @@ function PetEditForm({ pet }: FormProps) {
       <header>
         <h1 className="text-2xl font-semibold">Editar perfil</h1>
         <p className="text-sm text-muted-foreground">
-          Perfil al {pet.onboarding_completion_percentage}%. Completa lo que te falte.
+          {isComplete
+            ? "Perfil completo. ¡Bien hecho!"
+            : `Llevas ${filledCount} de ${fields.length} huesitos. Completa los que falten para reservar.`}
         </p>
       </header>
+
+      <BoneProgress fields={fields} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Foto</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4">
+            <div className="relative shrink-0">
+              <PetAvatar name={pet.name} photo={pet.photo} size="lg" />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={updatePhoto.isPending}
+                className="absolute -bottom-1 -right-1 inline-flex h-7 w-7 items-center justify-center rounded-full border bg-background shadow-sm transition-colors hover:bg-muted disabled:opacity-60"
+                aria-label="Cambiar foto"
+              >
+                <Camera className="h-3.5 w-3.5" />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoFile}
+              />
+            </div>
+            <div className="flex-1 space-y-2">
+              <p className="text-sm text-muted-foreground">
+                {pet.photo
+                  ? "Cámbiale la foto si quieres lucirlo distinto."
+                  : "Súbele una foto para reconocerlo en la app."}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={updatePhoto.isPending}
+              >
+                {updatePhoto.isPending
+                  ? "Subiendo…"
+                  : pet.photo
+                    ? "Cambiar foto"
+                    : "Subir foto"}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <FormErrors message={errors.root?.message} />
@@ -333,4 +436,87 @@ function PetEditForm({ pet }: FormProps) {
       </form>
     </div>
   );
+}
+
+interface BoneProgressProps {
+  fields: ReturnType<typeof profileFields>;
+}
+
+/**
+ * Visual reward board: one cartoon bone per profile field. Filled bones use
+ * the primary color so the user can see at a glance how many "huesitos"
+ * they've already earned, and what's left to unlock.
+ */
+function BoneProgress({ fields }: BoneProgressProps) {
+  const filled = fields.filter((f) => f.filled).length;
+  const total = fields.length;
+  const allDone = filled === total;
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {allDone ? (
+              <Trophy className="h-5 w-5 text-amber-500" aria-hidden="true" />
+            ) : (
+              <Bone className="h-5 w-5 text-primary" aria-hidden="true" />
+            )}
+            <p className="text-sm font-medium">
+              {allDone
+                ? "¡Perfil completo! 🏆"
+                : `${filled} de ${total} huesitos`}
+            </p>
+          </div>
+          {!allDone && (
+            <span className="text-xs text-muted-foreground">
+              Completa todo y desbloquea reservar
+            </span>
+          )}
+        </div>
+
+        <ul
+          className="grid grid-cols-4 gap-2"
+          aria-label="Progreso del perfil"
+        >
+          {fields.map((f) => (
+            <li
+              key={f.key}
+              className={cn(
+                "flex flex-col items-center gap-1 rounded-lg border p-2 text-center transition-colors",
+                f.filled
+                  ? "border-primary/40 bg-primary/5"
+                  : "border-dashed border-muted-foreground/30 bg-muted/30",
+              )}
+              aria-label={`${f.label}: ${f.filled ? "completo" : "pendiente"}`}
+            >
+              <Bone
+                className={cn(
+                  "h-5 w-5 transition-transform",
+                  f.filled
+                    ? "text-primary"
+                    : "text-muted-foreground/40 -rotate-12",
+                )}
+                aria-hidden="true"
+              />
+              <span
+                className={cn(
+                  "text-[10px] leading-tight",
+                  f.filled ? "font-medium" : "text-muted-foreground",
+                )}
+              >
+                {f.label}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+function celebrateCompletion() {
+  toast.success("¡Perfil completo! 🏆 Ganaste todos los huesitos. A reservar.", {
+    duration: 5000,
+  });
 }

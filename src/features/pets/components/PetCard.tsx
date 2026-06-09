@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { PetAvatar } from "./PetAvatar";
+import { nextMissingHintFromList } from "@/features/pets/lib/pet-missing";
 import { GENDER_LABEL } from "@/types/pet";
 import type { PetListItem } from "@/types/pet";
 import { formatAgeFromBirth } from "@/lib/format-date";
@@ -22,6 +23,7 @@ export function PetCard({ pet, birthDate }: Props) {
 
   const completion = pet.onboarding_completion_percentage;
   const isIncomplete = completion < 100;
+  const missingHint = nextMissingHintFromList(pet);
 
   return (
     <Link
@@ -43,9 +45,13 @@ export function PetCard({ pet, birthDate }: Props) {
             )}
             {isIncomplete && (
               <div className="space-y-1 pt-1">
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>Perfil {completion}%</span>
-                  <span className="text-primary">Completar</span>
+                <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                  <span className="truncate">
+                    {missingHint
+                      ? `${missingHint} · ${completion}%`
+                      : `Perfil ${completion}%`}
+                  </span>
+                  <span className="shrink-0 text-primary">Completar</span>
                 </div>
                 <Progress value={completion} className="h-1.5" />
               </div>

@@ -9,6 +9,7 @@ import { OtpInput } from "@/components/ui/otp-input";
 import { FormErrors } from "@/components/shared/FormErrors";
 import { AuthLayout } from "@/features/auth/components/AuthLayout";
 import { mapApiErrors } from "@/features/auth/lib/map-api-errors";
+import { markFirstPetPending } from "@/lib/onboarding-flags";
 import {
   useVerifyEmail,
   useResendVerificationOtp,
@@ -44,6 +45,9 @@ export function VerifyEmailPage() {
   async function onSubmit(data: VerifyFormValues) {
     try {
       await verify.mutateAsync({ email, otp_code: data.otp });
+      // Mark that this user just finished registration so the very first
+      // login lands on the new-pet flow instead of an empty home dashboard.
+      markFirstPetPending();
       toast.success("Tu email fue verificado. Ya puedes iniciar sesión.");
       navigate("/login", { replace: true });
     } catch (err) {

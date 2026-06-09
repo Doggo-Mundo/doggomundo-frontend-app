@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { PetAvatar } from "./PetAvatar";
 import { Progress } from "@/components/ui/progress";
+import { nextMissingHintFromList } from "@/features/pets/lib/pet-missing";
 import type { PetListItem } from "@/types/pet";
 
 interface Props {
@@ -17,6 +18,7 @@ export function OnboardingBanner({ pets }: Props) {
 
   const first = incomplete[0];
   const rest = incomplete.length - 1;
+  const hint = nextMissingHintFromList(first);
 
   return (
     <Link
@@ -28,7 +30,7 @@ export function OnboardingBanner({ pets }: Props) {
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <p className="truncate text-sm font-medium">
-              Completa el perfil de {first.name}
+              {hint ? `${hint} de ${first.name}` : `Completa el perfil de ${first.name}`}
               {rest > 0 && ` y ${rest} más`}
             </p>
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
