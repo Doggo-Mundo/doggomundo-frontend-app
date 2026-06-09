@@ -171,7 +171,9 @@ function PetEditForm({ pet }: FormProps) {
       const updated = await updatePhoto.mutateAsync(file);
       if (updated.onboarding_completion_percentage >= 100) {
         celebrateCompletion();
-        navigate("/book", { replace: true });
+        // Take them to the detail page so they see the completed profile
+        // and the "Reservar para X" CTA — without forcing the wizard on them.
+        navigate(`/pets/${pet.id}`, { replace: true });
         return;
       }
       toast.success("Foto subida. ¡+1 huesito 🦴!");
@@ -208,15 +210,15 @@ function PetEditForm({ pet }: FormProps) {
         last = await updateComplete.mutateAsync(completeChanges);
       }
 
-      // When the user crosses the finish line we send them straight to the
-      // booking flow (per product spec) instead of the detail page.
+      // Always land on the detail page after saving. If the user just
+      // finished filling everything, swap the regular toast for the
+      // celebratory one — they can decide whether to reserve from the
+      // "Reservar para X" CTA at the top of the detail page.
       if (last && last.onboarding_completion_percentage >= 100) {
         celebrateCompletion();
-        navigate("/book", { replace: true });
-        return;
+      } else {
+        toast.success("Perfil actualizado. ¡Sigue así! 🦴");
       }
-
-      toast.success("Perfil actualizado. ¡Sigue así! 🦴");
       navigate(`/pets/${pet.id}`, { replace: true });
     } catch (err) {
       mapApiErrors(err, setError, "No pudimos guardar los cambios.");
@@ -540,7 +542,7 @@ function BoneProgress({ fields, onFieldClick }: BoneProgressProps) {
 }
 
 function celebrateCompletion() {
-  toast.success("¡Perfil completo! 🏆 Ganaste todos los huesitos. A reservar.", {
+  toast.success("¡Perfil completo! 🏆 Ganaste todos los huesitos.", {
     duration: 5000,
   });
 }

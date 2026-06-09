@@ -1,5 +1,5 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { LogOut, ShoppingCart } from "lucide-react";
+import { LogOut, PawPrint, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { cn } from "@/lib/utils";
@@ -68,6 +68,14 @@ export function TopBar() {
         </nav>
 
         <div className="ml-auto flex items-center gap-1">
+          <Link
+            to="/pets"
+            aria-label="Mis mascotas"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <PawPrint className="h-4 w-4" />
+          </Link>
+
           {SHOP_ENABLED && (
             <Link
               to="/cart"
