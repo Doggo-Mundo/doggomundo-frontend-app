@@ -1,5 +1,5 @@
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { AlertTriangle, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LoadingState } from "@/components/shared/LoadingState";
@@ -9,7 +9,6 @@ import { BookingStepHeader } from "@/features/booking/components/BookingStepHead
 import { PetAvatar } from "@/features/pets/components/PetAvatar";
 import { useBookingFlowStore } from "@/stores/booking-flow-store";
 import { usePets } from "@/api/hooks/use-pets";
-import { SPECIES_LABEL } from "@/types/pet";
 import { cn } from "@/lib/utils";
 import type { PetListItem } from "@/types/pet";
 
@@ -58,7 +57,7 @@ export function PetPickerPage() {
             .filter((p) => p.is_active)
             .map((pet) => {
               const active = selected?.id === pet.id;
-              const incomplete = pet.onboarding_completion_percentage < 100;
+              const meta = pet.breed?.name ?? "Sin datos";
               return (
                 <li key={pet.id}>
                   <button
@@ -81,19 +80,8 @@ export function PetPickerPage() {
                         <div className="min-w-0 flex-1 space-y-0.5">
                           <p className="font-medium">{pet.name}</p>
                           <p className="text-xs text-muted-foreground">
-                            {[
-                              pet.species ? SPECIES_LABEL[pet.species] : null,
-                              pet.breed,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ") || "Sin datos"}
+                            {meta}
                           </p>
-                          {incomplete && (
-                            <p className="flex items-center gap-1 text-xs text-accent-foreground">
-                              <AlertTriangle className="h-3 w-3" />
-                              Perfil {pet.onboarding_completion_percentage}% — puede rechazarse
-                            </p>
-                          )}
                         </div>
                       </div>
                     </Card>
