@@ -32,23 +32,42 @@ export function useAuthRestore() {
     let cancelled = false;
 
     async function restore() {
+      let tokenData: RefreshResponse;
       try {
-        const { data: tokenData } = await axios.post<RefreshResponse>(
+        const res = await axios.post<RefreshResponse>(
           `${baseUrl}/auth/token/refresh/`,
           { refresh: refreshToken },
         );
+        tokenData = res.data;
+      } catch {
+        // The refresh request itself failed → the stored token is no
+        // longer valid (expired, revoked, or wrong signing key). Clear
+        // it so we don't loop on the next mount.
+        if (!cancelled) localStorage.removeItem("refresh_token");
+        if (!cancelled) setIsRestoring(false);
+        return;
+      }
 
-        const newRefresh = tokenData.refresh ?? refreshToken!;
+      // Persist the rotated refresh immediately. Without this, if the
+      // /auth/me/ call below fails (transient network, 5xx) we'd drop into
+      // the catch block and remove the *old* refresh from storage — and
+      // the old one is already blacklisted by the rotation we just did,
+      // so the user would be permanently logged out until they sign in
+      // again. Storing right after the rotation keeps the session safe.
+      const newRefresh = tokenData.refresh ?? refreshToken!;
+      if (tokenData.refresh) {
+        localStorage.setItem("refresh_token", tokenData.refresh);
+      }
 
+      try {
         const { data: user } = await axios.get<User>(`${baseUrl}/auth/me/`, {
           headers: { Authorization: `Bearer ${tokenData.access}` },
         });
-
         if (cancelled) return;
-
         login(tokenData.access, newRefresh, user);
       } catch {
-        if (!cancelled) localStorage.removeItem("refresh_token");
+        // /me/ failed but the refresh token is valid and safely stored.
+        // The next mount (reload) will retry. Don't clear the token.
       } finally {
         if (!cancelled) setIsRestoring(false);
       }

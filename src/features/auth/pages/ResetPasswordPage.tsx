@@ -1,11 +1,12 @@
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { OtpInput } from "@/components/ui/otp-input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { FormErrors } from "@/components/shared/FormErrors";
 import { AuthLayout } from "@/features/auth/components/AuthLayout";
 import { mapApiErrors } from "@/features/auth/lib/map-api-errors";
@@ -16,7 +17,7 @@ import {
 
 const schema = z
   .object({
-    otp: z.string().regex(/^\d{4,8}$/, "Código inválido"),
+    otp: z.string().regex(/^\d{6}$/, "Ingresa los 6 dígitos"),
     password: z.string().min(8, "Mínimo 8 caracteres"),
     password_confirm: z.string(),
   })
@@ -36,6 +37,7 @@ export function ResetPasswordPage() {
 
   const {
     register,
+    control,
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
@@ -99,26 +101,31 @@ export function ResetPasswordPage() {
 
         <div className="space-y-1.5">
           <Label htmlFor="otp">Código</Label>
-          <Input
-            id="otp"
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            maxLength={8}
-            placeholder="123456"
-            aria-invalid={Boolean(errors.otp)}
-            {...register("otp")}
+          <Controller
+            control={control}
+            name="otp"
+            render={({ field }) => (
+              <OtpInput
+                id="otp"
+                value={field.value}
+                onChange={field.onChange}
+                invalid={Boolean(errors.otp)}
+                autoFocus
+              />
+            )}
           />
           {errors.otp && (
             <p className="text-sm text-destructive">{errors.otp.message}</p>
           )}
+          <p className="text-xs text-muted-foreground">
+            ¿No te llegó? Revisa también la carpeta de spam o correo no deseado.
+          </p>
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="password">Nueva contraseña</Label>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="new-password"
             aria-invalid={Boolean(errors.password)}
             {...register("password")}
@@ -130,9 +137,8 @@ export function ResetPasswordPage() {
 
         <div className="space-y-1.5">
           <Label htmlFor="password_confirm">Repite la contraseña</Label>
-          <Input
+          <PasswordInput
             id="password_confirm"
-            type="password"
             autoComplete="new-password"
             aria-invalid={Boolean(errors.password_confirm)}
             {...register("password_confirm")}

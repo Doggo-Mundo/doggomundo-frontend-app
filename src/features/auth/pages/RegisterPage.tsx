@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { FormErrors } from "@/components/shared/FormErrors";
 import { AuthLayout } from "@/features/auth/components/AuthLayout";
@@ -136,9 +137,8 @@ export function RegisterPage() {
 
         <div className="space-y-1.5">
           <Label htmlFor="password">Contraseña</Label>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="new-password"
             aria-invalid={Boolean(errors.password)}
             {...register("password")}
@@ -150,9 +150,8 @@ export function RegisterPage() {
 
         <div className="space-y-1.5">
           <Label htmlFor="password_confirm">Repite la contraseña</Label>
-          <Input
+          <PasswordInput
             id="password_confirm"
-            type="password"
             autoComplete="new-password"
             aria-invalid={Boolean(errors.password_confirm)}
             {...register("password_confirm")}

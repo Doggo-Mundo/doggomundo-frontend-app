@@ -19,7 +19,7 @@ describe("LoginPage — client validation", () => {
   it("rejects bad email format", async () => {
     const { user } = renderWithProviders(<LoginPage />);
     await user.type(screen.getByLabelText(/email/i), "not-an-email");
-    await user.type(screen.getByLabelText(/contraseña/i), "whatever");
+    await user.type(screen.getByLabelText(/contraseña/i, { selector: "input" }), "whatever");
     await user.click(screen.getByRole("button", { name: /entrar/i }));
     expect(await screen.findByText(/email inválido/i)).toBeInTheDocument();
   });
@@ -43,7 +43,7 @@ describe("LoginPage — server error handling", () => {
     );
     const { user } = renderWithProviders(<LoginPage />);
     await user.type(screen.getByLabelText(/email/i), "foo@bar.com");
-    await user.type(screen.getByLabelText(/contraseña/i), "wrong");
+    await user.type(screen.getByLabelText(/contraseña/i, { selector: "input" }), "wrong");
     await user.click(screen.getByRole("button", { name: /entrar/i }));
     expect(
       await screen.findByText(/credenciales inválidas/i),
@@ -61,7 +61,7 @@ describe("LoginPage — server error handling", () => {
     );
     const { user } = renderWithProviders(<LoginPage />);
     await user.type(screen.getByLabelText(/email/i), "foo@bar.com");
-    await user.type(screen.getByLabelText(/contraseña/i), "whatever");
+    await user.type(screen.getByLabelText(/contraseña/i, { selector: "input" }), "whatever");
     await user.click(screen.getByRole("button", { name: /entrar/i }));
     expect(
       await screen.findByText(/usuario no verificado/i),
@@ -88,7 +88,7 @@ describe("LoginPage — success flow", () => {
       screen.getByLabelText(/email/i),
       "valentina@example.com",
     );
-    await user.type(screen.getByLabelText(/contraseña/i), "cliente123");
+    await user.type(screen.getByLabelText(/contraseña/i, { selector: "input" }), "cliente123");
     await user.click(screen.getByRole("button", { name: /entrar/i }));
 
     await waitFor(() =>
@@ -115,7 +115,7 @@ describe("LoginPage — success flow", () => {
     );
     const { user } = renderWithProviders(<LoginPage />);
     await user.type(screen.getByLabelText(/email/i), "admin@x.com");
-    await user.type(screen.getByLabelText(/contraseña/i), "pw");
+    await user.type(screen.getByLabelText(/contraseña/i, { selector: "input" }), "pw");
     await user.click(screen.getByRole("button", { name: /entrar/i }));
 
     await waitFor(() =>
