@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { MapPin } from "lucide-react";
 import { BookingStepHeader } from "@/features/booking/components/BookingStepHeader";
@@ -33,6 +33,28 @@ export function LocationPickerPage() {
     );
   }, [data, businessUnitCode]);
 
+  // Auto-skip: when there's only one sucursal in the system AND it offers
+  // the picked BU, lock it in and jump straight to the service step so the
+  // user isn't forced to click through a list of one.
+  const totalLocations = data?.count ?? data?.results.length ?? 0;
+  const shouldAutoSkip =
+    totalLocations === 1 && matchingLocations.length === 1 && !!businessUnitCode;
+
+  useEffect(() => {
+    if (!shouldAutoSkip) return;
+    const location = matchingLocations[0];
+    const bu = findBusinessUnit(location, businessUnitCode!);
+    if (!bu) return;
+    setLocation({
+      id: location.id,
+      name: location.name,
+      address: location.address,
+      businessUnitId: bu.id,
+      businessUnitName: bu.name,
+    });
+    navigate("/book/service", { replace: true });
+  }, [shouldAutoSkip, matchingLocations, businessUnitCode, setLocation, navigate]);
+
   if (!businessUnitCode) return <Navigate to="/book/business-unit" replace />;
 
   function handleSelect(location: LocationListItem) {
@@ -58,7 +80,7 @@ export function LocationPickerPage() {
         description={BUSINESS_UNIT_LABEL[businessUnitCode]}
       />
 
-      {isLoading ? (
+      {isLoading || shouldAutoSkip ? (
         <LoadingState rows={3} />
       ) : isError ? (
         <EmptyState title="No pudimos cargar las sucursales" />

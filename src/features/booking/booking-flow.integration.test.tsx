@@ -102,7 +102,7 @@ describe("Booking wizard — happy path", () => {
     useBookingFlowStore.getState().reset();
   });
 
-  it("walks through BU → Location → Service → Slot → Pet → Review and POSTs the nested payload", { timeout: 20000 }, async () => {
+  it("walks through BU → (auto-skip Location) → Service → Slot → Pet → Review and POSTs the nested payload", { timeout: 20000 }, async () => {
     let postedPayload: Record<string, unknown> | null = null;
 
     server.use(
@@ -217,10 +217,8 @@ describe("Booking wizard — happy path", () => {
       await screen.findByRole("button", { name: /grooming profesional/i }),
     );
 
-    // Step 2: location
-    await user.click(
-      await screen.findByRole("button", { name: /sucursal polanco/i }),
-    );
+    // Step 2 (location) is auto-skipped because the system has exactly
+    // one sucursal — the wizard lands directly on the service picker.
 
     // Step 3: service
     await user.click(
