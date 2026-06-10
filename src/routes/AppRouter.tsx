@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { AuthGuard } from "@/components/layout/AuthGuard";
-import { LoadingState } from "@/components/shared/LoadingState";
+import { DoggoLoader } from "@/components/shared/DoggoLoader";
 import { useAuthRestore } from "@/hooks/use-auth-restore";
 import { SHOP_ENABLED } from "@/lib/features";
 
@@ -201,11 +201,7 @@ const DaycareDayDetailPage = lazy(() =>
 );
 
 function SuspendedFallback() {
-  return (
-    <div className="flex min-h-dvh items-center justify-center p-6">
-      <LoadingState rows={2} />
-    </div>
-  );
+  return <DoggoLoader />;
 }
 
 export function AppRouter() {
