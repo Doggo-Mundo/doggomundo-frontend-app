@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
   Calendar,
@@ -18,11 +18,21 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormErrors } from "@/components/shared/FormErrors";
+import { SuccessCheckmark } from "@/components/shared/SuccessCheckmark";
 import { BookingStepHeader } from "@/features/booking/components/BookingStepHeader";
-import { BookingSuccessAnimation } from "@/features/booking/components/BookingSuccessAnimation";
+import {
+  FollowUpSuggestions,
+  type FollowUpSuggestion,
+} from "@/features/booking/components/FollowUpSuggestions";
 import { useBookingFlowStore } from "@/stores/booking-flow-store";
-import { useCreateAppointment } from "@/api/hooks/use-appointments";
+import {
+  useAvailableSlots,
+  useCreateAppointment,
+} from "@/api/hooks/use-appointments";
+import { usePets } from "@/api/hooks/use-pets";
 import { formatLongDate, formatTime } from "@/lib/format-date";
+
+const FOLLOWUP_WINDOW_HOURS = 8;
 
 function extractApiError(err: unknown): string {
   if (!axios.isAxiosError(err)) {
@@ -47,22 +57,113 @@ function extractApiError(err: unknown): string {
 }
 
 export function BookingReviewPage() {
+  const navigate = useNavigate();
   const state = useBookingFlowStore();
   const reset = useBookingFlowStore((s) => s.reset);
+  const setPet = useBookingFlowStore((s) => s.setPet);
+  const setSlot = useBookingFlowStore((s) => s.setSlot);
   const setNotes = useBookingFlowStore((s) => s.setNotes);
   const create = useCreateAppointment();
 
   const [error, setError] = useState<string | null>(null);
 
-  // Clear the wizard as soon as the booking is created. The success animation
-  // doesn't read from the store, so resetting here leaves a clean slate for the
-  // next visit to /book.
+  // Other active pets the customer owns. After a successful booking these
+  // are the candidates for the follow-up nudge. We compute it up-front so
+  // both the success branch and the slot-query enabled flag can use it.
+  const { data: petsData } = usePets();
+  const otherPets = useMemo(() => {
+    if (!petsData || !state.pet) return [];
+    return petsData.results.filter(
+      (p) => p.is_active && p.id !== state.pet!.id,
+    );
+  }, [petsData, state.pet]);
+
+  // Fetch the next handful of available slots for the same service in the
+  // same BU, starting right after the just-booked slot ends. Only fires
+  // when there's at least one other pet to suggest to.
+  const startAfter = state.slot?.end ?? null;
+  const startBefore = useMemo(() => {
+    if (!startAfter) return null;
+    const t = new Date(startAfter).getTime();
+    return new Date(t + FOLLOWUP_WINDOW_HOURS * 60 * 60 * 1000).toISOString();
+  }, [startAfter]);
+  const followUpEnabled =
+    create.isSuccess &&
+    otherPets.length > 0 &&
+    !!state.location &&
+    !!state.service &&
+    !!startAfter &&
+    !!startBefore;
+  const { data: nextSlotsData, isLoading: slotsLoading } = useAvailableSlots(
+    followUpEnabled
+      ? {
+          business_unit: state.location!.businessUnitId,
+          service: state.service!.id,
+          start_after: startAfter!,
+          start_before: startBefore!,
+        }
+      : null,
+    followUpEnabled,
+  );
+
+  // Pair each remaining pet with a distinct upcoming slot — pet[0] gets the
+  // earliest free slot, pet[1] the next, etc. Capacity-aware: if there are
+  // fewer slots than pets, only the pets that fit are surfaced.
+  const suggestions: FollowUpSuggestion[] = useMemo(() => {
+    if (!followUpEnabled || !nextSlotsData) return [];
+    const available = nextSlotsData.results
+      .filter((s) => s.is_available)
+      .sort(
+        (a, b) =>
+          new Date(a.start).getTime() - new Date(b.start).getTime(),
+      );
+    return otherPets
+      .slice(0, available.length)
+      .map((pet, i) => ({ pet, slot: available[i] }));
+  }, [followUpEnabled, nextSlotsData, otherPets]);
+
+  // No follow-up to show → keep the legacy "auto-navigate after a beat"
+  // behavior so the user isn't stuck on the success screen. When follow-up
+  // suggestions ARE available we hold position and let them decide.
+  const hasFollowUp = suggestions.length > 0;
+  const followUpReady = !followUpEnabled || !slotsLoading;
   useEffect(() => {
-    if (create.isSuccess) reset();
-  }, [create.isSuccess, reset]);
+    if (!create.isSuccess) return;
+    if (!followUpReady) return;
+    if (hasFollowUp) return;
+    const t = setTimeout(() => {
+      reset();
+      navigate("/my/appointments", { replace: true });
+    }, 2800);
+    return () => clearTimeout(t);
+  }, [create.isSuccess, followUpReady, hasFollowUp, reset, navigate]);
 
   if (create.isSuccess) {
-    return <BookingSuccessAnimation />;
+    return (
+      <SuccessScreen
+        suggestions={suggestions}
+        serviceName={state.service?.name ?? ""}
+        servicePriceLabel={formatPriceLabel(state.service?.price)}
+        onPickSuggestion={(s) => {
+          // Swap pet + slot in the wizard, then drop `create.isSuccess` so
+          // the page re-renders the regular review pane with the new pair
+          // ready to confirm. BU/location/service/notes carry over.
+          setPet({ id: s.pet.id, name: s.pet.name });
+          setSlot({
+            slotId: s.slot.id,
+            start: s.slot.start,
+            end: s.slot.end,
+            resource: s.slot.resource,
+          });
+          create.reset();
+          setError(null);
+        }}
+        onDone={() => {
+          reset();
+          navigate("/my/appointments", { replace: true });
+        }}
+      />
+    );
   }
 
   if (!state.location) return <Navigate to="/book/location" replace />;
@@ -193,6 +294,60 @@ export function BookingReviewPage() {
         disabled={create.isPending}
       >
         {create.isPending ? "Agendando…" : "Confirmar reserva"}
+      </Button>
+    </div>
+  );
+}
+
+function formatPriceLabel(price: string | undefined): string | null {
+  if (!price) return null;
+  const n = Number(price);
+  return Number.isFinite(n) && n > 0 ? `$${n.toLocaleString("es-MX")}` : null;
+}
+
+interface SuccessScreenProps {
+  suggestions: FollowUpSuggestion[];
+  serviceName: string;
+  servicePriceLabel: string | null;
+  onPickSuggestion: (s: FollowUpSuggestion) => void;
+  onDone: () => void;
+}
+
+function SuccessScreen({
+  suggestions,
+  serviceName,
+  servicePriceLabel,
+  onPickSuggestion,
+  onDone,
+}: SuccessScreenProps) {
+  return (
+    <div
+      className="flex min-h-[60vh] flex-col items-center justify-center gap-6 py-8"
+      role="status"
+      aria-live="polite"
+    >
+      <SuccessCheckmark />
+
+      <div className="text-center">
+        <h2 className="text-2xl font-semibold">¡Listo!</h2>
+        <p className="mt-1 max-w-xs text-sm text-muted-foreground">
+          Tu cita quedó agendada. Te esperamos.
+        </p>
+      </div>
+
+      {suggestions.length > 0 && (
+        <div className="w-full max-w-sm">
+          <FollowUpSuggestions
+            suggestions={suggestions}
+            serviceName={serviceName}
+            servicePriceLabel={servicePriceLabel}
+            onPick={onPickSuggestion}
+          />
+        </div>
+      )}
+
+      <Button variant={suggestions.length > 0 ? "outline" : "default"} onClick={onDone}>
+        Ver mis citas
       </Button>
     </div>
   );

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { http, HttpResponse } from "msw";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -9,6 +9,7 @@ import { BookingReviewPage } from "./BookingReviewPage";
 import { useBookingFlowStore } from "@/stores/booking-flow-store";
 import { server } from "@/test/msw-server";
 import { makeTestQueryClient } from "@/test/test-utils";
+import { makePetListItem } from "@/test/fixtures";
 
 const API = "http://localhost/api";
 
@@ -144,5 +145,85 @@ describe("BookingReviewPage", () => {
     renderReview();
     // First guard in the page sends us to /book/location when state.location is null
     expect(screen.getByTestId("location-page")).toBeInTheDocument();
+  });
+
+  it("offers a follow-up slot for the user's other pet after a successful booking", async () => {
+    seedFlow();
+    server.use(
+      http.post(`${API}/appointments/`, () =>
+        HttpResponse.json(
+          {
+            id: "appt-1",
+            business_unit: "bu-1",
+            business_unit_name: "Grooming Polanco",
+            pet: "pet-1",
+            scheduled_start: "2030-01-15T16:00:00Z",
+            scheduled_end: "2030-01-15T17:00:00Z",
+            status: "scheduled",
+            status_display: "Programada",
+            channel: "web",
+            notes: "",
+            items: [],
+            created_at: "2030-01-01T00:00:00Z",
+            updated_at: "2030-01-01T00:00:00Z",
+          },
+          { status: 201 },
+        ),
+      ),
+      http.get(`${API}/pets/`, () =>
+        HttpResponse.json({
+          count: 2,
+          next: null,
+          previous: null,
+          results: [
+            makePetListItem({ id: "pet-1", name: "Nala" }),
+            makePetListItem({ id: "pet-2", name: "Max" }),
+          ],
+        }),
+      ),
+      http.get(`${API}/appointments/slots/`, () =>
+        HttpResponse.json({
+          count: 1,
+          next: null,
+          previous: null,
+          results: [
+            {
+              id: "slot-2",
+              business_unit: "bu-1",
+              service: "srv-1",
+              service_name: "Corte completo",
+              staff_user: null,
+              resource: "res-1",
+              start: "2030-01-15T17:00:00Z",
+              end: "2030-01-15T18:00:00Z",
+              is_available: true,
+            },
+          ],
+        }),
+      ),
+    );
+
+    const user = userEvent.setup();
+    renderReview();
+    await user.click(
+      screen.getByRole("button", { name: /confirmar reserva/i }),
+    );
+
+    // Wait for the success branch + the follow-up suggestion card.
+    expect(await screen.findByText(/¡listo!/i)).toBeInTheDocument();
+    const suggestionButton = await screen.findByRole("button", {
+      name: /corte completo para max/i,
+    });
+    expect(suggestionButton).toBeInTheDocument();
+
+    // Picking the suggestion should leave us on /book/review (same route)
+    // with the pet swapped to Max in the wizard store, not auto-navigate
+    // to /my/appointments.
+    await user.click(suggestionButton);
+    await waitFor(() => {
+      expect(useBookingFlowStore.getState().pet?.id).toBe("pet-2");
+    });
+    expect(useBookingFlowStore.getState().slot?.slotId).toBe("slot-2");
+    expect(screen.queryByTestId("appointments-page")).not.toBeInTheDocument();
   });
 });
