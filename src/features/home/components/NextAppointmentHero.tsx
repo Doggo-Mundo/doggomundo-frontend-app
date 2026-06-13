@@ -33,6 +33,11 @@ export function NextAppointmentHero({ appointment, petName }: Props) {
             {formatRelativeAppointment(appointment.scheduled_start)}
           </p>
           <div className="space-y-1 text-sm opacity-90">
+            {appointment.primary_service_name && (
+              <p className="font-semibold">
+                {appointment.primary_service_name}
+              </p>
+            )}
             <p className="flex items-center gap-2">
               <MapPin className="h-4 w-4 shrink-0" />
               {appointment.business_unit_name}

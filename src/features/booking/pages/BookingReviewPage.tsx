@@ -214,6 +214,7 @@ export function BookingReviewPage() {
             {
               service: snapshot.service.id,
               resource: s.slot.resource ?? undefined,
+              slot_id: s.slot.id,
             },
           ],
         });
@@ -307,6 +308,7 @@ export function BookingReviewPage() {
           {
             service: state.service.id,
             resource: state.slot.resource ?? undefined,
+            slot_id: state.slot.slotId,
           },
         ],
       });

@@ -41,6 +41,8 @@ export interface AppointmentListItem {
   id: string;
   business_unit: string;
   business_unit_name: string;
+  /** Name of the first booked service. Null when no items (legacy data). */
+  primary_service_name: string | null;
   pet: string | null;
   scheduled_start: string;
   scheduled_end: string;
@@ -64,6 +66,12 @@ export interface AppointmentListParams {
 export interface CreateAppointmentItemPayload {
   service: string;
   resource?: string | null;
+  /**
+   * The UUID of the ScheduleSlot the customer picked. The backend uses it
+   * to copy the slot's `staff_user` onto the AppointmentItem so the next
+   * customer's slot-availability query correctly sees this staff as busy.
+   */
+  slot_id?: string;
 }
 
 export interface CreateAppointmentPayload {

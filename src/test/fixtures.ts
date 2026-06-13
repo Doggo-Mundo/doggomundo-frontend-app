@@ -57,6 +57,7 @@ export function makeAppointmentListItem(
     id: "appt-1",
     business_unit: "bu-1",
     business_unit_name: "Grooming Polanco",
+    primary_service_name: "Corte completo",
     pet: "pet-1",
     scheduled_start: "2030-01-15T16:00:00Z",
     scheduled_end: "2030-01-15T17:00:00Z",

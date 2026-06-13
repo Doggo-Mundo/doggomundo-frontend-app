@@ -18,6 +18,7 @@ function makeAppt(
     id,
     business_unit: "bu-1",
     business_unit_name: "Grooming Polanco",
+    primary_service_name: "Corte completo",
     pet: null,
     scheduled_start,
     scheduled_end: scheduled_start,

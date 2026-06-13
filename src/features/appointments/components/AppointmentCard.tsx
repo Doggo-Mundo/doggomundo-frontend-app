@@ -20,9 +20,17 @@ export function AppointmentCard({ appointment, petName }: Props) {
         <div className="flex items-start gap-3 px-3">
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex items-start justify-between gap-2">
-              <p className="truncate font-medium">
-                {appointment.business_unit_name}
-              </p>
+              <div className="min-w-0">
+                <p className="truncate font-medium">
+                  {appointment.primary_service_name ??
+                    appointment.business_unit_name}
+                </p>
+                {appointment.primary_service_name && (
+                  <p className="truncate text-xs text-muted-foreground">
+                    {appointment.business_unit_name}
+                  </p>
+                )}
+              </div>
               <AppointmentStatusBadge status={appointment.status} />
             </div>
             <p className="flex items-center gap-1 text-xs text-muted-foreground capitalize">
