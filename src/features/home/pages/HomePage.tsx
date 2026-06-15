@@ -3,7 +3,11 @@ import { CalendarPlus, Crown, PawPrint, ShoppingBag, Sun } from "lucide-react";
 import { toZonedTime } from "date-fns-tz";
 import { OnboardingBanner } from "@/features/pets/components/OnboardingBanner";
 import { NextAppointmentHero } from "@/features/home/components/NextAppointmentHero";
-import { QuickActionTile } from "@/features/home/components/QuickActionTile";
+import { PetShowcase } from "@/features/home/components/PetShowcase";
+import {
+  QuickActionTile,
+  type QuickActionVariant,
+} from "@/features/home/components/QuickActionTile";
 import { findNextUpcoming } from "@/features/appointments/lib/filter";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,13 +17,23 @@ import { usePets } from "@/api/hooks/use-pets";
 import { useMyAppointments } from "@/api/hooks/use-appointments";
 import { useAuthStore } from "@/stores/auth-store";
 
-const ALL_QUICK_ACTIONS = [
+interface QuickAction {
+  id: string;
+  to: string;
+  label: string;
+  description: string;
+  icon: typeof CalendarPlus;
+  variant: QuickActionVariant;
+}
+
+const ALL_QUICK_ACTIONS: QuickAction[] = [
   {
     id: "book",
     to: "/book",
     label: "Reservar",
     description: "Agenda un servicio",
     icon: CalendarPlus,
+    variant: "primary",
   },
   {
     id: "daycare",
@@ -27,6 +41,7 @@ const ALL_QUICK_ACTIONS = [
     label: "Day Care",
     description: "Día completo de cuidados",
     icon: Sun,
+    variant: "sun",
   },
   {
     id: "pets",
@@ -34,6 +49,7 @@ const ALL_QUICK_ACTIONS = [
     label: "Mis mascotas",
     description: "Gestiona sus perfiles",
     icon: PawPrint,
+    variant: "amber",
   },
   {
     id: "memberships",
@@ -41,6 +57,7 @@ const ALL_QUICK_ACTIONS = [
     label: "Membresías",
     description: "Ahorra con un plan",
     icon: Crown,
+    variant: "gold",
   },
   {
     id: "shop",
@@ -48,6 +65,7 @@ const ALL_QUICK_ACTIONS = [
     label: "Tienda",
     description: "Productos curados",
     icon: ShoppingBag,
+    variant: "neutral",
   },
 ];
 
@@ -76,9 +94,9 @@ export function HomePage() {
     [appointments],
   );
 
-  const nextPetName = useMemo(() => {
+  const nextPet = useMemo(() => {
     if (!nextAppointment?.pet) return null;
-    return pets?.results.find((p) => p.id === nextAppointment.pet)?.name ?? null;
+    return pets?.results.find((p) => p.id === nextAppointment.pet) ?? null;
   }, [nextAppointment, pets]);
 
   return (
@@ -107,7 +125,7 @@ export function HomePage() {
       {nextAppointment ? (
         <NextAppointmentHero
           appointment={nextAppointment}
-          petName={nextPetName}
+          pet={nextPet}
         />
       ) : (
         <Card>
@@ -115,6 +133,13 @@ export function HomePage() {
             Aún no tienes citas próximas. Reserva una y te la mostramos aquí.
           </CardContent>
         </Card>
+      )}
+
+      {pets && pets.results.length > 0 && (
+        <PetShowcase
+          pets={pets.results}
+          appointments={appointments?.results ?? []}
+        />
       )}
 
       <section className="space-y-2">

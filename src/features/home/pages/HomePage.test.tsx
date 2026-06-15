@@ -124,8 +124,13 @@ describe("HomePage", () => {
     expect(
       await screen.findByText(/tu próxima cita/i),
     ).toBeInTheDocument();
-    // Pet name comes from usePets cross-reference
-    await waitFor(() => expect(screen.getByText("Nala")).toBeInTheDocument());
+    // Pet name comes from usePets cross-reference. After the home page
+    // gained the PetShowcase strip below the hero, "Nala" can render in
+    // multiple places — both should resolve to the same usePets lookup,
+    // so we just assert it shows up at all.
+    await waitFor(() =>
+      expect(screen.getAllByText("Nala").length).toBeGreaterThan(0),
+    );
   });
 
   it("shows the empty state when there are no upcoming appointments", async () => {
