@@ -9,6 +9,7 @@ import {
   PawPrint,
   Receipt,
   Crown,
+  CreditCard,
   ChevronRight,
   CheckCircle2,
   Circle,
@@ -248,6 +249,15 @@ export function ProfilePage() {
               <span className="flex items-center gap-2">
                 <Crown className="h-4 w-4" />
                 Mis suscripciones
+              </span>
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="w-full justify-between">
+            <Link to="/payment-methods">
+              <span className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                Métodos de pago
               </span>
               <ChevronRight className="h-4 w-4" />
             </Link>

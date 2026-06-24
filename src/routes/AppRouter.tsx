@@ -36,6 +36,11 @@ const ProfilePage = lazy(() =>
     default: m.ProfilePage,
   })),
 );
+const PaymentMethodsPage = lazy(() =>
+  import("@/features/payments/pages/PaymentMethodsPage").then((m) => ({
+    default: m.PaymentMethodsPage,
+  })),
+);
 
 const PetListPage = lazy(() =>
   import("@/features/pets/pages/PetListPage").then((m) => ({ default: m.PetListPage })),
@@ -227,6 +232,7 @@ export function AppRouter() {
               <Route path="/" element={<HomePage />} />
 
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/payment-methods" element={<PaymentMethodsPage />} />
 
               <Route path="/pets" element={<PetListPage />} />
               <Route path="/pets/new" element={<PetCreatePage />} />
