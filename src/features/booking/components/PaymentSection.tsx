@@ -94,6 +94,7 @@ export const PaymentSection = forwardRef<PaymentSectionHandle, Props>(
             options={{
               clientSecret: intent.data.client_secret,
               appearance: { theme: "stripe" },
+              locale: "es",
             }}
           >
             <PaymentElementForm ref={ref} />
@@ -165,19 +166,12 @@ const PaymentElementForm = forwardRef<PaymentSectionHandle>(
           onReady={() => setReady(true)}
           options={{
             layout: "tabs",
-            // Hide the email/phone/name capture block that Stripe Link
-            // injects when the SetupIntent has a customer. The customer
-            // already gave us those details at signup; the upsell to
-            // create a Link account is friction, not value.
-            fields: {
-              billingDetails: {
-                email: "never",
-                phone: "never",
-                name: "never",
-                address: { country: "never" },
-              },
-            },
             // Don't suggest other wallets — keep it card-only.
+            // (Link's "Save my info" block is controlled at the Stripe
+            // Dashboard account level: Settings → Payments → Manage
+            // payment methods → Link → toggle off. Trying to suppress
+            // it via PaymentElement.fields=never causes confirmSetup to
+            // require billing_details in the call.)
             wallets: { applePay: "never", googlePay: "never" },
           }}
         />
