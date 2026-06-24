@@ -163,7 +163,23 @@ const PaymentElementForm = forwardRef<PaymentSectionHandle>(
       <div className="space-y-3">
         <PaymentElement
           onReady={() => setReady(true)}
-          options={{ layout: "tabs" }}
+          options={{
+            layout: "tabs",
+            // Hide the email/phone/name capture block that Stripe Link
+            // injects when the SetupIntent has a customer. The customer
+            // already gave us those details at signup; the upsell to
+            // create a Link account is friction, not value.
+            fields: {
+              billingDetails: {
+                email: "never",
+                phone: "never",
+                name: "never",
+                address: { country: "never" },
+              },
+            },
+            // Don't suggest other wallets — keep it card-only.
+            wallets: { applePay: "never", googlePay: "never" },
+          }}
         />
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Shield className="h-3 w-3 shrink-0" />
