@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
@@ -24,6 +24,11 @@ import {
   FollowUpSuggestions,
   type FollowUpSuggestion,
 } from "@/features/booking/components/FollowUpSuggestions";
+import {
+  PaymentSection,
+  type PaymentSectionHandle,
+} from "@/features/booking/components/PaymentSection";
+import { stripeEnabled } from "@/features/payments/StripeProvider";
 import { useBookingFlowStore } from "@/stores/booking-flow-store";
 import type {
   BookingLocationSnapshot,
@@ -82,6 +87,13 @@ export function BookingReviewPage() {
   const reset = useBookingFlowStore((s) => s.reset);
   const setNotes = useBookingFlowStore((s) => s.setNotes);
   const create = useCreateAppointment();
+
+  // Imperative handle to the PaymentSection so this page can call
+  // confirm() on the same "Confirmar reserva" button click — keeps
+  // the UX as a single action even though the underlying flow is
+  // two-step (Stripe SetupIntent confirm → booking POST).
+  const paymentRef = useRef<PaymentSectionHandle | null>(null);
+  const paymentEnabled = stripeEnabled();
 
   const [error, setError] = useState<string | null>(null);
   // Snapshot of the just-booked appointment. Captured the first time the
@@ -296,6 +308,21 @@ export function BookingReviewPage() {
     };
 
     setError(null);
+    // Confirm the SetupIntent first when Stripe is configured. The
+    // PaymentSection child exposes confirm() via ref; on success we
+    // get a PaymentMethod id to send with the booking. When Stripe
+    // isn't configured (dev env without the publishable key), skip
+    // and let the booking go through unpaid — useful for local dev.
+    let paymentMethodId: string | undefined;
+    if (paymentEnabled) {
+      try {
+        paymentMethodId = await paymentRef.current?.confirm();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Error al confirmar la tarjeta.");
+        return;
+      }
+    }
+
     try {
       await create.mutateAsync({
         business_unit: state.location.businessUnitId,
@@ -311,6 +338,7 @@ export function BookingReviewPage() {
             slot_id: state.slot.slotId,
           },
         ],
+        stripe_payment_method_id: paymentMethodId,
       });
       // Event-driven (vs. derived in an effect): record the snapshot,
       // add the pet to the booked-in-session set, and clear the wizard
@@ -410,6 +438,8 @@ export function BookingReviewPage() {
           />
         </CardContent>
       </Card>
+
+      {paymentEnabled && <PaymentSection ref={paymentRef} />}
 
       <FormErrors message={error ?? undefined} />
 

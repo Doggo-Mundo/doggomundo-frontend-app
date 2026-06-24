@@ -82,6 +82,10 @@ export interface CreateAppointmentPayload {
   channel: AppointmentChannel;
   notes?: string;
   items: CreateAppointmentItemPayload[];
+  /** Stripe PaymentMethod id (pm_*) confirmed via SetupIntent in the
+   *  wizard payment step. Optional — booking sin método queda
+   *  payment_status=pending hasta cobro manual. */
+  stripe_payment_method_id?: string;
 }
 
 export interface RescheduleAppointmentPayload {
