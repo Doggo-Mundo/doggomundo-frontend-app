@@ -2,6 +2,7 @@ import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { AppRouter } from "@/routes/AppRouter";
+import { StripeProvider } from "@/features/payments/StripeProvider";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -16,10 +17,12 @@ const queryClient = new QueryClient({
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AppRouter />
-      </BrowserRouter>
-      <Toaster richColors position="top-center" />
+      <StripeProvider>
+        <BrowserRouter>
+          <AppRouter />
+        </BrowserRouter>
+        <Toaster richColors position="top-center" />
+      </StripeProvider>
     </QueryClientProvider>
   );
 }
