@@ -1,5 +1,14 @@
-import { CreditCard, Shield } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
+import {
+  CheckCircle2,
+  CreditCard,
+  Plus,
+  Shield,
+  Star,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -8,52 +17,177 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { LoadingState } from "@/components/shared/LoadingState";
 import { stripeEnabled } from "@/features/payments/StripeProvider";
+import { AddCardForm } from "@/features/payments/components/AddCardForm";
+import {
+  useDeletePaymentMethod,
+  usePaymentMethods,
+  useSetDefaultPaymentMethod,
+  type PaymentMethod,
+} from "@/api/hooks/use-payments";
 
-/**
- * Stub page for Fase 0. Establishes the URL (/payment-methods) and the
- * navigation hook so we can link to it from the profile + booking
- * wizard now, even though the actual "agregar tarjeta" / "tarjetas
- * guardadas" UX ships in Fase 1 with the SetupIntent flow.
- *
- * Renders three states:
- *   - Stripe not configured for this env → "no disponible" hint
- *   - Stripe configured but no SetupIntent endpoint yet → "próximamente"
- *   - (Fase 1) live list of PaymentMethods + add card form
- */
+const BRAND_LABEL: Record<string, string> = {
+  visa: "Visa",
+  mastercard: "Mastercard",
+  amex: "American Express",
+  discover: "Discover",
+  diners: "Diners",
+  jcb: "JCB",
+  unionpay: "UnionPay",
+  unknown: "Tarjeta",
+};
+
+function brandLabel(brand: string): string {
+  return BRAND_LABEL[brand] ?? brand;
+}
+
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
 export function PaymentMethodsPage() {
   const enabled = stripeEnabled();
+  const [adding, setAdding] = useState(false);
+  const list = usePaymentMethods();
+  const setDefault = useSetDefaultPaymentMethod();
+  const remove = useDeletePaymentMethod();
+
+  if (!enabled) {
+    return (
+      <PageShell>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Módulo de pagos no configurado
+            </CardTitle>
+            <CardDescription>
+              Stripe no está configurado en este entorno. Si esto es
+              producción, revisa la variable de entorno
+              VITE_STRIPE_PUBLISHABLE_KEY.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </PageShell>
+    );
+  }
+
+  if (list.isLoading) {
+    return (
+      <PageShell>
+        <LoadingState rows={2} />
+      </PageShell>
+    );
+  }
+
+  const cards = list.data ?? [];
+
+  async function handleSetDefault(pm: PaymentMethod) {
+    if (pm.is_default) return;
+    try {
+      await setDefault.mutateAsync(pm.id);
+      toast.success("Tarjeta default actualizada");
+    } catch {
+      toast.error("No se pudo actualizar el default");
+    }
+  }
+
+  async function handleRemove(pm: PaymentMethod) {
+    if (!confirm(`¿Eliminar tarjeta •••• ${pm.last4}?`)) return;
+    try {
+      await remove.mutateAsync(pm.id);
+      toast.success("Tarjeta eliminada");
+    } catch {
+      toast.error("No se pudo eliminar la tarjeta");
+    }
+  }
 
   return (
-    <div className="container mx-auto max-w-2xl space-y-6 p-4 md:p-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">
-          Métodos de pago
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Guarda tus tarjetas para reservar más rápido y para que el
-          cobro al terminar el servicio sea automático.
-        </p>
-      </header>
-
+    <PageShell>
       <Card>
-        <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
-            <CreditCard className="h-5 w-5 text-primary" />
-          </div>
-          <div className="flex-1 space-y-1">
+        <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+          <div className="space-y-1">
             <CardTitle className="text-base">Tarjetas guardadas</CardTitle>
             <CardDescription>
-              {enabled
-                ? "Próximamente vas a poder agregar y administrar tus tarjetas desde aquí."
-                : "El módulo de pagos aún no está configurado en este entorno."}
+              {cards.length === 0
+                ? "Aún no tienes tarjetas guardadas."
+                : "La tarjeta marcada como default se usa para cobros futuros automáticos."}
             </CardDescription>
           </div>
+          {!adding && (
+            <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
+              <Plus className="mr-1 h-4 w-4" /> Agregar
+            </Button>
+          )}
         </CardHeader>
-        <CardContent>
-          <Button disabled variant="outline" className="w-full sm:w-auto">
-            Agregar tarjeta
-          </Button>
+        <CardContent className="space-y-3">
+          {cards.map((pm) => (
+            <div
+              key={pm.id}
+              className="flex items-center justify-between gap-3 rounded-lg border p-3"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted">
+                  <CreditCard className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-medium truncate">
+                    {brandLabel(pm.brand)} •••• {pm.last4}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Vence {pad(pm.exp_month)}/{String(pm.exp_year).slice(-2)}
+                    {pm.is_default && (
+                      <span className="ml-2 inline-flex items-center gap-1 text-emerald-600">
+                        <CheckCircle2 className="h-3 w-3" /> Default
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 gap-1">
+                {!pm.is_default && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleSetDefault(pm)}
+                    disabled={setDefault.isPending}
+                    aria-label="Marcar como default"
+                    title="Marcar como default"
+                  >
+                    <Star className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleRemove(pm)}
+                  disabled={remove.isPending}
+                  aria-label="Eliminar tarjeta"
+                  title="Eliminar tarjeta"
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+
+          {adding && (
+            <div className="rounded-lg border p-3">
+              <p className="mb-3 text-sm font-medium">Agregar nueva tarjeta</p>
+              <AddCardForm
+                onAdded={() => setAdding(false)}
+                onCancel={() => setAdding(false)}
+              />
+            </div>
+          )}
+
+          {cards.length === 0 && !adding && (
+            <p className="text-sm text-muted-foreground">
+              Agrega una tarjeta para que tus reservas futuras sean
+              instantáneas — solo se cobra al completar el servicio.
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -79,6 +213,21 @@ export function PaymentMethodsPage() {
           <Link to="/profile">Volver al perfil</Link>
         </Button>
       </div>
+    </PageShell>
+  );
+}
+
+function PageShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="container mx-auto max-w-2xl space-y-6 p-4 md:p-6">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-bold tracking-tight">Métodos de pago</h1>
+        <p className="text-sm text-muted-foreground">
+          Administra tus tarjetas guardadas. El cobro siempre sucede al
+          completar el servicio, no al reservar.
+        </p>
+      </header>
+      {children}
     </div>
   );
 }
