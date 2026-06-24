@@ -14,23 +14,30 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Shield } from "lucide-react";
-import { useCreateSetupIntent } from "@/api/hooks/use-payments";
+import { Button } from "@/components/ui/button";
+import { CheckCircle2, CreditCard, Shield } from "lucide-react";
+import {
+  useCreateSetupIntent,
+  usePaymentMethods,
+} from "@/api/hooks/use-payments";
 
 /**
  * Imperative API: the parent calls `confirm()` to validate the card
- * and resolve to a Stripe PaymentMethod id (or throw on failure).
- * Used so the single "Confirmar reserva" button in BookingReviewPage
+ * selection and resolve to a Stripe PaymentMethod id (or throw on
+ * failure). The single "Confirmar reserva" button in BookingReviewPage
  * orchestrates BOTH card confirmation AND appointment creation in one
  * click — no duplicate "Save card" / "Book" steps.
+ *
+ * Two modes:
+ *   1. Saved card mode (preferred when the user has cards):
+ *      confirm() resolves to the chosen saved pm_* immediately, no
+ *      network round-trip. The card is reused without re-prompting.
+ *   2. New card mode (no saved cards yet OR user chose "Usar otra"):
+ *      creates a SetupIntent, mounts PaymentElement, confirms on
+ *      submit, returns the freshly-attached pm_*.
  */
 export interface PaymentSectionHandle {
   confirm: () => Promise<string>;
-}
-
-interface Props {
-  /** Used to scope error messaging. Defaults to "reserva". */
-  contextLabel?: string;
 }
 
 // loadStripe once per session — re-invoking on every render leaks
@@ -43,147 +50,221 @@ function getStripePromise() {
   return _stripePromise;
 }
 
-export const PaymentSection = forwardRef<PaymentSectionHandle, Props>(
+const BRAND_LABEL: Record<string, string> = {
+  visa: "Visa",
+  mastercard: "Mastercard",
+  amex: "Amex",
+  discover: "Discover",
+  diners: "Diners",
+  jcb: "JCB",
+  unionpay: "UnionPay",
+  unknown: "Tarjeta",
+};
+
+interface InnerHandle {
+  confirm: () => Promise<string>;
+}
+
+export const PaymentSection = forwardRef<PaymentSectionHandle, object>(
   function PaymentSection(_, ref) {
-    // Each mount creates its own SetupIntent so the user's last
-    // confirm doesn't carry into a re-attempt.
-    const intent = useCreateSetupIntent();
+    const list = usePaymentMethods();
+    // "saved" → use user's existing default. "new" → capture card via
+    // PaymentElement. Defaults based on whether the user has cards;
+    // they can toggle with a button.
+    const [mode, setMode] = useState<"saved" | "new">("saved");
+    const innerRef = useState<InnerHandle | null>(null);
+
+    // Once we know the list, settle the default mode. "saved" only if
+    // there's an existing card; otherwise force "new".
     useEffect(() => {
-      if (!intent.data && !intent.isPending && !intent.error) {
-        intent.mutate();
-      }
-    }, [intent]);
+      if (list.data && list.data.length === 0) setMode("new");
+    }, [list.data]);
 
-    if (intent.isPending || (!intent.data && !intent.error)) {
-      return (
-        <Card>
-          <CardHeader>
-            <SectionHeader />
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="h-32 animate-pulse rounded-md bg-muted" />
-          </CardContent>
-        </Card>
-      );
-    }
+    useImperativeHandle(
+      ref,
+      () => ({
+        async confirm() {
+          if (mode === "saved") {
+            const defaultPm =
+              list.data?.find((p) => p.is_default) ?? list.data?.[0];
+            if (!defaultPm) {
+              throw new Error(
+                "No tienes una tarjeta guardada. Captura una nueva.",
+              );
+            }
+            return defaultPm.id;
+          }
+          const handle = innerRef[0];
+          if (!handle) {
+            throw new Error("El formulario aún no cargó. Intenta de nuevo.");
+          }
+          return handle.confirm();
+        },
+      }),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [mode, list.data, innerRef[0]],
+    );
 
-    if (intent.error || !intent.data) {
-      return (
-        <Card>
-          <CardHeader>
-            <SectionHeader />
-          </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-sm text-destructive">
-              No pudimos preparar el cobro. Recarga la página o intenta
-              de nuevo en unos minutos.
-            </p>
-          </CardContent>
-        </Card>
-      );
-    }
+    const savedDefault = list.data?.find((p) => p.is_default) ?? list.data?.[0];
+    const hasSaved = !!savedDefault;
 
     return (
       <Card>
         <CardHeader>
-          <SectionHeader />
+          <CardTitle className="text-base">Método de pago</CardTitle>
+          <CardDescription>
+            El cobro sucede al completar el servicio, no ahora.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="pt-0">
-          <Elements
-            stripe={getStripePromise()}
-            options={{
-              clientSecret: intent.data.client_secret,
-              appearance: { theme: "stripe" },
-              locale: "es",
-            }}
-          >
-            <PaymentElementForm ref={ref} />
-          </Elements>
+        <CardContent className="pt-0 space-y-3">
+          {list.isLoading && (
+            <div className="h-24 animate-pulse rounded-md bg-muted" />
+          )}
+
+          {!list.isLoading && hasSaved && mode === "saved" && (
+            <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted">
+                  <CreditCard className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-medium truncate">
+                    {BRAND_LABEL[savedDefault!.brand] ?? "Tarjeta"} ••••{" "}
+                    {savedDefault!.last4}
+                  </p>
+                  <p className="flex items-center gap-1 text-xs text-emerald-600">
+                    <CheckCircle2 className="h-3 w-3" /> Tarjeta default
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setMode("new")}
+              >
+                Usar otra
+              </Button>
+            </div>
+          )}
+
+          {!list.isLoading && mode === "new" && (
+            <div className="space-y-2">
+              {hasSaved && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setMode("saved")}
+                  className="-ml-2 h-auto px-2 py-1 text-xs"
+                >
+                  ← Volver a tarjeta guardada
+                </Button>
+              )}
+              <NewCardCapture
+                onMount={(h) => innerRef[1](h)}
+              />
+            </div>
+          )}
+
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Shield className="h-3 w-3 shrink-0" />
+            Procesado por Stripe. Tu tarjeta nunca pasa por nuestros
+            servidores.
+          </p>
         </CardContent>
       </Card>
     );
   },
 );
 
+/**
+ * Bare PaymentElement + SetupIntent flow. Exposes its imperative
+ * `confirm()` to the parent via the `onMount` callback (we can't use
+ * forwardRef because the component lives inside an <Elements> tree
+ * that gets mounted/unmounted as `mode` toggles).
+ */
+function NewCardCapture({ onMount }: { onMount: (h: InnerHandle) => void }) {
+  const intent = useCreateSetupIntent();
 
-function SectionHeader() {
+  useEffect(() => {
+    if (!intent.data && !intent.isPending && !intent.error) {
+      intent.mutate();
+    }
+  }, [intent]);
+
+  if (intent.isPending || (!intent.data && !intent.error)) {
+    return <div className="h-32 animate-pulse rounded-md bg-muted" />;
+  }
+
+  if (intent.error || !intent.data) {
+    return (
+      <p className="text-sm text-destructive">
+        No pudimos preparar el cobro. Recarga la página o intenta de
+        nuevo en unos minutos.
+      </p>
+    );
+  }
+
   return (
-    <>
-      <CardTitle className="text-base">Método de pago</CardTitle>
-      <CardDescription>
-        Guardamos tu tarjeta de forma segura con Stripe. El cobro
-        sucede al completar el servicio, no ahora.
-      </CardDescription>
-    </>
+    <Elements
+      stripe={getStripePromise()}
+      options={{
+        clientSecret: intent.data.client_secret,
+        appearance: { theme: "stripe" },
+        locale: "es",
+      }}
+    >
+      <ElementsInner onMount={onMount} />
+    </Elements>
   );
 }
 
+function ElementsInner({ onMount }: { onMount: (h: InnerHandle) => void }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [ready, setReady] = useState(false);
 
-const PaymentElementForm = forwardRef<PaymentSectionHandle>(
-  function PaymentElementForm(_, ref) {
-    const stripe = useStripe();
-    const elements = useElements();
-    const [ready, setReady] = useState(false);
+  useEffect(() => {
+    onMount({
+      async confirm() {
+        if (!stripe || !elements) {
+          throw new Error("Stripe aún no cargó. Intenta de nuevo.");
+        }
+        const { error: submitError } = await elements.submit();
+        if (submitError) {
+          throw new Error(
+            submitError.message ?? "Revisa los datos de la tarjeta.",
+          );
+        }
+        const { error, setupIntent } = await stripe.confirmSetup({
+          elements,
+          redirect: "if_required",
+        });
+        if (error) {
+          throw new Error(
+            error.message ?? "No se pudo confirmar la tarjeta.",
+          );
+        }
+        const pmId = setupIntent?.payment_method;
+        if (!pmId || typeof pmId !== "string") {
+          throw new Error("Stripe no devolvió un método de pago válido.");
+        }
+        return pmId;
+      },
+    });
+  }, [stripe, elements, onMount]);
 
-    useImperativeHandle(
-      ref,
-      () => ({
-        async confirm() {
-          if (!stripe || !elements) {
-            throw new Error("Stripe aún no cargó. Intenta de nuevo.");
-          }
-          // First validate the form locally — surfaces inline errors
-          // (incomplete card, etc.) before going to the network.
-          const { error: submitError } = await elements.submit();
-          if (submitError) {
-            throw new Error(
-              submitError.message ?? "Revisa los datos de la tarjeta.",
-            );
-          }
-          const { error, setupIntent } = await stripe.confirmSetup({
-            elements,
-            // Stay on this page; we'll navigate on booking success.
-            redirect: "if_required",
-          });
-          if (error) {
-            throw new Error(
-              error.message ?? "No se pudo confirmar la tarjeta.",
-            );
-          }
-          const pmId = setupIntent?.payment_method;
-          if (!pmId || typeof pmId !== "string") {
-            throw new Error("Stripe no devolvió un método de pago válido.");
-          }
-          return pmId;
-        },
-      }),
-      [stripe, elements],
-    );
-
-    return (
-      <div className="space-y-3">
-        <PaymentElement
-          onReady={() => setReady(true)}
-          options={{
-            layout: "tabs",
-            // Don't suggest other wallets — keep it card-only.
-            // (Link's "Save my info" block is controlled at the Stripe
-            // Dashboard account level: Settings → Payments → Manage
-            // payment methods → Link → toggle off. Trying to suppress
-            // it via PaymentElement.fields=never causes confirmSetup to
-            // require billing_details in the call.)
-            wallets: { applePay: "never", googlePay: "never" },
-          }}
-        />
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Shield className="h-3 w-3 shrink-0" />
-          Pago procesado por Stripe. Tu tarjeta nunca pasa por
-          nuestros servidores.
-        </p>
-        {!ready && (
-          <div className="h-24 animate-pulse rounded-md bg-muted" />
-        )}
-      </div>
-    );
-  },
-);
+  return (
+    <div className="space-y-3">
+      <PaymentElement
+        onReady={() => setReady(true)}
+        options={{
+          layout: "tabs",
+          wallets: { applePay: "never", googlePay: "never" },
+        }}
+      />
+      {!ready && (
+        <div className="h-24 animate-pulse rounded-md bg-muted" />
+      )}
+    </div>
+  );
+}
