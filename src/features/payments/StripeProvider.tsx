@@ -35,8 +35,3 @@ export function StripeProvider({ children }: Props) {
 
   return <Elements stripe={stripePromise}>{children}</Elements>;
 }
-
-/** True when Stripe is configured for this environment. */
-export function stripeEnabled(): boolean {
-  return !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-}

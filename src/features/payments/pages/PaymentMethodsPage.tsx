@@ -18,7 +18,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { LoadingState } from "@/components/shared/LoadingState";
-import { stripeEnabled } from "@/features/payments/StripeProvider";
+import { stripeEnabled } from "@/features/payments/stripe-enabled";
 import { AddCardForm } from "@/features/payments/components/AddCardForm";
 import {
   useDeletePaymentMethod,

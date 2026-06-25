@@ -68,31 +68,32 @@ interface InnerHandle {
 export const PaymentSection = forwardRef<PaymentSectionHandle, object>(
   function PaymentSection(_, ref) {
     const list = usePaymentMethods();
-    // "saved" → use user's existing default. "new" → capture card via
-    // PaymentElement. Defaults based on whether the user has cards;
-    // they can toggle with a button.
-    const [mode, setMode] = useState<"saved" | "new">("saved");
+    // User's explicit choice (toggled via "Usar otra" / "Volver").
+    // null = no explicit pick yet, fall back to deriving from data.
+    const [userPreference, setUserPreference] = useState<
+      "saved" | "new" | null
+    >(null);
     const innerRef = useState<InnerHandle | null>(null);
 
-    // Once we know the list, settle the default mode. "saved" only if
-    // there's an existing card; otherwise force "new".
-    useEffect(() => {
-      if (list.data && list.data.length === 0) setMode("new");
-    }, [list.data]);
+    const savedDefault = list.data?.find((p) => p.is_default) ?? list.data?.[0];
+    const hasSaved = !!savedDefault;
+    // Effective mode is derived, not stored — avoids a setState-in-
+    // effect when the list arrives empty. User can override via the
+    // toggle buttons (which set userPreference).
+    const mode: "saved" | "new" =
+      userPreference ?? (hasSaved ? "saved" : "new");
 
     useImperativeHandle(
       ref,
       () => ({
         async confirm() {
           if (mode === "saved") {
-            const defaultPm =
-              list.data?.find((p) => p.is_default) ?? list.data?.[0];
-            if (!defaultPm) {
+            if (!savedDefault) {
               throw new Error(
                 "No tienes una tarjeta guardada. Captura una nueva.",
               );
             }
-            return defaultPm.id;
+            return savedDefault.id;
           }
           const handle = innerRef[0];
           if (!handle) {
@@ -102,11 +103,8 @@ export const PaymentSection = forwardRef<PaymentSectionHandle, object>(
         },
       }),
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [mode, list.data, innerRef[0]],
+      [mode, savedDefault, innerRef[0]],
     );
-
-    const savedDefault = list.data?.find((p) => p.is_default) ?? list.data?.[0];
-    const hasSaved = !!savedDefault;
 
     return (
       <Card>
@@ -140,7 +138,7 @@ export const PaymentSection = forwardRef<PaymentSectionHandle, object>(
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => setMode("new")}
+                onClick={() => setUserPreference("new")}
               >
                 Usar otra
               </Button>
@@ -153,7 +151,7 @@ export const PaymentSection = forwardRef<PaymentSectionHandle, object>(
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => setMode("saved")}
+                  onClick={() => setUserPreference("saved")}
                   className="-ml-2 h-auto px-2 py-1 text-xs"
                 >
                   ← Volver a tarjeta guardada

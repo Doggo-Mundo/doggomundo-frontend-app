@@ -28,7 +28,7 @@ import {
   PaymentSection,
   type PaymentSectionHandle,
 } from "@/features/booking/components/PaymentSection";
-import { stripeEnabled } from "@/features/payments/StripeProvider";
+import { stripeEnabled } from "@/features/payments/stripe-enabled";
 import { useBookingFlowStore } from "@/stores/booking-flow-store";
 import type {
   BookingLocationSnapshot,
