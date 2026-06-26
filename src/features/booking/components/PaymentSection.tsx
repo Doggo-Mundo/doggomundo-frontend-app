@@ -1,4 +1,11 @@
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import type { Stripe } from "@stripe/stripe-js";
 import {
@@ -73,7 +80,15 @@ export const PaymentSection = forwardRef<PaymentSectionHandle, object>(
     const [userPreference, setUserPreference] = useState<
       "saved" | "new" | null
     >(null);
-    const innerRef = useState<InnerHandle | null>(null);
+    // Ref (not state) for the inner handle. ElementsInner re-registers
+    // itself on every Stripe-hook update — storing this in state would
+    // trigger re-renders that propagate back down as new `onMount`
+    // callbacks, causing an infinite mount loop (PaymentElement never
+    // settles, skeleton stays forever).
+    const innerHandleRef = useRef<InnerHandle | null>(null);
+    const handleInnerMount = useCallback((h: InnerHandle) => {
+      innerHandleRef.current = h;
+    }, []);
 
     const savedDefault = list.data?.find((p) => p.is_default) ?? list.data?.[0];
     const hasSaved = !!savedDefault;
@@ -95,15 +110,14 @@ export const PaymentSection = forwardRef<PaymentSectionHandle, object>(
             }
             return savedDefault.id;
           }
-          const handle = innerRef[0];
+          const handle = innerHandleRef.current;
           if (!handle) {
             throw new Error("El formulario aún no cargó. Intenta de nuevo.");
           }
           return handle.confirm();
         },
       }),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [mode, savedDefault, innerRef[0]],
+      [mode, savedDefault],
     );
 
     return (
@@ -157,9 +171,7 @@ export const PaymentSection = forwardRef<PaymentSectionHandle, object>(
                   ← Volver a tarjeta guardada
                 </Button>
               )}
-              <NewCardCapture
-                onMount={(h) => innerRef[1](h)}
-              />
+              <NewCardCapture onMount={handleInnerMount} />
             </div>
           )}
 
