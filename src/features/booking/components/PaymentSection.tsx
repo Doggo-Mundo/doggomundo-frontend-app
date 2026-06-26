@@ -22,7 +22,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, CreditCard, Shield } from "lucide-react";
+import { CheckCircle2, CreditCard, Plus, Shield } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   useCreateSetupIntent,
   usePaymentMethods,
@@ -72,14 +73,22 @@ interface InnerHandle {
   confirm: () => Promise<string>;
 }
 
+type View = "selected" | "picker" | "new";
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
 export const PaymentSection = forwardRef<PaymentSectionHandle, object>(
   function PaymentSection(_, ref) {
     const list = usePaymentMethods();
-    // User's explicit choice (toggled via "Usar otra" / "Volver").
-    // null = no explicit pick yet, fall back to deriving from data.
-    const [userPreference, setUserPreference] = useState<
-      "saved" | "new" | null
-    >(null);
+    // Explicit view chosen by the user. null = derive from data
+    // (saved cards → "selected", none → "new"). Set when the user
+    // clicks Cambiar / Agregar / Volver.
+    const [view, setView] = useState<View | null>(null);
+    // Explicit card the user picked from the picker. null = use the
+    // Stripe default (or first card if no default flag set).
+    const [pickedId, setPickedId] = useState<string | null>(null);
     // Ref (not state) for the inner handle. ElementsInner re-registers
     // itself on every Stripe-hook update — storing this in state would
     // trigger re-renders that propagate back down as new `onMount`
@@ -90,25 +99,30 @@ export const PaymentSection = forwardRef<PaymentSectionHandle, object>(
       innerHandleRef.current = h;
     }, []);
 
-    const savedDefault = list.data?.find((p) => p.is_default) ?? list.data?.[0];
-    const hasSaved = !!savedDefault;
-    // Effective mode is derived, not stored — avoids a setState-in-
-    // effect when the list arrives empty. User can override via the
-    // toggle buttons (which set userPreference).
-    const mode: "saved" | "new" =
-      userPreference ?? (hasSaved ? "saved" : "new");
+    const cards = list.data ?? [];
+    const hasSaved = cards.length > 0;
+    const defaultCard = cards.find((c) => c.is_default) ?? cards[0];
+    // Discard pickedId if the card was deleted between renders.
+    const validPickedCard = pickedId
+      ? cards.find((c) => c.id === pickedId)
+      : null;
+    const selectedCard = validPickedCard ?? defaultCard;
+
+    const effectiveView: View = view ?? (hasSaved ? "selected" : "new");
 
     useImperativeHandle(
       ref,
       () => ({
         async confirm() {
-          if (mode === "saved") {
-            if (!savedDefault) {
+          // Picker open with no choice yet → use whatever's highlighted
+          // (selectedCard falls back to the default).
+          if (effectiveView !== "new") {
+            if (!selectedCard) {
               throw new Error(
                 "No tienes una tarjeta guardada. Captura una nueva.",
               );
             }
-            return savedDefault.id;
+            return selectedCard.id;
           }
           const handle = innerHandleRef.current;
           if (!handle) {
@@ -117,7 +131,7 @@ export const PaymentSection = forwardRef<PaymentSectionHandle, object>(
           return handle.confirm();
         },
       }),
-      [mode, savedDefault],
+      [effectiveView, selectedCard],
     );
 
     return (
@@ -133,7 +147,9 @@ export const PaymentSection = forwardRef<PaymentSectionHandle, object>(
             <div className="h-24 animate-pulse rounded-md bg-muted" />
           )}
 
-          {!list.isLoading && hasSaved && mode === "saved" && (
+          {!list.isLoading
+            && effectiveView === "selected"
+            && selectedCard && (
             <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted">
@@ -141,34 +157,99 @@ export const PaymentSection = forwardRef<PaymentSectionHandle, object>(
                 </div>
                 <div className="min-w-0">
                   <p className="font-medium truncate">
-                    {BRAND_LABEL[savedDefault!.brand] ?? "Tarjeta"} ••••{" "}
-                    {savedDefault!.last4}
+                    {BRAND_LABEL[selectedCard.brand] ?? "Tarjeta"} ••••{" "}
+                    {selectedCard.last4}
                   </p>
-                  <p className="flex items-center gap-1 text-xs text-emerald-600">
-                    <CheckCircle2 className="h-3 w-3" /> Tarjeta default
-                  </p>
+                  {selectedCard.is_default && (
+                    <p className="flex items-center gap-1 text-xs text-emerald-600">
+                      <CheckCircle2 className="h-3 w-3" /> Tarjeta default
+                    </p>
+                  )}
                 </div>
               </div>
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => setUserPreference("new")}
+                onClick={() => setView("picker")}
               >
-                Usar otra
+                Cambiar
               </Button>
             </div>
           )}
 
-          {!list.isLoading && mode === "new" && (
+          {!list.isLoading && effectiveView === "picker" && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">Selecciona tu tarjeta</p>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setView("selected")}
+                  className="-mr-2 h-auto px-2 py-1 text-xs"
+                >
+                  Cancelar
+                </Button>
+              </div>
+              {cards.map((card) => {
+                const isSelected = card.id === selectedCard?.id;
+                return (
+                  <button
+                    key={card.id}
+                    type="button"
+                    onClick={() => {
+                      setPickedId(card.id);
+                      setView("selected");
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-lg border p-3 text-left transition hover:bg-muted/50",
+                      isSelected && "border-primary ring-1 ring-primary",
+                    )}
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted">
+                      <CreditCard className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium truncate">
+                        {BRAND_LABEL[card.brand] ?? "Tarjeta"} ••••{" "}
+                        {card.last4}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Vence {pad2(card.exp_month)}/
+                        {String(card.exp_year).slice(-2)}
+                        {card.is_default && (
+                          <span className="ml-2 inline-flex items-center gap-1 text-emerald-600">
+                            <CheckCircle2 className="h-3 w-3" /> Default
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    {isSelected && (
+                      <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                    )}
+                  </button>
+                );
+              })}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setView("new")}
+                className="w-full"
+              >
+                <Plus className="mr-1 h-4 w-4" /> Agregar nueva tarjeta
+              </Button>
+            </div>
+          )}
+
+          {!list.isLoading && effectiveView === "new" && (
             <div className="space-y-2">
               {hasSaved && (
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => setUserPreference("saved")}
+                  onClick={() => setView("selected")}
                   className="-ml-2 h-auto px-2 py-1 text-xs"
                 >
-                  ← Volver a tarjeta guardada
+                  ← Volver a tarjetas guardadas
                 </Button>
               )}
               <NewCardCapture onMount={handleInnerMount} />
