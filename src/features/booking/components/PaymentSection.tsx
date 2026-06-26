@@ -28,6 +28,7 @@ import {
   useCreateSetupIntent,
   usePaymentMethods,
 } from "@/api/hooks/use-payments";
+import { StripeInlineError } from "@/features/booking/components/payment-section-errors";
 
 /**
  * Imperative API: the parent calls `confirm()` to validate the card
@@ -322,7 +323,7 @@ function ElementsInner({ onMount }: { onMount: (h: InnerHandle) => void }) {
         }
         const { error: submitError } = await elements.submit();
         if (submitError) {
-          throw new Error(
+          throw new StripeInlineError(
             submitError.message ?? "Revisa los datos de la tarjeta.",
           );
         }
@@ -331,7 +332,7 @@ function ElementsInner({ onMount }: { onMount: (h: InnerHandle) => void }) {
           redirect: "if_required",
         });
         if (error) {
-          throw new Error(
+          throw new StripeInlineError(
             error.message ?? "No se pudo confirmar la tarjeta.",
           );
         }

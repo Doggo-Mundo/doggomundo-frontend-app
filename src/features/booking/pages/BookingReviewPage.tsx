@@ -28,6 +28,7 @@ import {
   PaymentSection,
   type PaymentSectionHandle,
 } from "@/features/booking/components/PaymentSection";
+import { StripeInlineError } from "@/features/booking/components/payment-section-errors";
 import { stripeEnabled } from "@/features/payments/stripe-enabled";
 import { useBookingFlowStore } from "@/stores/booking-flow-store";
 import type {
@@ -318,6 +319,10 @@ export function BookingReviewPage() {
       try {
         paymentMethodId = await paymentRef.current?.confirm();
       } catch (err) {
+        // Stripe-rendered validation errors (CVC, decline, missing
+        // fields) already appear inside the Element iframe — don't
+        // duplicate them in our banner.
+        if (err instanceof StripeInlineError) return;
         setError(err instanceof Error ? err.message : "Error al confirmar la tarjeta.");
         return;
       }
