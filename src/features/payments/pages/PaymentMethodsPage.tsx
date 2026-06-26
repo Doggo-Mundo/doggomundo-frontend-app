@@ -18,6 +18,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { stripeEnabled } from "@/features/payments/stripe-enabled";
 import { AddCardForm } from "@/features/payments/components/AddCardForm";
 import {
@@ -49,6 +50,7 @@ function pad(n: number): string {
 export function PaymentMethodsPage() {
   const enabled = stripeEnabled();
   const [adding, setAdding] = useState(false);
+  const [toDelete, setToDelete] = useState<PaymentMethod | null>(null);
   const list = usePaymentMethods();
   const setDefault = useSetDefaultPaymentMethod();
   const remove = useDeletePaymentMethod();
@@ -92,11 +94,12 @@ export function PaymentMethodsPage() {
     }
   }
 
-  async function handleRemove(pm: PaymentMethod) {
-    if (!confirm(`¿Eliminar tarjeta •••• ${pm.last4}?`)) return;
+  async function confirmRemove() {
+    if (!toDelete) return;
     try {
-      await remove.mutateAsync(pm.id);
+      await remove.mutateAsync(toDelete.id);
       toast.success("Tarjeta eliminada");
+      setToDelete(null);
     } catch {
       toast.error("No se pudo eliminar la tarjeta");
     }
@@ -160,7 +163,7 @@ export function PaymentMethodsPage() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => handleRemove(pm)}
+                  onClick={() => setToDelete(pm)}
                   disabled={remove.isPending}
                   aria-label="Eliminar tarjeta"
                   title="Eliminar tarjeta"
@@ -213,6 +216,26 @@ export function PaymentMethodsPage() {
           <Link to="/profile">Volver al perfil</Link>
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={!!toDelete}
+        onOpenChange={(open) => {
+          if (!open) setToDelete(null);
+        }}
+        title="Eliminar tarjeta"
+        description={
+          toDelete
+            ? toDelete.is_default
+              ? `Vas a eliminar tu tarjeta default ${brandLabel(toDelete.brand)} •••• ${toDelete.last4}. Tus cobros futuros automáticos quedarán pausados hasta que marques otra tarjeta como default.`
+              : `Vas a eliminar tu tarjeta ${brandLabel(toDelete.brand)} •••• ${toDelete.last4}. Esta acción no se puede deshacer.`
+            : ""
+        }
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        variant="destructive"
+        onConfirm={confirmRemove}
+        isLoading={remove.isPending}
+      />
     </PageShell>
   );
 }
