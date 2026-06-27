@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import axios from "axios";
@@ -20,6 +20,11 @@ import {
 } from "@/api/hooks/use-memberships";
 import { formatMoney } from "@/features/orders/lib/format-money";
 import { BILLING_INTERVAL_LABEL } from "@/types/membership";
+import {
+  PaymentSection,
+  type PaymentSectionHandle,
+} from "@/features/booking/components/PaymentSection";
+import { StripeInlineError } from "@/features/booking/components/payment-section-errors";
 
 function extractApiError(err: unknown): string {
   if (!axios.isAxiosError(err)) return "No pudimos suscribirte. Intenta de nuevo.";
@@ -46,6 +51,10 @@ export function SubscribePage() {
   const { data: plans, isLoading, isError } = useMembershipPlans();
   const subscribe = useSubscribe();
   const [error, setError] = useState<string | null>(null);
+  // Imperative handle to the PaymentSection. We only mount it when
+  // the plan requires a payment method (stripe_price_id set on the
+  // backend); legacy/manual plans subscribe without a card prompt.
+  const paymentRef = useRef<PaymentSectionHandle | null>(null);
 
   const plan = plans?.find((p) => p.id === planId);
 
@@ -75,8 +84,30 @@ export function SubscribePage() {
   async function handleConfirm() {
     if (!plan) return;
     setError(null);
+
+    let stripe_payment_method_id: string | undefined;
+    if (plan.requires_payment_method) {
+      try {
+        stripe_payment_method_id = await paymentRef.current?.confirm();
+      } catch (err) {
+        // Stripe-rendered validation errors (CVC wrong, decline, missing
+        // fields) are already shown inside the Element iframe — don't
+        // duplicate them in our banner.
+        if (err instanceof StripeInlineError) return;
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Error al confirmar la tarjeta.",
+        );
+        return;
+      }
+    }
+
     try {
-      const subscription = await subscribe.mutateAsync({ plan: plan.id });
+      const subscription = await subscribe.mutateAsync({
+        plan: plan.id,
+        stripe_payment_method_id,
+      });
       toast.success(`¡Bienvenido a ${plan.name}!`);
       navigate(`/my/subscriptions/${subscription.id}`, { replace: true });
     } catch (err) {
@@ -145,6 +176,8 @@ export function SubscribePage() {
           </CardContent>
         </Card>
       )}
+
+      {plan.requires_payment_method && <PaymentSection ref={paymentRef} />}
 
       <FormErrors message={error ?? undefined} />
 

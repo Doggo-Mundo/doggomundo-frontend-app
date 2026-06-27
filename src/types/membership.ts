@@ -40,6 +40,9 @@ export interface MembershipPlan {
   billing_interval_display: string;
   terms: string;
   entitlements: PlanEntitlement[];
+  /** True when the plan is wired to a Stripe Price and the subscribe
+   *  flow needs to capture a payment method before submitting. */
+  requires_payment_method: boolean;
 }
 
 export interface EntitlementBalance {
@@ -77,6 +80,9 @@ export interface SubscriptionCycle {
 
 export interface SubscribePayload {
   plan: string;
+  /** Required when plan.requires_payment_method is true. Omitted for
+   *  legacy / manual plans. */
+  stripe_payment_method_id?: string;
 }
 
 export interface MySubscriptionsParams {

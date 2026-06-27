@@ -126,6 +126,7 @@ export function makePlan(
         quantity_per_cycle: 4,
       },
     ],
+    requires_payment_method: false,
     ...overrides,
   };
 }
