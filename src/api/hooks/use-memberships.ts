@@ -19,7 +19,40 @@ export const membershipKeys = {
     cycles: (id: string) =>
       [...membershipKeys.subscriptions.all, "cycles", id] as const,
   },
+  coverage: (serviceId: string) =>
+    ["membership-coverage", serviceId] as const,
 };
+
+export interface CoverageResponse {
+  covered: boolean;
+  remaining: number;
+  total: number;
+  balance_id?: string;
+  subscription_id?: string;
+  plan_name?: string;
+}
+
+/** Does this customer have an active membership benefit for this
+ *  service right now? Used by the booking wizard's review step to
+ *  decide whether to render the "Cubierto por tu membresía" card. */
+export function useCoverage(serviceId: string | null | undefined) {
+  return useQuery({
+    queryKey: membershipKeys.coverage(serviceId ?? ""),
+    queryFn: async () => {
+      const { data } = await api.get<CoverageResponse>(
+        "/memberships/coverage/",
+        { params: { service: serviceId } },
+      );
+      return data;
+    },
+    enabled: !!serviceId,
+    // Coverage changes only when subscriptions / redemptions move —
+    // both are visible to TanStack via other invalidations. A short
+    // staleTime keeps the wizard responsive without hammering the
+    // endpoint on focus-refetch.
+    staleTime: 60_000,
+  });
+}
 
 /** Public plan catalog. Backend returns a flat array (no pagination). */
 export function useMembershipPlans() {
