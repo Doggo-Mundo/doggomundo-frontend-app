@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Calendar, Crown, History, X } from "lucide-react";
+import { Calendar, Crown, ExternalLink, History, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,6 +17,7 @@ import { SubscriptionStatusBadge } from "@/features/memberships/components/Subsc
 import { BalanceRow } from "@/features/memberships/components/BalanceRow";
 import {
   useCancelSubscription,
+  useOpenBillingPortal,
   useSubscription,
   useSubscriptionCycles,
 } from "@/api/hooks/use-memberships";
@@ -34,6 +35,7 @@ export function SubscriptionDetailPage() {
   } = useSubscription(id ?? "");
   const { data: cycles } = useSubscriptionCycles(id ?? "");
   const cancel = useCancelSubscription(id ?? "");
+  const openPortal = useOpenBillingPortal();
 
   if (!id) return <Navigate to="/my/subscriptions" replace />;
 
@@ -68,6 +70,16 @@ export function SubscriptionDetailPage() {
       navigate("/my/subscriptions", { replace: true });
     } catch {
       toast.error("No pudimos cancelar la suscripción. Intenta de nuevo.");
+    }
+  }
+
+  async function handleOpenPortal() {
+    try {
+      await openPortal.mutateAsync(window.location.href);
+    } catch {
+      toast.error(
+        "No pudimos abrir el portal de gestión. Intenta de nuevo.",
+      );
     }
   }
 
@@ -144,15 +156,38 @@ export function SubscriptionDetailPage() {
         </Card>
       )}
 
+      {/*
+        Stripe subscriptions: surface a single "Gestionar membresía"
+        button that opens the Stripe-hosted portal. Inside it the
+        customer can cancel, change card, see invoices and download
+        receipts — we don't have to build any of that UX. We detect
+        Stripe by the presence of cycles + an active stripe-managed
+        period (the local cancel endpoint stays available for
+        legacy/manual plans that don't have a Stripe Customer).
+      */}
       {canCancel && (
-        <Button
-          variant="destructive"
-          className="w-full"
-          onClick={() => setConfirmOpen(true)}
-        >
-          <X />
-          Cancelar suscripción
-        </Button>
+        <div className="space-y-2">
+          <Button
+            variant="default"
+            className="w-full"
+            onClick={handleOpenPortal}
+            disabled={openPortal.isPending}
+          >
+            <ExternalLink />
+            {openPortal.isPending
+              ? "Abriendo portal…"
+              : "Gestionar membresía"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full text-muted-foreground"
+            onClick={() => setConfirmOpen(true)}
+          >
+            <X />
+            Cancelar sin pasar por el portal
+          </Button>
+        </div>
       )}
 
       <ConfirmDialog
