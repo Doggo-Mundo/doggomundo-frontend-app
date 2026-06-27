@@ -29,7 +29,9 @@ import {
   type PaymentSectionHandle,
 } from "@/features/booking/components/PaymentSection";
 import { StripeInlineError } from "@/features/booking/components/payment-section-errors";
+import { CoverageCard } from "@/features/booking/components/CoverageCard";
 import { stripeEnabled } from "@/features/payments/stripe-enabled";
+import { useCoverage } from "@/api/hooks/use-memberships";
 import { useBookingFlowStore } from "@/stores/booking-flow-store";
 import type {
   BookingLocationSnapshot,
@@ -97,6 +99,19 @@ export function BookingReviewPage() {
   const paymentEnabled = stripeEnabled();
 
   const [error, setError] = useState<string | null>(null);
+  // Coverage check fires as soon as the wizard reaches this step. If
+  // the customer has an active membership balance for the chosen
+  // service, we show the CoverageCard with the opt-out toggle (defaults
+  // to ON — use the benefit). When `useEntitlementChoice` is null, the
+  // toggle hasn't been touched yet and we derive the effective value
+  // from coverage.covered. Touching the toggle flips it to a sticky
+  // explicit choice that survives until the user navigates away.
+  const coverage = useCoverage(state.service?.id ?? null);
+  const [useEntitlementChoice, setUseEntitlementChoice] =
+    useState<boolean | null>(null);
+  const coverageAvailable = !!coverage.data?.covered;
+  const useEntitlement =
+    useEntitlementChoice ?? coverageAvailable;
   // Snapshot of the just-booked appointment. Captured the first time the
   // success branch fires so we can clear the wizard store immediately —
   // otherwise tapping the "Reservar" tab from the nav while on the success
@@ -341,6 +356,13 @@ export function BookingReviewPage() {
             service: state.service.id,
             resource: state.slot.resource ?? undefined,
             slot_id: state.slot.slotId,
+            // Only forward an explicit value when coverage is even
+            // available — otherwise let the backend's auto-detect
+            // path run (which will resolve to false anyway, but
+            // keeps the contract honest).
+            ...(coverageAvailable
+              ? { use_entitlement: useEntitlement }
+              : {}),
           },
         ],
         stripe_payment_method_id: paymentMethodId,
@@ -444,7 +466,31 @@ export function BookingReviewPage() {
         </CardContent>
       </Card>
 
-      {paymentEnabled && <PaymentSection ref={paymentRef} />}
+      {coverageAvailable && coverage.data && (
+        <CoverageCard
+          planName={coverage.data.plan_name ?? "tu membresía"}
+          remaining={coverage.data.remaining}
+          total={coverage.data.total}
+          use={useEntitlement}
+          onToggle={setUseEntitlementChoice}
+        />
+      )}
+
+      {paymentEnabled && (
+        <div className="space-y-2">
+          <PaymentSection ref={paymentRef} />
+          {useEntitlement && coverageAvailable && (
+            // The card stays on file as the penalty safety net even
+            // when the cita itself is membership-covered. Make that
+            // explicit so the customer doesn't wonder why we're
+            // still asking for a card.
+            <p className="px-1 text-xs text-muted-foreground">
+              Tu tarjeta sólo se usaría si cancelas tarde o no te
+              presentas — la cita normal no genera cobro.
+            </p>
+          )}
+        </div>
+      )}
 
       <FormErrors message={error ?? undefined} />
 

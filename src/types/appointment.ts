@@ -72,6 +72,13 @@ export interface CreateAppointmentItemPayload {
    * customer's slot-availability query correctly sees this staff as busy.
    */
   slot_id?: string;
+  /**
+   * Three-valued. true = redeem entitlement for this item, false = pay
+   * out of pocket (save the benefit for later), undefined = let the
+   * backend auto-detect coverage. The wizard explicitly sends true/
+   * false after the customer interacts with the coverage card.
+   */
+  use_entitlement?: boolean;
 }
 
 export interface CreateAppointmentPayload {
