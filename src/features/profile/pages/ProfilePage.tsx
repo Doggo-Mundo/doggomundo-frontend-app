@@ -13,7 +13,10 @@ import {
   ChevronRight,
   CheckCircle2,
   Circle,
+  Sparkles,
 } from "lucide-react";
+import { useMySegmentation } from "@/api/hooks/use-segmentation";
+import { ARCHETYPE_LABEL } from "@/types/segmentation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,6 +52,7 @@ export function ProfilePage() {
   const update = useUpdateMe();
   const updatePhoto = useUpdateMyPhoto();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { data: segmentation } = useMySegmentation();
   const current = user ?? storeUser;
 
   const {
@@ -217,6 +221,49 @@ export function ProfilePage() {
               {isSubmitting ? "Guardando…" : "Guardar cambios"}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            Mis preferencias
+          </CardTitle>
+          <CardDescription>
+            {segmentation
+              ? "Personalizamos tu experiencia con base en tus respuestas. Puedes actualizarlas cuando quieras."
+              : "Cuéntanos sobre ti y tu perro (2 min) para personalizar tu experiencia."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {segmentation && segmentation.primary_archetypes.length > 0 && (
+            <div className="rounded-md border bg-muted/30 p-3 text-sm">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                Tu perfil actual
+              </p>
+              <p className="mt-0.5 font-medium">
+                {segmentation.primary_archetypes
+                  .map((c) => ARCHETYPE_LABEL[c])
+                  .join(" · ")}
+              </p>
+            </div>
+          )}
+          <Button
+            asChild
+            variant={segmentation ? "outline" : "default"}
+            className="w-full justify-between"
+          >
+            <Link to="/onboarding/preferences">
+              <span className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                {segmentation
+                  ? "Actualizar mis respuestas"
+                  : "Empezar cuestionario"}
+              </span>
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </Button>
         </CardContent>
       </Card>
 

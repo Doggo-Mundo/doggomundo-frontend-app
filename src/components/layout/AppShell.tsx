@@ -1,8 +1,17 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { TopBar } from "./TopBar";
 import { BottomNav } from "./BottomNav";
+import { SegmentationReminderBanner } from "@/features/segmentation/components/SegmentationReminderBanner";
 
 export function AppShell() {
+  // Reminder banner is noisy on the survey page itself. Hide it
+  // there (and on the profile page, where the user has an explicit
+  // "actualizar mis preferencias" section anyway).
+  const location = useLocation();
+  const suppressBanner =
+    location.pathname.startsWith("/onboarding/preferences")
+    || location.pathname.startsWith("/profile");
+
   return (
     <div className="flex min-h-dvh flex-col bg-background">
       <a
@@ -20,6 +29,7 @@ export function AppShell() {
         }}
       >
         <div className="mx-auto w-full max-w-4xl lg:max-w-6xl">
+          {!suppressBanner && <SegmentationReminderBanner />}
           <Outlet />
         </div>
       </main>
