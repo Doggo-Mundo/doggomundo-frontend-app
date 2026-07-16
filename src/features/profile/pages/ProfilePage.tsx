@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useMySegmentation } from "@/api/hooks/use-segmentation";
 import { ARCHETYPE_LABEL } from "@/types/segmentation";
+import { MyDaycareSection } from "@/features/daycare/components/MyDaycareSection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -266,6 +267,8 @@ export function ProfilePage() {
           </Button>
         </CardContent>
       </Card>
+
+      <MyDaycareSection />
 
       <Card>
         <CardHeader>
