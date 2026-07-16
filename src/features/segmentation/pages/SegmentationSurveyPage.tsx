@@ -19,6 +19,7 @@ import {
   useSubmitSegmentation,
 } from "@/api/hooks/use-segmentation";
 import { dismissSegmentationBanner } from "@/features/segmentation/banner-dismiss";
+import { consumeFirstPetPending } from "@/lib/onboarding-flags";
 import type { SegmentationAnswers } from "@/types/segmentation";
 
 /**
@@ -108,7 +109,7 @@ export function SegmentationSurveyPage() {
         "¡Gracias! Vamos a personalizar tu experiencia.",
       );
       dismissSegmentationBanner(); // no need for the banner anymore
-      navigate("/", { replace: true });
+      continueOnboarding();
     } catch {
       toast.error("No pudimos guardar tus respuestas. Intenta de nuevo.");
     }
@@ -120,6 +121,18 @@ export function SegmentationSurveyPage() {
     // to come back.
     dismissSegmentationBanner();
     toast("Sin problema, puedes contestar más adelante desde tu perfil.");
+    continueOnboarding();
+  }
+
+  function continueOnboarding() {
+    // Consume the pet flag if the user just came from registration
+    // so the next onboarding step (adding their first pet) runs
+    // without a detour through the empty dashboard. Existing users
+    // reaching this page via the banner have no flag → land on /.
+    if (consumeFirstPetPending()) {
+      navigate("/pets/new", { replace: true });
+      return;
+    }
     navigate("/", { replace: true });
   }
 
