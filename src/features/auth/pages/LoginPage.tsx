@@ -15,6 +15,7 @@ import {
 } from "@/lib/onboarding-flags";
 import { useLogin } from "@/api/hooks/use-auth";
 import { useAuthStore } from "@/stores/auth-store";
+import { resetUserSession } from "@/lib/session";
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -47,6 +48,12 @@ export function LoginPage() {
   async function onSubmit(data: LoginFormValues) {
     try {
       const result = await login.mutateAsync(data);
+      // Defense-in-depth: if a previous session on this browser
+      // wasn't cleanly ended (window closed without logout,
+      // shared device, etc.), scrub any user-scoped cache/store
+      // BEFORE seating the new user so their first render has
+      // zero risk of showing the previous user's data.
+      resetUserSession();
       authLogin(result.access, result.refresh, result.user);
       // Post-registration onboarding chain. Segmentation runs first
       // (short, sets tone for personalization); the survey page then
