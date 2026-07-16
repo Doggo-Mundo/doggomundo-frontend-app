@@ -18,7 +18,6 @@ import {
   useSegmentationQuestions,
   useSubmitSegmentation,
 } from "@/api/hooks/use-segmentation";
-import { dismissSegmentationBanner } from "@/features/segmentation/banner-dismiss";
 import { consumeFirstPetPending } from "@/lib/onboarding-flags";
 import type { SegmentationAnswers } from "@/types/segmentation";
 
@@ -108,7 +107,9 @@ export function SegmentationSurveyPage() {
       toast.success(
         "¡Gracias! Vamos a personalizar tu experiencia.",
       );
-      dismissSegmentationBanner(); // no need for the banner anymore
+      // Banner disappears on its own: useMySegmentation is primed
+      // by the mutation's onSuccess and the banner checks profile
+      // presence. No need to also set the localStorage dismissal.
       continueOnboarding();
     } catch {
       toast.error("No pudimos guardar tus respuestas. Intenta de nuevo.");
@@ -116,10 +117,10 @@ export function SegmentationSurveyPage() {
   }
 
   function skip() {
-    // Dismiss the reminder banner for 30 days; user is choosing
-    // "not now", not "never" — the profile page still has a link
-    // to come back.
-    dismissSegmentationBanner();
+    // "Saltar por ahora" = "not this screen" (short intent). Keep
+    // the reminder banner visible so the user can come back the
+    // same session. Only the explicit × on the banner dismisses
+    // for 30 days — that's the "please stop asking" signal.
     toast("Sin problema, puedes contestar más adelante desde tu perfil.");
     continueOnboarding();
   }
