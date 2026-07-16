@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -30,6 +30,12 @@ import {
   usePetProfile,
   usePlan,
 } from "@/api/hooks/use-daycare";
+import {
+  PaymentSection,
+  type PaymentSectionHandle,
+} from "@/features/booking/components/PaymentSection";
+import { StripeInlineError } from "@/features/booking/components/payment-section-errors";
+import { stripeEnabled } from "@/features/payments/stripe-enabled";
 import { useLocations } from "@/api/hooks/use-locations";
 import { usePets } from "@/api/hooks/use-pets";
 import { formatDate } from "@/lib/format-date";
@@ -55,6 +61,13 @@ export function DaycareEnrollPage() {
   const [createdEnrollment, setCreatedEnrollment] =
     useState<DaycareEnrollment | null>(null);
 
+  // Imperative handle to the PaymentSection when the plan is
+  // Stripe-enabled. Mount is conditional (see JSX below); the ref
+  // is safe to leave declared unconditionally.
+  const paymentRef = useRef<PaymentSectionHandle | null>(null);
+  const paymentEnabled = stripeEnabled();
+  const requiresPayment = !!plan?.requires_payment_method && paymentEnabled;
+
   const selectedPetProfile = usePetProfile(selectedPet ?? "");
   const isSelectedPetEligible =
     !!selectedPet && selectedPetProfile.data?.can_book === true;
@@ -71,7 +84,12 @@ export function DaycareEnrollPage() {
   // ---------- Success state ----------
 
   if (createdEnrollment) {
-    return <EnrollSuccess enrollment={createdEnrollment} />;
+    return (
+      <EnrollSuccess
+        enrollment={createdEnrollment}
+        paidOnline={requiresPayment}
+      />
+    );
   }
 
   // ---------- Loading ----------
@@ -105,11 +123,30 @@ export function DaycareEnrollPage() {
   async function handleConfirm() {
     if (!planId || !selectedPet || !selectedLocation) return;
     setError(null);
+
+    let stripe_payment_method_id: string | undefined;
+    if (requiresPayment) {
+      try {
+        stripe_payment_method_id = await paymentRef.current?.confirm();
+      } catch (err) {
+        // Stripe already renders card-level errors inside its
+        // iframe — don't duplicate them in our banner.
+        if (err instanceof StripeInlineError) return;
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Error al confirmar la tarjeta.",
+        );
+        return;
+      }
+    }
+
     try {
       const enrollment = await create.mutateAsync({
         pet: selectedPet,
         plan: planId,
         location: selectedLocation,
+        stripe_payment_method_id,
       });
       setCreatedEnrollment(enrollment);
     } catch (err) {
@@ -230,17 +267,20 @@ export function DaycareEnrollPage() {
         </CardContent>
       </Card>
 
-      {/* Honest payment mockup banner */}
-      <div
-        className="flex items-start gap-2 rounded-md border border-dashed bg-surface-soft p-3 text-xs text-surface-soft-foreground"
-        role="note"
-      >
-        <Info className="mt-0.5 h-4 w-4 shrink-0" />
-        <p>
-          <strong>Simulación.</strong> El pago en línea todavía no está activo —
-          tu plan queda activo desde ya y el pago se cierra en sucursal.
-        </p>
-      </div>
+      {requiresPayment ? (
+        <PaymentSection ref={paymentRef} />
+      ) : (
+        <div
+          className="flex items-start gap-2 rounded-md border border-dashed bg-surface-soft p-3 text-xs text-surface-soft-foreground"
+          role="note"
+        >
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>
+            <strong>Pago en sucursal.</strong> Tu plan queda activo desde ya y
+            el pago se cierra al llegar a la sucursal.
+          </p>
+        </div>
+      )}
 
       <FormErrors message={error ?? undefined} />
 
@@ -353,9 +393,13 @@ function LocationOption({ location, selected, onSelect }: LocationOptionProps) {
 
 interface EnrollSuccessProps {
   enrollment: DaycareEnrollment;
+  /** True when the customer paid online via Stripe; changes the
+   *  informational banner from "pay in store" to "receipt on the
+   *  way". */
+  paidOnline: boolean;
 }
 
-function EnrollSuccess({ enrollment }: EnrollSuccessProps) {
+function EnrollSuccess({ enrollment, paidOnline }: EnrollSuccessProps) {
   const creditsLabel = enrollment.is_unlimited
     ? "Visitas ilimitadas"
     : enrollment.credits_remaining === 1
@@ -408,8 +452,9 @@ function EnrollSuccess({ enrollment }: EnrollSuccessProps) {
       >
         <Info className="mt-0.5 h-4 w-4 shrink-0" />
         <p>
-          Pago pendiente — se cierra en sucursal por ahora. Cuando llegue el
-          pago en línea, lo encontrarás aquí.
+          {paidOnline
+            ? "Pago procesado por Stripe. En unos minutos te llega el recibo por email."
+            : "Pago pendiente — se cierra en sucursal por ahora."}
         </p>
       </div>
 
