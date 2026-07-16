@@ -35,7 +35,14 @@ const EXPIRING_SOON_DAYS = 7;
  */
 export function MyDaycareSection() {
   const { data, isLoading } = useEnrollments();
-  if (isLoading) return null;
+
+  if (isLoading) {
+    // Only render the skeleton if we don't already have cached
+    // data (would mean the section was already visible on a
+    // prior render). Prevents flicker on background refetches.
+    if (data !== undefined) return null;
+    return <MyDaycareSkeleton />;
+  }
 
   const enrollments = data?.results ?? [];
   if (enrollments.length === 0) return null;
@@ -167,6 +174,31 @@ function EnrollmentRow({ enrollment, expiringSoonCutoff }: RowProps) {
         )}
       </div>
     </div>
+  );
+}
+
+function MyDaycareSkeleton() {
+  // Matches the real card's rough silhouette so the layout doesn't
+  // jump when data resolves. Two rows of pulse is enough — real
+  // customers rarely have >2 active enrollments at once.
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <div className="h-4 w-4 shrink-0 animate-pulse rounded bg-muted" />
+          <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+        </div>
+        <div className="mt-2 h-3 w-3/4 animate-pulse rounded bg-muted" />
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {[0, 1].map((i) => (
+          <div
+            key={i}
+            className="h-24 w-full animate-pulse rounded-lg bg-muted/70"
+          />
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 
