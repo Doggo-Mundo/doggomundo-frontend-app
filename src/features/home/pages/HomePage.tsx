@@ -82,8 +82,9 @@ function greetingForHour(hour: number): string {
 
 export function HomePage() {
   const user = useAuthStore((s) => s.user);
-  const { data: pets } = usePets();
-  const { data: appointments } = useMyAppointments();
+  const { data: pets, isLoading: petsLoading } = usePets();
+  const { data: appointments, isLoading: appointmentsLoading } =
+    useMyAppointments();
   const daycarePlans = useDaycarePlans();
 
   const greeting = useMemo(() => {
@@ -140,7 +141,13 @@ export function HomePage() {
 
       {pets && <OnboardingBanner pets={pets.results} />}
 
-      {nextAppointment ? (
+      {appointmentsLoading ? (
+        <Card>
+          <CardContent className="py-5">
+            <div className="mx-auto h-4 w-2/3 animate-pulse rounded bg-muted" />
+          </CardContent>
+        </Card>
+      ) : nextAppointment ? (
         <NextAppointmentHero
           appointment={nextAppointment}
           pet={nextPet}
@@ -153,12 +160,29 @@ export function HomePage() {
         </Card>
       )}
 
-      {pets && pets.results.length > 0 && (
+      {petsLoading ? (
+        // Skeleton avatars while the pet list loads. Same width /
+        // spacing as PetShowcase so the layout doesn't shift when
+        // the real content swaps in.
+        <section className="space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Tus peludos
+          </p>
+          <div className="flex gap-3 overflow-x-auto">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="h-32 w-28 shrink-0 animate-pulse rounded-lg bg-muted"
+              />
+            ))}
+          </div>
+        </section>
+      ) : pets && pets.results.length > 0 ? (
         <PetShowcase
           pets={pets.results}
           appointments={appointments?.results ?? []}
         />
-      )}
+      ) : null}
 
       <section className="space-y-2">
         <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
