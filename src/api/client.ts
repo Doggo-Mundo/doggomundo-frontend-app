@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useAuthStore } from "@/stores/auth-store";
+import { resetUserSession } from "@/lib/session";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
@@ -58,7 +59,11 @@ api.interceptors.response.use(
 
     const refreshToken = localStorage.getItem("refresh_token");
     if (!refreshToken) {
-      useAuthStore.getState().logout();
+      // No refresh token = session already dead. Wipe everything
+      // user-scoped (React Query cache, cart, persisted stores,
+      // banner dismissals) so the next user on the same browser
+      // starts clean.
+      resetUserSession();
       window.location.href = "/login";
       return Promise.reject(error);
     }
@@ -78,7 +83,10 @@ api.interceptors.response.use(
       return api(originalRequest);
     } catch (refreshError) {
       processQueue(refreshError, null);
-      useAuthStore.getState().logout();
+      // Refresh token was rejected — full session teardown so
+      // no cached data from the expired session leaks to the
+      // next user of this browser.
+      resetUserSession();
       window.location.href = "/login";
       return Promise.reject(refreshError);
     } finally {

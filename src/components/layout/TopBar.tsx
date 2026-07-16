@@ -7,6 +7,7 @@ import { SHOP_ENABLED } from "@/lib/features";
 import { useAuthStore } from "@/stores/auth-store";
 import { useLogout } from "@/api/hooks/use-auth";
 import { selectCartCount, useCartStore } from "@/stores/cart-store";
+import { resetUserSession } from "@/lib/session";
 
 const ALL_DESKTOP_NAV = [
   { to: "/", label: "Inicio", end: true, key: "home" },
@@ -23,16 +24,23 @@ const DESKTOP_NAV = ALL_DESKTOP_NAV.filter(
 export function TopBar() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const storeLogout = useAuthStore((s) => s.logout);
   const logoutMutation = useLogout();
   const cartCount = useCartStore(selectCartCount);
 
   async function handleLogout() {
     const refresh = localStorage.getItem("refresh_token");
     if (refresh) {
-      await logoutMutation.mutateAsync(refresh);
+      try {
+        await logoutMutation.mutateAsync(refresh);
+      } catch {
+        // Network / blacklist failure on the server side must
+        // not stop us from tearing down the local session — if
+        // we bail here the user sees themselves as "still logged
+        // in" until they hard-refresh. resetUserSession() is
+        // strictly local so it always succeeds.
+      }
     }
-    storeLogout();
+    resetUserSession();
     navigate("/login", { replace: true });
   }
 
