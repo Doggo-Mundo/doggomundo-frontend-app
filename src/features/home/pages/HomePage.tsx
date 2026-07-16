@@ -15,6 +15,7 @@ import { TIMEZONE } from "@/lib/format-date";
 import { SHOP_ENABLED } from "@/lib/features";
 import { usePets } from "@/api/hooks/use-pets";
 import { useMyAppointments } from "@/api/hooks/use-appointments";
+import { usePlans as useDaycarePlans } from "@/api/hooks/use-daycare";
 import { useAuthStore } from "@/stores/auth-store";
 
 interface QuickAction {
@@ -69,7 +70,7 @@ const ALL_QUICK_ACTIONS: QuickAction[] = [
   },
 ];
 
-const QUICK_ACTIONS = ALL_QUICK_ACTIONS.filter(
+const QUICK_ACTIONS_BASE = ALL_QUICK_ACTIONS.filter(
   (a) => SHOP_ENABLED || a.id !== "shop",
 );
 
@@ -83,11 +84,28 @@ export function HomePage() {
   const user = useAuthStore((s) => s.user);
   const { data: pets } = usePets();
   const { data: appointments } = useMyAppointments();
+  const daycarePlans = useDaycarePlans();
 
   const greeting = useMemo(() => {
     const mxHour = toZonedTime(new Date(), TIMEZONE).getHours();
     return greetingForHour(mxHour);
   }, []);
+
+  // Hide the Day Care quick action when we KNOW the catalog is
+  // empty (loaded, zero results). Loading or error states keep
+  // it visible to avoid layout jumps and to let the customer try
+  // — the landing page has its own empty state that orients them.
+  const daycareCatalogEmpty =
+    !daycarePlans.isLoading
+    && !daycarePlans.isError
+    && (daycarePlans.data?.results.length ?? 0) === 0;
+  const quickActions = useMemo(
+    () =>
+      QUICK_ACTIONS_BASE.filter(
+        (a) => a.id !== "daycare" || !daycareCatalogEmpty,
+      ),
+    [daycareCatalogEmpty],
+  );
 
   const nextAppointment = useMemo(
     () => findNextUpcoming(appointments?.results ?? []),
@@ -147,7 +165,7 @@ export function HomePage() {
           Accesos rápidos
         </h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {QUICK_ACTIONS.map((a) => (
+          {quickActions.map((a) => (
             <QuickActionTile key={a.to} {...a} />
           ))}
         </div>
