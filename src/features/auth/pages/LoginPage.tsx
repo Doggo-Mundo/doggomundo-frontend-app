@@ -9,7 +9,10 @@ import { Label } from "@/components/ui/label";
 import { FormErrors } from "@/components/shared/FormErrors";
 import { AuthLayout } from "@/features/auth/components/AuthLayout";
 import { mapApiErrors } from "@/features/auth/lib/map-api-errors";
-import { consumeFirstPetPending } from "@/lib/onboarding-flags";
+import {
+  consumeFirstPetPending,
+  consumeSegmentationPending,
+} from "@/lib/onboarding-flags";
 import { useLogin } from "@/api/hooks/use-auth";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -45,11 +48,20 @@ export function LoginPage() {
     try {
       const result = await login.mutateAsync(data);
       authLogin(result.access, result.refresh, result.user);
-      // If the user just finished registration, send them to the new-pet flow
-      // so the very first thing they see is "add your pet" instead of an empty
-      // dashboard. Subsequent logins keep their `from` redirect.
-      const firstPet = consumeFirstPetPending();
-      navigate(firstPet ? "/pets/new" : from, { replace: true });
+      // Post-registration onboarding chain. Segmentation runs first
+      // (short, sets tone for personalization); the survey page then
+      // consumes the pet flag itself to continue on to /pets/new
+      // after submit or skip. Subsequent logins fall through to the
+      // `from` redirect (deep link) or /.
+      if (consumeSegmentationPending()) {
+        navigate("/onboarding/preferences", { replace: true });
+        return;
+      }
+      if (consumeFirstPetPending()) {
+        navigate("/pets/new", { replace: true });
+        return;
+      }
+      navigate(from, { replace: true });
     } catch (err) {
       mapApiErrors(err, setError, "No pudimos iniciar sesión. Intenta de nuevo.");
     }

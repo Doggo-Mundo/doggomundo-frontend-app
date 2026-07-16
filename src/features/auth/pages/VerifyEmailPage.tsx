@@ -9,7 +9,10 @@ import { OtpInput } from "@/components/ui/otp-input";
 import { FormErrors } from "@/components/shared/FormErrors";
 import { AuthLayout } from "@/features/auth/components/AuthLayout";
 import { mapApiErrors } from "@/features/auth/lib/map-api-errors";
-import { markFirstPetPending } from "@/lib/onboarding-flags";
+import {
+  markFirstPetPending,
+  markSegmentationPending,
+} from "@/lib/onboarding-flags";
 import {
   useVerifyEmail,
   useResendVerificationOtp,
@@ -45,8 +48,10 @@ export function VerifyEmailPage() {
   async function onSubmit(data: VerifyFormValues) {
     try {
       await verify.mutateAsync({ email, otp_code: data.otp });
-      // Mark that this user just finished registration so the very first
-      // login lands on the new-pet flow instead of an empty home dashboard.
+      // First login flows through the onboarding chain:
+      //   segmentation survey (2 min) → new pet form → home
+      // Both flags cleared by consumers on their respective steps.
+      markSegmentationPending();
       markFirstPetPending();
       toast.success("Tu email fue verificado. Ya puedes iniciar sesión.");
       navigate("/login", { replace: true });
