@@ -65,6 +65,10 @@ export interface DaycarePlan {
   validity_days: number;
   auto_renewable: boolean;
   sort_order: number;
+  /** True when the plan is wired to a Stripe Price; the purchase
+   *  wizard must capture a card before submit. False = legacy path,
+   *  server creates enrollment without a real charge. */
+  requires_payment_method: boolean;
 }
 
 // ---------- PetDayCareProfile ----------
@@ -127,6 +131,10 @@ export interface CreateEnrollmentPayload {
   pet: string;
   plan: string;
   location: string;
+  /** Required when plan.requires_payment_method is true — the
+   *  PaymentSection returns a Stripe pm_* on confirm and the
+   *  wizard forwards it here. Omitted for legacy free plans. */
+  stripe_payment_method_id?: string;
 }
 
 // ---------- Availability ----------
