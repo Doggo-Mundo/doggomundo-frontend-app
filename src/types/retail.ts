@@ -23,10 +23,15 @@ export interface Product {
   photo: string | null;
   fulfillment_type: FulfillmentType;
   fulfillment_type_display: string;
+  is_addon_offering: boolean;
 }
 
 export interface ProductListParams {
   category?: string;
+  // F4-D. Query param that the backend understands as truthy when
+  // the string equals "true"/"1"/"yes" (case-insensitive) — see
+  // retail/views.py::_is_truthy_param.
+  addons_only?: boolean;
 }
 
 // -----------------------------------------------------------------------------

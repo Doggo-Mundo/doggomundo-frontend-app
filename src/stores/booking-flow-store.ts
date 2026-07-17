@@ -39,12 +39,28 @@ export interface BookingPetSnapshot {
   name: string;
 }
 
+/**
+ * F4-D: snapshot of a retail add-on picked from the optional
+ * "Agregar productos" step of the wizard. Kept intentionally
+ * separate from `useCartStore` (which drives the standalone /shop
+ * checkout) — a customer's booking cart and shop cart are distinct
+ * baskets and must not leak into each other.
+ */
+export interface BookingAddonSnapshot {
+  productId: string;
+  name: string;
+  price: string;
+  photo: string | null;
+  quantity: number;
+}
+
 interface BookingFlowState {
   businessUnitCode: BusinessUnitCode | null;
   location: BookingLocationSnapshot | null;
   service: BookingServiceSnapshot | null;
   slot: BookingSlotSnapshot | null;
   pet: BookingPetSnapshot | null;
+  addons: BookingAddonSnapshot[];
   notes: string;
 
   setBusinessUnit: (code: BusinessUnitCode) => void;
@@ -52,6 +68,12 @@ interface BookingFlowState {
   setService: (service: BookingServiceSnapshot) => void;
   setSlot: (slot: BookingSlotSnapshot) => void;
   setPet: (pet: BookingPetSnapshot) => void;
+  setAddonQuantity: (
+    product: Omit<BookingAddonSnapshot, "quantity">,
+    quantity: number,
+  ) => void;
+  removeAddon: (productId: string) => void;
+  clearAddons: () => void;
   setNotes: (notes: string) => void;
   reset: () => void;
 }
@@ -62,9 +84,14 @@ const initialState = {
   service: null,
   slot: null,
   pet: null,
+  addons: [] as BookingAddonSnapshot[],
   notes: "",
 };
 
+// Add-on inventory is scoped per location. Whenever the customer
+// picks a different location the previously-picked add-ons might
+// not be in stock at the new one, so wipe them to avoid a confusing
+// 400 at checkout time.
 export const useBookingFlowStore = create<BookingFlowState>()(
   persist(
     (set) => ({
@@ -76,6 +103,7 @@ export const useBookingFlowStore = create<BookingFlowState>()(
           location: null,
           service: null,
           slot: null,
+          addons: [],
         }),
 
       setLocation: (location) =>
@@ -83,6 +111,7 @@ export const useBookingFlowStore = create<BookingFlowState>()(
           location,
           service: null,
           slot: null,
+          addons: [],
         }),
 
       setService: (service) =>
@@ -95,6 +124,39 @@ export const useBookingFlowStore = create<BookingFlowState>()(
 
       setPet: (pet) => set({ pet }),
 
+      setAddonQuantity: (product, quantity) =>
+        set((state) => {
+          if (quantity <= 0) {
+            return {
+              addons: state.addons.filter(
+                (a) => a.productId !== product.productId,
+              ),
+            };
+          }
+          const existing = state.addons.find(
+            (a) => a.productId === product.productId,
+          );
+          if (existing) {
+            return {
+              addons: state.addons.map((a) =>
+                a.productId === product.productId
+                  ? { ...a, quantity }
+                  : a,
+              ),
+            };
+          }
+          return {
+            addons: [...state.addons, { ...product, quantity }],
+          };
+        }),
+
+      removeAddon: (productId) =>
+        set((state) => ({
+          addons: state.addons.filter((a) => a.productId !== productId),
+        })),
+
+      clearAddons: () => set({ addons: [] }),
+
       setNotes: (notes) => set({ notes }),
 
       reset: () => set(initialState),
@@ -105,3 +167,17 @@ export const useBookingFlowStore = create<BookingFlowState>()(
     },
   ),
 );
+
+// Convenience selector — total add-ons MXN (IVA-incl) for the review
+// summary. Placed here (module-scope, not on state) so component
+// re-renders only when relevant slices change.
+export function selectBookingAddonsSubtotal(state: BookingFlowState): number {
+  return state.addons.reduce(
+    (sum, a) => sum + Number(a.price) * a.quantity,
+    0,
+  );
+}
+
+export function selectBookingAddonsCount(state: BookingFlowState): number {
+  return state.addons.reduce((sum, a) => sum + a.quantity, 0);
+}

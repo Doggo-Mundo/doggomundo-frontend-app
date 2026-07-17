@@ -11,7 +11,11 @@ export const BOOKING_STEPS: BookingStep[] = [
   { key: "service", index: 3, path: "/book/service", label: "Servicio" },
   { key: "slot", index: 4, path: "/book/slot", label: "Fecha y hora" },
   { key: "pet", index: 5, path: "/book/pet", label: "Mascota" },
-  { key: "review", index: 6, path: "/book/review", label: "Confirmar" },
+  // F4-D optional cross-sell step. The page itself auto-forwards to
+  // /book/review when the location has zero add-on offerings, so
+  // customers of sucursales without retail never see extra friction.
+  { key: "addons", index: 6, path: "/book/addons", label: "Extras" },
+  { key: "review", index: 7, path: "/book/review", label: "Confirmar" },
 ];
 
 export const TOTAL_STEPS = BOOKING_STEPS.length;

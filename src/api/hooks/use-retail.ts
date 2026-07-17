@@ -33,7 +33,9 @@ export function useProductCategories() {
   });
 }
 
-/** Public product list. Flat array. Accepts `?category=<uuid>`. */
+/** Public product list. Flat array. Accepts `?category=<uuid>` and
+ * `?addons_only=true` (F4-D) to restrict to booking cross-sell
+ * eligible products. */
 export function useProducts(params: ProductListParams = {}) {
   return useQuery({
     queryKey: retailKeys.products.list(params as Record<string, unknown>),
