@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { Navigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Calendar, Crown, ExternalLink, History, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,12 +11,12 @@ import {
 } from "@/components/ui/card";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { BackLink } from "@/features/pets/components/BackLink";
 import { SubscriptionStatusBadge } from "@/features/memberships/components/SubscriptionStatusBadge";
 import { BalanceRow } from "@/features/memberships/components/BalanceRow";
+import { CancelSubscriptionDialog } from "@/features/memberships/components/CancelSubscriptionDialog";
+import { PendingCancelBanner } from "@/features/memberships/components/PendingCancelBanner";
 import {
-  useCancelSubscription,
   useOpenBillingPortal,
   useSubscription,
   useSubscriptionCycles,
@@ -26,7 +26,6 @@ import { CYCLE_STATUS_LABEL } from "@/types/membership";
 
 export function SubscriptionDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const {
     data: subscription,
@@ -34,7 +33,6 @@ export function SubscriptionDetailPage() {
     isError,
   } = useSubscription(id ?? "");
   const { data: cycles } = useSubscriptionCycles(id ?? "");
-  const cancel = useCancelSubscription(id ?? "");
   const openPortal = useOpenBillingPortal();
 
   if (!id) return <Navigate to="/my/subscriptions" replace />;
@@ -58,20 +56,12 @@ export function SubscriptionDetailPage() {
   }
 
   const canCancel =
-    subscription.status === "active" || subscription.status === "paused";
+    (subscription.status === "active" || subscription.status === "paused")
+    && subscription.cancels_at === null;
+  const pendingCancel = subscription.cancels_at !== null
+    && subscription.status === "active";
   // Backend returns only active cycles in active_balances; show history below.
   const pastCycles = (cycles ?? []).filter((c) => c.status === "closed");
-
-  async function handleCancel() {
-    try {
-      await cancel.mutateAsync();
-      toast.success("Tu suscripción fue cancelada.");
-      setConfirmOpen(false);
-      navigate("/my/subscriptions", { replace: true });
-    } catch {
-      toast.error("No pudimos cancelar la suscripción. Intenta de nuevo.");
-    }
-  }
 
   async function handleOpenPortal() {
     try {
@@ -86,6 +76,13 @@ export function SubscriptionDetailPage() {
   return (
     <div className="space-y-4">
       <BackLink to="/my/subscriptions" label="Mis suscripciones" />
+
+      {pendingCancel && subscription.cancels_at && (
+        <PendingCancelBanner
+          subscriptionId={subscription.id}
+          cancelsAt={subscription.cancels_at}
+        />
+      )}
 
       <header className="space-y-2">
         <SubscriptionStatusBadge status={subscription.status} />
@@ -190,16 +187,17 @@ export function SubscriptionDetailPage() {
         </div>
       )}
 
-      <ConfirmDialog
+      <CancelSubscriptionDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title="Cancelar suscripción"
-        description="Dejarás de recibir los beneficios al terminar el periodo actual. Esta acción no se puede deshacer."
-        confirmLabel="Cancelar suscripción"
-        cancelLabel="Volver"
-        variant="destructive"
-        onConfirm={handleCancel}
-        isLoading={cancel.isPending}
+        subscriptionId={subscription.id}
+        currentPeriodEnd={subscription.current_period_end}
+        onSuccess={() => {
+          toast.success(
+            "Cancelación programada. Sigues teniendo acceso hasta la "
+            + "fecha indicada.",
+          );
+        }}
       />
     </div>
   );

@@ -136,11 +136,63 @@ export function useOpenBillingPortal() {
   });
 }
 
+export type CancellationReason =
+  | "too_expensive"
+  | "not_using"
+  | "quality"
+  | "other";
+
+export interface CancelSubscriptionPayload {
+  reason: CancellationReason;
+  feedback?: string;
+}
+
+export interface CancelSubscriptionResponse {
+  status: string;
+  cancels_at: string; // ISO
+  message: string;
+}
+
+/**
+ * F6-A: request cancellation of the customer's own subscription.
+ * Backend schedules with Stripe (cancel_at_period_end=true), returns
+ * 202. The sub keeps its ACTIVE status until Stripe cancels for real
+ * at `cancels_at`; use `useReactivateSubscription` to undo before
+ * that date arrives.
+ */
 export function useCancelSubscription(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () =>
-      api.post(`/memberships/${id}/cancel/`).then((r) => r.data),
+    mutationFn: async (body: CancelSubscriptionPayload) => {
+      const { data } = await api.post<CancelSubscriptionResponse>(
+        `/memberships/${id}/cancel/`, body,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({
+        queryKey: membershipKeys.subscriptions.detail(id),
+      });
+      qc.invalidateQueries({ queryKey: membershipKeys.subscriptions.all });
+    },
+  });
+}
+
+/**
+ * F6-A: reverse a pending cancellation. Sub must still be ACTIVE and
+ * have a `cancels_at` set. Once Stripe truly canceled (webhook flipped
+ * status to CANCELLED), this endpoint returns 400 — customer needs
+ * to re-subscribe from scratch instead.
+ */
+export function useReactivateSubscription(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post<{ status: string; message: string }>(
+        `/memberships/${id}/reactivate/`,
+      );
+      return data;
+    },
     onSuccess: () => {
       qc.invalidateQueries({
         queryKey: membershipKeys.subscriptions.detail(id),
