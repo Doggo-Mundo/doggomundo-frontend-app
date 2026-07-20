@@ -20,10 +20,20 @@ interface Props {
  */
 export function OrderCard({ order, petName }: Props) {
   const coverage = order.membership_coverage;
-  const chargedTotal = order.charged_total_mxn ?? order.total;
   const isFullyCovered = coverage?.is_fully_covered;
   const isPartiallyCovered = coverage?.is_partially_covered;
-  const stickerDiffers = Number(chargedTotal) !== Number(order.total);
+  const membershipDiscount = Number(coverage?.covered_total_mxn ?? 0);
+  // Ver OrderDetailPage: charged_total_mxn viene del Payment ledger
+  // y es 0 para orders pendientes (aún no cobradas). Para que la
+  // tarjeta muestre lo que efectivamente le van a cobrar al cliente
+  // usamos total - coverage cuando la orden aún no está paid.
+  const chargedFromLedger = Number(order.charged_total_mxn ?? 0);
+  const netAmount =
+    order.status === "paid"
+      ? chargedFromLedger
+      : Number(order.total) - membershipDiscount;
+  const displaysAsNoCharge = isFullyCovered || netAmount <= 0;
+  const stickerDiffers = netAmount !== Number(order.total);
 
   return (
     <Link
@@ -37,11 +47,11 @@ export function OrderCard({ order, petName }: Props) {
               <div className="min-w-0 space-y-0.5">
                 <p className="flex items-center gap-1.5 font-medium">
                   <Receipt className="h-4 w-4 text-muted-foreground" />
-                  {isFullyCovered
+                  {displaysAsNoCharge
                     ? "Sin cargo"
-                    : formatMoney(chargedTotal, order.currency)}
+                    : formatMoney(netAmount.toFixed(2), order.currency)}
                 </p>
-                {stickerDiffers && !isFullyCovered && (
+                {stickerDiffers && !displaysAsNoCharge && (
                   <p className="text-[11px] text-muted-foreground">
                     De un total de{" "}
                     <span className="line-through">

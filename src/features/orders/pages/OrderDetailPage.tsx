@@ -75,10 +75,24 @@ export function OrderDetailPage() {
   }
 
   const coverage = order.membership_coverage;
-  const chargedTotal = order.charged_total_mxn ?? order.total;
   const isFullyCovered = coverage?.is_fully_covered;
   const isPartiallyCovered = coverage?.is_partially_covered;
   const membershipDiscount = Number(coverage?.covered_total_mxn ?? 0);
+
+  // "Monto neto" = lo que va a cobrar (o ya cobró) al cliente.
+  // Para orders pagadas usamos el Payment ledger (charged_total_mxn).
+  // Para orders pendientes ese ledger es 0 (aún no hay cobro), así
+  // que caemos al esperado: total - membership_coverage. Sin esto
+  // el header pintaba "$0.00" en orders pendientes con coverage
+  // parcial y el cliente no entendía cuánto le van a cobrar.
+  const chargedFromLedger = Number(order.charged_total_mxn ?? 0);
+  const netAmount =
+    order.status === "paid"
+      ? chargedFromLedger
+      : Number(order.total) - membershipDiscount;
+  // Sin cargo real = no queda saldo a cobrar. Incluye tanto el caso
+  // 'membership cubrió todo' como 'orden vaciada por completo'.
+  const displaysAsNoCharge = isFullyCovered || netAmount <= 0;
 
   return (
     <div className="space-y-4">
@@ -88,9 +102,9 @@ export function OrderDetailPage() {
         <OrderStatusBadge status={order.status} />
         <h1 className="flex items-center gap-2 text-2xl font-semibold">
           <Receipt className="h-6 w-6 text-muted-foreground" />
-          {isFullyCovered
+          {displaysAsNoCharge
             ? "Sin cargo"
-            : formatMoney(chargedTotal, order.currency)}
+            : formatMoney(netAmount.toFixed(2), order.currency)}
         </h1>
         {(isFullyCovered || isPartiallyCovered) && (
           <p className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
@@ -188,12 +202,14 @@ export function OrderDetailPage() {
           )}
           <div className="mt-1 border-t pt-1">
             <TotalRow
-              label={isFullyCovered ? "Cargado a tu tarjeta" : "Total"}
-              amount={
-                isFullyCovered || membershipDiscount > 0
-                  ? chargedTotal
-                  : order.total
+              label={
+                displaysAsNoCharge
+                  ? "Total a pagar"
+                  : order.status === "paid"
+                    ? "Cargado a tu tarjeta"
+                    : "Total a pagar"
               }
+              amount={netAmount.toFixed(2)}
               currency={order.currency}
               emphasis
             />
