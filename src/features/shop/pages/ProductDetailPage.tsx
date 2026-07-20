@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Info, Package, ShoppingCart, Zap } from "lucide-react";
+import { Package, ShoppingCart, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -119,17 +119,6 @@ export function ProductDetailPage() {
               <Zap />
               Comprar ahora
             </Button>
-          </div>
-
-          <div
-            className="flex items-start gap-2 rounded-md bg-muted p-3 text-xs text-muted-foreground"
-            role="note"
-          >
-            <Info className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>
-              Simulación — el pago en línea todavía no está activo. Por ahora,
-              la compra se finaliza en sucursal.
-            </p>
           </div>
 
           {product.description && (
