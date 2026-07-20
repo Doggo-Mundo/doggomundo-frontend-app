@@ -23,8 +23,69 @@ export interface Product {
   photo: string | null;
   fulfillment_type: FulfillmentType;
   fulfillment_type_display: string;
+  is_addon_offering: boolean;
 }
 
 export interface ProductListParams {
   category?: string;
+  // F4-D. Query param that the backend understands as truthy when
+  // the string equals "true"/"1"/"yes" (case-insensitive) — see
+  // retail/views.py::_is_truthy_param.
+  addons_only?: boolean;
+}
+
+// -----------------------------------------------------------------------------
+// Checkout (F4-B / F4-C)
+// -----------------------------------------------------------------------------
+
+export interface CheckoutRequestItem {
+  product_id: string;
+  quantity: number;
+}
+
+export interface CheckoutRequest {
+  items: CheckoutRequestItem[];
+  pickup_location_id: string;
+}
+
+export interface CheckoutResponse {
+  order_id: string;
+  client_secret: string;
+  amount_total: string;
+  currency: string;
+}
+
+export interface CheckoutOrderLine {
+  product_id: string | null;
+  description_snapshot: string;
+  quantity: number;
+  unit_price: string;
+  line_total: string;
+}
+
+export type CheckoutOrderStatus = "draft" | "paid" | "void";
+
+export interface CheckoutOrder {
+  id: string;
+  status: CheckoutOrderStatus;
+  subtotal: string;
+  tax_total: string;
+  total: string;
+  paid_at: string | null;
+  stock_hold_expires_at: string | null;
+  lines: CheckoutOrderLine[];
+}
+
+/**
+ * Shape of the 400 body when the checkout endpoint rejects due to
+ * insufficient stock. The view assembles this via ValidationError
+ * (payments/views.py) so we can render a targeted "Solo quedan N de
+ * X" message with the exact product.
+ */
+export interface OutOfStockDetail {
+  detail: string;
+  product_id: string;
+  product_name: string;
+  requested: number;
+  available: number;
 }

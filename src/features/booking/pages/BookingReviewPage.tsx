@@ -5,9 +5,12 @@ import {
   Calendar,
   Clock,
   MapPin,
+  Package,
   PawPrint,
+  Pencil,
   Sparkles,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -32,7 +35,12 @@ import { StripeInlineError } from "@/features/booking/components/payment-section
 import { CoverageCard } from "@/features/booking/components/CoverageCard";
 import { stripeEnabled } from "@/features/payments/stripe-enabled";
 import { useCoverage } from "@/api/hooks/use-memberships";
-import { useBookingFlowStore } from "@/stores/booking-flow-store";
+import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
+import { formatMoney } from "@/features/orders/lib/format-money";
+import {
+  selectBookingAddonsSubtotal,
+  useBookingFlowStore,
+} from "@/stores/booking-flow-store";
 import type {
   BookingLocationSnapshot,
   BookingServiceSnapshot,
@@ -89,6 +97,8 @@ export function BookingReviewPage() {
   const state = useBookingFlowStore();
   const reset = useBookingFlowStore((s) => s.reset);
   const setNotes = useBookingFlowStore((s) => s.setNotes);
+  const addons = useBookingFlowStore((s) => s.addons);
+  const addonsSubtotal = useBookingFlowStore(selectBookingAddonsSubtotal);
   const create = useCreateAppointment();
 
   // Imperative handle to the PaymentSection so this page can call
@@ -365,6 +375,13 @@ export function BookingReviewPage() {
               : {}),
           },
         ],
+        // F4-D: add-ons picked in the optional wizard step. Empty
+        // array is fine — the serializer defaults to [] when omitted
+        // so the same shape works whether the customer added any.
+        products: addons.map((a) => ({
+          product_id: a.productId,
+          quantity: a.quantity,
+        })),
         stripe_payment_method_id: paymentMethodId,
       });
       // Event-driven (vs. derived in an effect): record the snapshot,
@@ -388,7 +405,7 @@ export function BookingReviewPage() {
     <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
       <BookingStepHeader
         stepKey="review"
-        backTo="/book/pet"
+        backTo="/book/addons"
         title="Revisa tu reserva"
         description="Confirma que todo esté bien antes de agendar."
       />
@@ -444,6 +461,64 @@ export function BookingReviewPage() {
               )}
             </div>
           </div>
+
+          {addons.length > 0 && (
+            <>
+              <hr className="border-border" />
+              <div className="flex items-start gap-3">
+                <Package className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium">Extras</p>
+                    <Link
+                      to="/book/addons"
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      Editar
+                    </Link>
+                  </div>
+                  <ul className="space-y-1.5">
+                    {addons.map((a) => (
+                      <li
+                        key={a.productId}
+                        className="flex items-center gap-2 text-xs"
+                      >
+                        <div className="h-6 w-6 shrink-0 overflow-hidden rounded bg-muted">
+                          <ImageWithFallback
+                            src={a.photo}
+                            alt={a.name}
+                            className="h-full w-full object-cover"
+                            fallbackClassName="h-full w-full"
+                            fallback={
+                              <Package className="h-3 w-3 text-muted-foreground" />
+                            }
+                          />
+                        </div>
+                        <span className="min-w-0 flex-1 truncate">
+                          {a.name}{" "}
+                          <span className="text-muted-foreground">
+                            × {a.quantity}
+                          </span>
+                        </span>
+                        <span className="shrink-0 tabular-nums">
+                          {formatMoney(Number(a.price) * a.quantity)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="pt-0.5 text-xs text-muted-foreground">
+                    Subtotal extras (IVA incl.):{" "}
+                    <span className="font-medium">
+                      {formatMoney(addonsSubtotal)}
+                    </span>
+                    {" · "}
+                    Se cobra junto con la cita al completarla.
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

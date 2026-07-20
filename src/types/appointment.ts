@@ -81,6 +81,15 @@ export interface CreateAppointmentItemPayload {
   use_entitlement?: boolean;
 }
 
+/** F4-D add-on line — a retail product purchased through the wizard
+ *  "Extras" step. Backend re-validates that the product is active AND
+ *  flagged is_addon_offering; the frontend already restricts the picker
+ *  to that subset via the /retail/products/?addons_only=true endpoint. */
+export interface CreateAppointmentAddonPayload {
+  product_id: string;
+  quantity: number;
+}
+
 export interface CreateAppointmentPayload {
   business_unit: string;
   pet: string | null;
@@ -89,6 +98,9 @@ export interface CreateAppointmentPayload {
   channel: AppointmentChannel;
   notes?: string;
   items: CreateAppointmentItemPayload[];
+  /** F4-D: optional list of retail add-ons picked in the wizard step.
+   *  Omit or empty for bookings without cross-sell. */
+  products?: CreateAppointmentAddonPayload[];
   /** Stripe PaymentMethod id (pm_*) confirmed via SetupIntent in the
    *  wizard payment step. Optional — booking sin método queda
    *  payment_status=pending hasta cobro manual. */

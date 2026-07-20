@@ -45,6 +45,11 @@ const PetPickerPage = lazy(() =>
     default: m.PetPickerPage,
   })),
 );
+const AddOnsPickerPage = lazy(() =>
+  import("./pages/AddOnsPickerPage").then((m) => ({
+    default: m.AddOnsPickerPage,
+  })),
+);
 const BookingReviewPage = lazy(() =>
   import("./pages/BookingReviewPage").then((m) => ({
     default: m.BookingReviewPage,
@@ -71,6 +76,7 @@ function renderWizard(initial = "/book") {
             <Route path="/book/service" element={<ServicePickerPage />} />
             <Route path="/book/slot" element={<SlotPickerPage />} />
             <Route path="/book/pet" element={<PetPickerPage />} />
+            <Route path="/book/addons" element={<AddOnsPickerPage />} />
             <Route path="/book/review" element={<BookingReviewPage />} />
             <Route
               path="/my/appointments"
@@ -185,6 +191,10 @@ describe("Booking wizard — happy path", () => {
           ]),
         ),
       ),
+      // Add-ons picker (F4-D) — empty catalog triggers the page's
+      // auto-forward to /book/review so this happy-path test doesn't
+      // need to interact with the extras step.
+      http.get(`${API}/retail/products/`, () => HttpResponse.json([])),
       // Create
       http.post(`${API}/appointments/`, async ({ request }) => {
         postedPayload = (await request.json()) as Record<string, unknown>;

@@ -63,6 +63,10 @@ export interface Subscription {
   start_date: string;
   current_period_start: string;
   current_period_end: string;
+  /** F6-A: ISO datetime when Stripe will cancel the sub. Null when
+   *  there's no pending cancellation. Sub can still be ACTIVE with
+   *  this set — the customer keeps benefits until cancels_at. */
+  cancels_at: string | null;
   active_balances: EntitlementBalance[];
   cycles_count: number;
   created_at: string;

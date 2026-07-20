@@ -23,7 +23,11 @@ export function PetPickerPage() {
 
   function handleSelect(pet: PetListItem) {
     setPet({ id: pet.id, name: pet.name });
-    navigate("/book/review");
+    // F4-D: go to the optional add-ons step. When the location has
+    // no add-on offerings the step auto-forwards to /book/review, so
+    // there's no user-visible penalty for keeping this hop in the
+    // flow.
+    navigate("/book/addons");
   }
 
   return (
