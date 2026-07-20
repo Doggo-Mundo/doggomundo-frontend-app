@@ -51,6 +51,13 @@ export interface CheckoutRequest {
 export interface CheckoutResponse {
   order_id: string;
   client_secret: string;
+  /** F7-fix: Stripe Customer Session client_secret. Passed as
+   *  `customerSessionClientSecret` in Elements options so the
+   *  PaymentElement shows saved cards from previous flows
+   *  (SetupIntents del wizard de citas, retail anterior). Empty
+   *  string cuando Stripe rechazó la creación — el checkout sigue,
+   *  solo sin el picker. */
+  customer_session_client_secret: string;
   amount_total: string;
   currency: string;
 }

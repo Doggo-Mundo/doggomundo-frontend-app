@@ -94,6 +94,7 @@ export function makeAppointment(
 export function makeOrderListItem(
   overrides: Partial<OrderListItem> = {},
 ): OrderListItem {
+  const total = overrides.total ?? "450.00";
   return {
     id: "order-1",
     appointment: "appt-1",
@@ -101,7 +102,19 @@ export function makeOrderListItem(
     status: "paid",
     status_display: "Pagada",
     currency: "MXN",
-    total: "450.00",
+    total,
+    // Default = sin cobertura de membresía → charged == total. Tests
+    // que exercisan el flow con cobertura override explícitamente.
+    // Deriva charged de total para que override de total sin override
+    // de charged_total_mxn no produzca sticker line-through espurio.
+    charged_total_mxn: total,
+    membership_coverage: {
+      covered_lines_count: 0,
+      total_lines_count: 1,
+      covered_total_mxn: "0.00",
+      is_fully_covered: false,
+      is_partially_covered: false,
+    },
     paid_at: "2026-01-05T16:30:00Z",
     created_at: "2026-01-05T16:00:00Z",
     ...overrides,

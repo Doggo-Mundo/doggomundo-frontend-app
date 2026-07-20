@@ -3,6 +3,7 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import {
   CalendarDays,
   ChevronRight,
+  Crown,
   PawPrint,
   Receipt,
 } from "lucide-react";
@@ -73,6 +74,12 @@ export function OrderDetailPage() {
     );
   }
 
+  const coverage = order.membership_coverage;
+  const chargedTotal = order.charged_total_mxn ?? order.total;
+  const isFullyCovered = coverage?.is_fully_covered;
+  const isPartiallyCovered = coverage?.is_partially_covered;
+  const membershipDiscount = Number(coverage?.covered_total_mxn ?? 0);
+
   return (
     <div className="space-y-4">
       <BackLink to="/my/orders" label="Mis órdenes" />
@@ -81,8 +88,18 @@ export function OrderDetailPage() {
         <OrderStatusBadge status={order.status} />
         <h1 className="flex items-center gap-2 text-2xl font-semibold">
           <Receipt className="h-6 w-6 text-muted-foreground" />
-          {formatMoney(order.total, order.currency)}
+          {isFullyCovered
+            ? "Sin cargo"
+            : formatMoney(chargedTotal, order.currency)}
         </h1>
+        {(isFullyCovered || isPartiallyCovered) && (
+          <p className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+            <Crown className="h-3 w-3" />
+            {isFullyCovered
+              ? "Cubierto por tu membresía"
+              : "Cubierto parcialmente por tu membresía"}
+          </p>
+        )}
         <p className="text-sm text-muted-foreground">
           {order.paid_at
             ? `Pagada el ${formatDateTime(order.paid_at)}`
@@ -114,8 +131,21 @@ export function OrderDetailPage() {
                       {" · "}
                       {formatMoney(line.unit_price, order.currency)}
                     </p>
+                    {line.covered_by_membership && (
+                      <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-primary">
+                        <Crown className="h-3 w-3" />
+                        Cubierto por tu membresía
+                      </p>
+                    )}
                   </div>
-                  <span className="shrink-0 text-sm font-medium">
+                  <span
+                    className={
+                      "shrink-0 text-sm font-medium"
+                      + (line.covered_by_membership
+                        ? " text-muted-foreground line-through"
+                        : "")
+                    }
+                  >
                     {formatMoney(line.line_total, order.currency)}
                   </span>
                 </li>
@@ -149,10 +179,21 @@ export function OrderDetailPage() {
               currency={order.currency}
             />
           )}
+          {membershipDiscount > 0 && (
+            <TotalRow
+              label="Cubierto por membresía"
+              amount={`-${coverage!.covered_total_mxn}`}
+              currency={order.currency}
+            />
+          )}
           <div className="mt-1 border-t pt-1">
             <TotalRow
-              label="Total"
-              amount={order.total}
+              label={isFullyCovered ? "Cargado a tu tarjeta" : "Total"}
+              amount={
+                isFullyCovered || membershipDiscount > 0
+                  ? chargedTotal
+                  : order.total
+              }
               currency={order.currency}
               emphasis
             />

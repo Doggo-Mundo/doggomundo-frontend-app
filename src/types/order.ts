@@ -25,6 +25,22 @@ export interface OrderLine {
   quantity: string;
   unit_price: string;
   line_total: string;
+  /** F-fix: true cuando el item fue redimido por un
+   *  EntitlementBalance de una membresía activa. La UI muestra un
+   *  chip "Cubierto por membresía" en vez de solo el precio. */
+  covered_by_membership: boolean;
+}
+
+/** F-fix: summary de cuánto de la orden fue cubierto por membresía
+ *  vs cobrado al cliente. Emitido por el backend para todos los
+ *  Orders. Cuando no hay appointment/membresía involucrada, todos
+ *  los counts vienen en 0. */
+export interface MembershipCoverage {
+  covered_lines_count: number;
+  total_lines_count: number;
+  covered_total_mxn: string;
+  is_fully_covered: boolean;
+  is_partially_covered: boolean;
 }
 
 export interface OrderListItem {
@@ -34,7 +50,14 @@ export interface OrderListItem {
   status: OrderStatus;
   status_display: string;
   currency: string;
+  /** Sticker price: subtotal + tax - discounts. NO refleja lo que el
+   *  cliente pagó realmente cuando hay membresía involucrada. */
   total: string;
+  /** F-fix: monto real cobrado (suma de Payments activos). Puede
+   *  ser < `total` cuando la membresía cubre parcialmente. Igual a
+   *  `total` en órdenes retail o citas sin cobertura. */
+  charged_total_mxn: string;
+  membership_coverage: MembershipCoverage;
   paid_at: string | null;
   created_at: string;
 }
