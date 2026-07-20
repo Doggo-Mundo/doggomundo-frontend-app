@@ -140,6 +140,7 @@ export function makePlan(
       },
     ],
     requires_payment_method: false,
+    retail_discount_percentage: "0.00",
     ...overrides,
   };
 }

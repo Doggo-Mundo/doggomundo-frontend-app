@@ -11,6 +11,7 @@ import {
   Building2,
   CheckCircle2,
   CreditCard,
+  Crown,
   MapPin,
   Package,
   Plus,
@@ -40,6 +41,11 @@ import {
 import { useRetailCheckout } from "@/api/hooks/use-retail";
 import { useLocations } from "@/api/hooks/use-locations";
 import { usePaymentMethods } from "@/api/hooks/use-payments";
+import { useMySubscriptions } from "@/api/hooks/use-memberships";
+import {
+  computeDiscount,
+  selectRetailDiscountPct,
+} from "@/features/shop/lib/membership-discount";
 import { getStripePromise } from "@/lib/stripe";
 import { cn } from "@/lib/utils";
 import type {
@@ -191,6 +197,13 @@ function ReviewPhase(props: ReviewProps) {
     onPickLocation, onSubmit, isSubmitting, locationsLoading,
   } = props;
 
+  // F-B: preview del descuento en el review antes de crear la orden.
+  // El backend recalcula al momento del checkout — este preview solo
+  // evita la sorpresa de "vi X en el cart pero pagué Y".
+  const subs = useMySubscriptions();
+  const discountPct = selectRetailDiscountPct(subs.data);
+  const { discount, net } = computeDiscount(subtotal, discountPct);
+
   const canContinue = !!pickupLocationId && items.length > 0 && !isSubmitting;
 
   return (
@@ -254,10 +267,30 @@ function ReviewPhase(props: ReviewProps) {
 
           <hr className="border-border" />
 
+          {discountPct > 0 && (
+            <>
+              <div className="flex items-center justify-between text-xs">
+                <span>Subtotal</span>
+                <span className="text-muted-foreground line-through">
+                  {formatMoney(subtotal)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="inline-flex items-center gap-1 text-secondary-foreground">
+                  <Crown className="h-3 w-3" />
+                  Descuento membresía ({discountPct}%)
+                </span>
+                <span className="text-secondary-foreground">
+                  -{formatMoney(discount)}
+                </span>
+              </div>
+            </>
+          )}
+
           <div className="flex items-center justify-between pt-1">
             <span className="font-semibold">Total</span>
             <span className="text-xl font-semibold">
-              {formatMoney(subtotal)}
+              {formatMoney(discountPct > 0 ? net : subtotal)}
             </span>
           </div>
           <p className="text-[11px] text-muted-foreground">
