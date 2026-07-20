@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Calendar, ChevronRight, PawPrint, Receipt } from "lucide-react";
+import { Calendar, ChevronRight, Crown, PawPrint, Receipt } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { OrderStatusBadge } from "./OrderStatusBadge";
 import { formatMoney } from "@/features/orders/lib/format-money";
@@ -11,7 +11,20 @@ interface Props {
   petName?: string | null;
 }
 
+/**
+ * F-fix: cuando la orden tiene coverage de membresía, el precio
+ * mostrado es lo que efectivamente se cobró — no el sticker price.
+ * El sticker se muestra tachado abajo cuando aplica, con un chip
+ * "Cubierto por membresía" o "Membresía + tarjeta" según el caso.
+ * Sin esto, el cliente ve $350 y no entiende cómo fue cargado.
+ */
 export function OrderCard({ order, petName }: Props) {
+  const coverage = order.membership_coverage;
+  const chargedTotal = order.charged_total_mxn ?? order.total;
+  const isFullyCovered = coverage?.is_fully_covered;
+  const isPartiallyCovered = coverage?.is_partially_covered;
+  const stickerDiffers = Number(chargedTotal) !== Number(order.total);
+
   return (
     <Link
       to={`/my/orders/${order.id}`}
@@ -21,12 +34,32 @@ export function OrderCard({ order, petName }: Props) {
         <div className="flex items-start gap-3 px-3">
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex items-start justify-between gap-2">
-              <p className="flex items-center gap-1.5 font-medium">
-                <Receipt className="h-4 w-4 text-muted-foreground" />
-                {formatMoney(order.total, order.currency)}
-              </p>
+              <div className="min-w-0 space-y-0.5">
+                <p className="flex items-center gap-1.5 font-medium">
+                  <Receipt className="h-4 w-4 text-muted-foreground" />
+                  {isFullyCovered
+                    ? "Sin cargo"
+                    : formatMoney(chargedTotal, order.currency)}
+                </p>
+                {stickerDiffers && !isFullyCovered && (
+                  <p className="text-[11px] text-muted-foreground">
+                    De un total de{" "}
+                    <span className="line-through">
+                      {formatMoney(order.total, order.currency)}
+                    </span>
+                  </p>
+                )}
+              </div>
               <OrderStatusBadge status={order.status} />
             </div>
+            {(isFullyCovered || isPartiallyCovered) && (
+              <p className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+                <Crown className="h-3 w-3" />
+                {isFullyCovered
+                  ? "Cubierto por tu membresía"
+                  : "Membresía + tarjeta"}
+              </p>
+            )}
             <p className="flex items-center gap-1 text-xs text-muted-foreground">
               <Calendar className="h-3 w-3" />
               {order.paid_at

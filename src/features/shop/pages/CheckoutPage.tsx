@@ -285,6 +285,20 @@ interface PaymentPhaseProps {
 }
 
 function PaymentPhase({ checkout, onError, onBack }: PaymentPhaseProps) {
+  // customerSessionClientSecret habilita el picker de tarjetas
+  // guardadas del customer en el PaymentElement. Solo se pasa
+  // cuando el backend lo emitió con éxito — cuando viene vacío,
+  // Elements se monta sin picker (checkout sigue funcionando, el
+  // customer nuevo llena el form normal).
+  const elementsOptions: Parameters<typeof Elements>[0]["options"] = {
+    clientSecret: checkout.client_secret,
+    appearance: { theme: "stripe" },
+    locale: "es",
+  };
+  if (checkout.customer_session_client_secret) {
+    elementsOptions.customerSessionClientSecret =
+      checkout.customer_session_client_secret;
+  }
   return (
     <Card>
       <CardHeader>
@@ -293,11 +307,7 @@ function PaymentPhase({ checkout, onError, onBack }: PaymentPhaseProps) {
       <CardContent className="pt-0">
         <Elements
           stripe={getStripePromise()}
-          options={{
-            clientSecret: checkout.client_secret,
-            appearance: { theme: "stripe" },
-            locale: "es",
-          }}
+          options={elementsOptions}
         >
           <PaymentInner
             orderId={checkout.order_id}
