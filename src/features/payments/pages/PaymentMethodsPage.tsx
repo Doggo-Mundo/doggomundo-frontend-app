@@ -246,8 +246,10 @@ function PageShell({ children }: { children: React.ReactNode }) {
       <header className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight">Métodos de pago</h1>
         <p className="text-sm text-muted-foreground">
-          Administra tus tarjetas guardadas. El cobro siempre sucede al
-          completar el servicio, no al reservar.
+          Administra las tarjetas que usas en Doggo Mundo. En citas y
+          membresías, la tarjeta marcada como default se usa para
+          cargos automáticos; en la tienda puedes elegir cualquiera al
+          momento del pago.
         </p>
       </header>
       {children}

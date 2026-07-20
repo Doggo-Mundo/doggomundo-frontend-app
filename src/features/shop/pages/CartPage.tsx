@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Info, Package, ShoppingCart, Trash2 } from "lucide-react";
+import { Package, ShoppingCart, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -120,7 +120,8 @@ export function CartPage() {
             </span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Envío y descuentos se calculan en el siguiente paso.
+            IVA incluido. Recoges tu pedido en la sucursal que elijas en el
+            siguiente paso.
           </p>
           <Button
             size="lg"
@@ -132,17 +133,6 @@ export function CartPage() {
           </Button>
         </div>
       </Card>
-
-      <div
-        className="flex items-start gap-2 rounded-md bg-muted p-3 text-xs text-muted-foreground"
-        role="note"
-      >
-        <Info className="mt-0.5 h-4 w-4 shrink-0" />
-        <p>
-          Simulación — el pago en línea todavía no está activo. Este flujo es
-          una vista previa del carrito y checkout.
-        </p>
-      </div>
     </div>
   );
 }
