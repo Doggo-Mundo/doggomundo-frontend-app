@@ -67,7 +67,17 @@ export function OrderCard({ order, petName }: Props) {
                 <Crown className="h-3 w-3" />
                 {isFullyCovered
                   ? "Cubierto por tu membresía"
-                  : "Membresía + tarjeta"}
+                  // F-D: no asumir tarjeta cuando la orden se cerró
+                  // con efectivo o TPV. Solo mencionamos el método
+                  // extra si es un tipo conocido; sino "Membresía +
+                  // otro pago" para el edge de datos incompletos.
+                  : order.effective_payment_method === "cash"
+                    ? "Membresía + efectivo"
+                    : order.effective_payment_method === "external_terminal"
+                      ? "Membresía + TPV"
+                      : order.effective_payment_method === "transfer"
+                        ? "Membresía + transferencia"
+                        : "Membresía + tarjeta"}
               </p>
             )}
             <p className="flex items-center gap-1 text-xs text-muted-foreground">

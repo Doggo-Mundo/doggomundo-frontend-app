@@ -94,6 +94,24 @@ export function OrderDetailPage() {
   // 'membership cubrió todo' como 'orden vaciada por completo'.
   const displaysAsNoCharge = isFullyCovered || netAmount <= 0;
 
+  // F-D: label del monto pagado refleja el método real, no siempre
+  // "Cargado a tu tarjeta". Cuando el admin cerró la orden en
+  // sucursal con efectivo o TPV, el customer debe verlo así en su
+  // historial. Fallback a "Cargado a tu tarjeta" cuando no hay
+  // Payment aún (edge, orden paid sin ledger — no debería pasar en
+  // prod pero por defensiva no rompemos la UI).
+  const paidLabel = (() => {
+    switch (order.effective_payment_method) {
+      case "cash": return "Pagaste en efectivo";
+      case "external_terminal":
+        return "Pagaste en terminal (TPV)";
+      case "transfer": return "Pagaste por transferencia";
+      case "card":
+      case "online":
+      default: return "Cargado a tu tarjeta";
+    }
+  })();
+
   return (
     <div className="space-y-4">
       <BackLink to="/my/orders" label="Mis órdenes" />
@@ -206,7 +224,7 @@ export function OrderDetailPage() {
                 displaysAsNoCharge
                   ? "Total a pagar"
                   : order.status === "paid"
-                    ? "Cargado a tu tarjeta"
+                    ? paidLabel
                     : "Total a pagar"
               }
               amount={netAmount.toFixed(2)}
