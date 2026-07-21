@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Package, ShoppingCart, Trash2 } from "lucide-react";
+import { Crown, Package, ShoppingCart, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -13,6 +13,11 @@ import {
   selectCartSubtotal,
   useCartStore,
 } from "@/stores/cart-store";
+import { useMySubscriptions } from "@/api/hooks/use-memberships";
+import {
+  computeDiscount,
+  selectRetailDiscountPct,
+} from "@/features/shop/lib/membership-discount";
 
 export function CartPage() {
   const navigate = useNavigate();
@@ -21,6 +26,13 @@ export function CartPage() {
   const remove = useCartStore((s) => s.remove);
   const count = useCartStore(selectCartCount);
   const subtotal = useCartStore(selectCartSubtotal);
+  // F-B: mirror del cálculo del backend para preview del descuento
+  // de membresía en el resumen. El backend sigue siendo autoridad —
+  // esto solo evita que el cliente vea $X en el cart y $X-10% en el
+  // checkout sin explicación.
+  const subs = useMySubscriptions();
+  const discountPct = selectRetailDiscountPct(subs.data);
+  const { discount, net } = computeDiscount(subtotal, discountPct);
 
   if (items.length === 0) {
     return (
@@ -115,10 +127,35 @@ export function CartPage() {
         <div className="space-y-3 p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Subtotal</span>
-            <span className="text-lg font-semibold">
+            <span
+              className={
+                discountPct > 0
+                  ? "text-sm text-muted-foreground line-through"
+                  : "text-lg font-semibold"
+              }
+            >
               {formatMoney(subtotal)}
             </span>
           </div>
+          {discountPct > 0 && (
+            <>
+              <div className="flex items-center justify-between text-sm">
+                <span className="inline-flex items-center gap-1 text-secondary-foreground">
+                  <Crown className="h-3.5 w-3.5" />
+                  Descuento membresía ({discountPct}%)
+                </span>
+                <span className="text-secondary-foreground">
+                  -{formatMoney(discount)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between border-t pt-2">
+                <span className="text-sm font-medium">Total a pagar</span>
+                <span className="text-xl font-semibold">
+                  {formatMoney(net)}
+                </span>
+              </div>
+            </>
+          )}
           <p className="text-xs text-muted-foreground">
             IVA incluido. Recoges tu pedido en la sucursal que elijas en el
             siguiente paso.

@@ -115,6 +115,9 @@ export function makeOrderListItem(
       is_fully_covered: false,
       is_partially_covered: false,
     },
+    // F-D: default 'card' para simular el caso más común (cobro
+    // por Stripe). Tests que exercisan cash/TPV override explícito.
+    effective_payment_method: "card",
     paid_at: "2026-01-05T16:30:00Z",
     created_at: "2026-01-05T16:00:00Z",
     ...overrides,
@@ -140,6 +143,7 @@ export function makePlan(
       },
     ],
     requires_payment_method: false,
+    retail_discount_percentage: "0.00",
     ...overrides,
   };
 }

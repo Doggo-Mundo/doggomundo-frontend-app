@@ -43,6 +43,16 @@ export interface MembershipCoverage {
   is_partially_covered: boolean;
 }
 
+/** F-D: cómo se pagó realmente esta orden. Viene del último
+ *  Payment activo. Null cuando no hay Payment aún (draft pendiente
+ *  de cobro) o cuando la orden fue anulada sin cobro. */
+export type EffectivePaymentMethod =
+  | "cash"
+  | "card"
+  | "transfer"
+  | "online"
+  | "external_terminal";
+
 export interface OrderListItem {
   id: string;
   appointment: string | null;
@@ -58,6 +68,8 @@ export interface OrderListItem {
    *  `total` en órdenes retail o citas sin cobertura. */
   charged_total_mxn: string;
   membership_coverage: MembershipCoverage;
+  /** F-D: ver EffectivePaymentMethod. */
+  effective_payment_method: EffectivePaymentMethod | null;
   paid_at: string | null;
   created_at: string;
 }

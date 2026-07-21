@@ -43,6 +43,10 @@ export interface MembershipPlan {
   /** True when the plan is wired to a Stripe Price and the subscribe
    *  flow needs to capture a payment method before submitting. */
   requires_payment_method: boolean;
+  /** F-B: descuento % que se aplica al total de checkouts retail
+   *  cuando el cliente tiene subscription ACTIVE a este plan.
+   *  "0.00" cuando el plan no tiene beneficio de tienda. */
+  retail_discount_percentage: string;
 }
 
 export interface EntitlementBalance {
@@ -58,6 +62,9 @@ export interface Subscription {
   id: string;
   plan: string;
   plan_name: string;
+  /** F-B: descuento % en tienda del plan asociado. "0.00" cuando no
+   *  aplica. Precalculado por el backend para no cruzar catálogo. */
+  plan_retail_discount_percentage: string;
   status: SubscriptionStatus;
   status_display: string;
   start_date: string;
