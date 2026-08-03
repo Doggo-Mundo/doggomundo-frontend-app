@@ -42,7 +42,7 @@ import {
 } from "@/api/hooks/use-pets";
 import { cn } from "@/lib/utils";
 import { GENDER_LABEL, SIZE_LABEL } from "@/types/pet";
-import type { Pet, Gender, PetSize } from "@/types/pet";
+import type { Pet, Gender } from "@/types/pet";
 
 const SIZE_VALUES = ["SMALL", "MEDIUM", "LARGE", "X_LARGE"] as const;
 
