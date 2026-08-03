@@ -33,11 +33,14 @@ export function PetShowcase({ pets, appointments }: Props) {
   });
 
   return (
-    <section className="space-y-2">
+    <section className="space-y-3">
       <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
         Tus peludos
       </h2>
-      <div className="-mx-4 overflow-x-auto px-4 pb-1 scrollbar-thin">
+      {/* pt-1 evita que el hover:-translate-y-0.5 + shadow-md de las
+          cards se corten arriba por el overflow-x-auto (solo scroll
+          horizontal; lo vertical se clipea). */}
+      <div className="-mx-4 overflow-x-auto px-4 pt-1 pb-1 scrollbar-thin">
         <ul className="flex gap-3">
           {activePets.map((pet) => (
             <li key={pet.id} className="shrink-0">
