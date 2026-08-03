@@ -32,6 +32,7 @@ import { profileFields } from "@/features/pets/lib/pet-missing";
 import { mapApiErrors } from "@/features/auth/lib/map-api-errors";
 import {
   useBreeds,
+  useCreateBreed,
   useFoodBrands,
   useFoodTypes,
   usePet,
@@ -40,11 +41,18 @@ import {
   useUpdatePetPhoto,
 } from "@/api/hooks/use-pets";
 import { cn } from "@/lib/utils";
-import { GENDER_LABEL } from "@/types/pet";
-import type { Pet, Gender } from "@/types/pet";
+import { GENDER_LABEL, SIZE_LABEL } from "@/types/pet";
+import type { Pet, Gender, PetSize } from "@/types/pet";
+
+const SIZE_VALUES = ["SMALL", "MEDIUM", "LARGE", "X_LARGE"] as const;
 
 const schema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
+  // F-E.1: size lo trata como opcional aquí (el pet puede tener uno
+  // previo, o el operador puede querer solo cambiar nombre); la
+  // validación de "es obligatorio si el pet no lo tiene" vive en
+  // el submit — ver `onSubmit` abajo.
+  size: z.enum(SIZE_VALUES).optional(),
   gender: z.enum(["MALE", "FEMALE", "UNKNOWN"]).optional(),
   breed: z.string().optional(),
   birth_date: z.string().optional(),
@@ -58,6 +66,7 @@ type FormValues = z.infer<typeof schema>;
 
 const BASIC_KEYS = [
   "name",
+  "size",
   "gender",
   "breed",
   "birth_date",
@@ -111,6 +120,7 @@ function PetEditForm({ pet }: FormProps) {
   const updateBasic = useUpdatePetBasic(pet.id);
   const updateComplete = useUpdatePetComplete(pet.id);
   const updatePhoto = useUpdatePetPhoto(pet.id);
+  const createBreed = useCreateBreed();
   const { data: breeds = [], isLoading: breedsLoading } = useBreeds();
   const { data: foodTypes = [], isLoading: foodTypesLoading } = useFoodTypes();
   const { data: foodBrands = [], isLoading: foodBrandsLoading } = useFoodBrands();
@@ -126,6 +136,7 @@ function PetEditForm({ pet }: FormProps) {
     resolver: zodResolver(schema),
     defaultValues: {
       name: pet.name,
+      size: pet.size ?? undefined,
       gender: pet.gender ?? undefined,
       breed: pet.breed?.id ?? "",
       birth_date: pet.birth_date ?? "",
@@ -183,6 +194,18 @@ function PetEditForm({ pet }: FormProps) {
   }
 
   async function onSubmit(data: FormValues) {
+    // F-E.1: size es obligatorio si el pet aún no tiene uno (pet
+    // legacy pre-F-E). Con uno previo, permitimos guardar sin
+    // tocarlo. Este check vive fuera del zod schema porque
+    // depende del instance actual.
+    if (!pet.size && !data.size) {
+      setError("size", {
+        type: "required",
+        message: "El tamaño es requerido.",
+      });
+      return;
+    }
+
     const basicChanges: Record<string, unknown> = {};
     BASIC_KEYS.forEach((k) => {
       if (dirtyFields[k]) basicChanges[k] = data[k] ?? "";
@@ -335,6 +358,45 @@ function PetEditForm({ pet }: FormProps) {
             </div>
 
             <div className="space-y-1.5">
+              <Label htmlFor="size">
+                Tamaño
+                {!pet.size && (
+                  <span className="text-destructive"> *</span>
+                )}
+              </Label>
+              <Controller
+                control={control}
+                name="size"
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger
+                      id="size"
+                      className="w-full"
+                      aria-invalid={Boolean(errors.size)}
+                    >
+                      <SelectValue placeholder="Selecciona un tamaño" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SIZE_VALUES.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {SIZE_LABEL[s]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.size && (
+                <p className="text-sm text-destructive">
+                  {errors.size.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
               <Label htmlFor="breed">Raza</Label>
               <Controller
                 control={control}
@@ -348,6 +410,18 @@ function PetEditForm({ pet }: FormProps) {
                     placeholder="Selecciona una raza"
                     searchPlaceholder="Busca tu raza…"
                     isLoading={breedsLoading}
+                    onCreate={async (name) => {
+                      try {
+                        return await createBreed.mutateAsync(name);
+                      } catch (err) {
+                        mapApiErrors(
+                          err, setError,
+                          "No pudimos crear la raza.",
+                        );
+                        throw err;
+                      }
+                    }}
+                    createLabel="Crear raza"
                   />
                 )}
               />
