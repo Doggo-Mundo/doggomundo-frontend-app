@@ -56,6 +56,8 @@ export interface PetListParams {
 /** species is auto-set to DOG by the backend, so the form never sends it. */
 export interface CreatePetPayload {
   name: string;
+  /** F-E.1: obligatorio en create (backend rechaza sin él). */
+  size: PetSize;
   gender?: Gender;
   breed?: string;
   food_type?: string;
@@ -65,6 +67,9 @@ export interface CreatePetPayload {
 
 export interface UpdatePetBasicPayload {
   name?: string;
+  /** F-E.1: opcional en update (backend permite omitir si el pet
+   *  ya tenía uno; obligatorio si no lo tenía). */
+  size?: PetSize;
   gender?: Gender;
   breed?: string;
   food_type?: string;

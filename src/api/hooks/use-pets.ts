@@ -43,6 +43,37 @@ export function useBreeds() {
   });
 }
 
+/**
+ * F-E.2: crea una raza custom cuando el cliente no encuentra la
+ * suya en el catálogo. El backend hace dedupe case-insensitive +
+ * sin diacríticos: si ya existe una equivalente devuelve la
+ * existente en 200; si crea una nueva responde 201 con
+ * `is_user_created=true`. En ambos casos el frontend usa la id
+ * devuelta para setear el campo `breed` del pet.
+ *
+ * onSuccess actualiza optimísticamente el cache de useBreeds
+ * (agrega la raza al array) para que reaparezca inmediatamente
+ * en el picker sin refetch — evita el flash del combobox.
+ */
+export function useCreateBreed() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) =>
+      api
+        .post<LookupOption>("/pets/breeds/", { name })
+        .then((r) => r.data),
+    onSuccess: (created) => {
+      qc.setQueryData<LookupOption[]>(petKeys.breeds, (prev) => {
+        if (!prev) return [created];
+        if (prev.some((b) => b.id === created.id)) return prev;
+        // Insert al final — el usuario acaba de crearla, sabe que
+        // no está en su orden alfabético natural del catálogo.
+        return [...prev, created];
+      });
+    },
+  });
+}
+
 export function useFoodTypes() {
   return useQuery({
     queryKey: petKeys.foodTypes,

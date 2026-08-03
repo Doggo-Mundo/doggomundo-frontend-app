@@ -26,15 +26,23 @@ import { BackLink } from "@/features/pets/components/BackLink";
 import { mapApiErrors } from "@/features/auth/lib/map-api-errors";
 import {
   useBreeds,
+  useCreateBreed,
   useCreatePet,
   useFoodBrands,
   useFoodTypes,
 } from "@/api/hooks/use-pets";
-import { GENDER_LABEL } from "@/types/pet";
-import type { CreatePetPayload, Gender } from "@/types/pet";
+import { GENDER_LABEL, SIZE_LABEL } from "@/types/pet";
+import type { CreatePetPayload, Gender, PetSize } from "@/types/pet";
+
+const SIZE_VALUES = ["SMALL", "MEDIUM", "LARGE", "X_LARGE"] as const;
 
 const schema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
+  // F-E.1: size obligatorio para que el staff sepa qué máquina/box
+  // asignar sin adivinar por la raza (que puede ser custom).
+  size: z.enum(SIZE_VALUES, {
+    required_error: "El tamaño es requerido",
+  }),
   gender: z.enum(["MALE", "FEMALE", "UNKNOWN"]).optional(),
   breed: z.string().optional(),
   birth_date: z.string().optional(),
@@ -47,6 +55,7 @@ type FormValues = z.infer<typeof schema>;
 export function PetCreatePage() {
   const navigate = useNavigate();
   const create = useCreatePet();
+  const createBreed = useCreateBreed();
   const { data: breeds = [], isLoading: breedsLoading } = useBreeds();
   const { data: foodTypes = [], isLoading: foodTypesLoading } = useFoodTypes();
   const { data: foodBrands = [], isLoading: foodBrandsLoading } = useFoodBrands();
@@ -72,6 +81,7 @@ export function PetCreatePage() {
     try {
       const payload: CreatePetPayload = {
         name: data.name,
+        size: data.size as PetSize,
         ...(data.gender ? { gender: data.gender as Gender } : {}),
         ...(data.breed ? { breed: data.breed } : {}),
         ...(data.birth_date ? { birth_date: data.birth_date } : {}),
@@ -137,6 +147,42 @@ export function PetCreatePage() {
             </div>
 
             <div className="space-y-1.5">
+              <Label htmlFor="size">
+                Tamaño <span className="text-destructive">*</span>
+              </Label>
+              <Controller
+                control={control}
+                name="size"
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger
+                      id="size"
+                      className="w-full"
+                      aria-invalid={Boolean(errors.size)}
+                    >
+                      <SelectValue placeholder="Selecciona un tamaño" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SIZE_VALUES.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {SIZE_LABEL[s]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.size && (
+                <p className="text-sm text-destructive">
+                  {errors.size.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
               <Label htmlFor="breed">Raza</Label>
               <Controller
                 control={control}
@@ -150,6 +196,21 @@ export function PetCreatePage() {
                     placeholder="Selecciona una raza"
                     searchPlaceholder="Busca tu raza…"
                     isLoading={breedsLoading}
+                    // F-E.2: si el cliente no encuentra su raza,
+                    // el picker le ofrece crear una nueva. El backend
+                    // hace dedupe case-insensitive + sin diacríticos.
+                    onCreate={async (name) => {
+                      try {
+                        return await createBreed.mutateAsync(name);
+                      } catch (err) {
+                        mapApiErrors(
+                          err, setError,
+                          "No pudimos crear la raza.",
+                        );
+                        throw err;
+                      }
+                    }}
+                    createLabel="Crear raza"
                   />
                 )}
               />
