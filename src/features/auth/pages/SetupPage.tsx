@@ -6,34 +6,30 @@ import { z } from "zod";
 import { toast } from "sonner";
 import axios from "axios";
 import {
-  Camera, CheckCircle2, ChevronRight, FileText,
-  Loader2, ShieldCheck, Upload,
+  Camera, CheckCircle2, ChevronRight, Loader2, Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card, CardContent, CardHeader, CardTitle,
-} from "@/components/ui/card";
 import { FormErrors } from "@/components/shared/FormErrors";
+import { AuthLayout } from "@/features/auth/components/AuthLayout";
 import { useWalkInSetup } from "@/api/hooks/use-auth";
 import { useUploadPetDocument } from "@/api/hooks/use-pets";
 import { useAuthStore } from "@/stores/auth-store";
 import { cn } from "@/lib/utils";
 
 /**
- * F-F.3: página que consume el magic-link del email. Flow:
+ * F-F.3: página que consume el magic-link del email de walk-in.
  *
- *   Step 1 (password) → llama POST /api/auth/setup/. Al éxito
- *     hidrata el auth store (autologin) y avanza.
- *   Step 2 (cartilla) → sube la foto/PDF como MedicalDocument
- *     con document_type=CARTILLA_VACUNACION al pet creado por el
- *     staff. Cliente puede skippear con "Más tarde" — quedará
- *     con un warning soft en cualquier cita que reserve.
- *   Step 3 (done)   → CTA a Home.
+ * Cada step usa `AuthLayout` — mismo look y responsive treatment
+ * (safe-area insets, brand background, logo) que las demás
+ * pantallas públicas de auth. El StepIndicator queda arriba del
+ * contenido dentro de la misma card.
  *
- * Sin AuthGuard: la ruta vive fuera del wrapper protegido para
- * que el cliente pueda entrar desde el email sin sesión.
+ * Flow:
+ *   1. Password: canjea token via POST /api/auth/setup/, autologin.
+ *   2. Cartilla: sube foto/PDF como MedicalDocument. Skippable.
+ *   3. Done: CTA a Home.
  */
 export function SetupPage() {
   const [searchParams] = useSearchParams();
@@ -46,21 +42,26 @@ export function SetupPage() {
 
   if (!token) {
     return (
-      <div className="mx-auto max-w-md space-y-4 p-4">
-        <h1 className="text-2xl font-semibold">Link inválido</h1>
+      <AuthLayout
+        title="Link inválido"
+        description="El link que abriste no trae un token válido."
+      >
         <p className="text-sm text-muted-foreground">
-          El link para completar tu cuenta no trae un token válido.
-          Pide a la sucursal que te envíe uno nuevo.
+          Pide a la sucursal que te envíe uno nuevo — el token
+          expira a los 7 días.
         </p>
-      </div>
+      </AuthLayout>
     );
   }
 
-  return (
-    <div className="mx-auto max-w-md space-y-4 p-4">
-      <StepIndicator step={step} />
-      {step === "password" && (
-        <PasswordStep
+  if (step === "password") {
+    return (
+      <AuthLayout
+        title="Completa tu cuenta"
+        description="Elige una contraseña para futuras visitas."
+      >
+        <StepIndicator step="password" />
+        <PasswordForm
           token={token}
           onComplete={(access, refresh, user, newPetId) => {
             authLogin(access, refresh, user);
@@ -68,17 +69,39 @@ export function SetupPage() {
             setStep("cartilla");
           }}
         />
-      )}
-      {step === "cartilla" && (
-        <CartillaStep
+      </AuthLayout>
+    );
+  }
+
+  if (step === "cartilla") {
+    return (
+      <AuthLayout
+        title="Cartilla de vacunación"
+        description="Sube una foto o PDF de la cartilla de tu peludo."
+      >
+        <StepIndicator step="cartilla" />
+        <CartillaForm
           petId={petId}
           onDone={() => setStep("done")}
         />
-      )}
-      {step === "done" && (
-        <DoneStep onGoHome={() => navigate("/", { replace: true })} />
-      )}
-    </div>
+      </AuthLayout>
+    );
+  }
+
+  return (
+    <AuthLayout
+      title="¡Bienvenido!"
+      description="Tu cuenta ya está lista. Reserva servicios cuando quieras."
+    >
+      <StepIndicator step="done" />
+      <Button
+        size="lg"
+        className="w-full"
+        onClick={() => navigate("/", { replace: true })}
+      >
+        Ir al inicio
+      </Button>
+    </AuthLayout>
   );
 }
 
@@ -101,7 +124,10 @@ function StepIndicator({ step }: IndicatorProps) {
   );
   const currentIdx = items.findIndex((i) => i.key === step);
   return (
-    <ol className="flex items-center gap-1 text-[11px]">
+    <ol
+      className="flex items-center gap-1 pb-2 text-[11px]"
+      aria-label="Progreso"
+    >
       {items.map((item, idx) => {
         const isDone = idx < currentIdx;
         const isActive = idx === currentIdx;
@@ -126,7 +152,7 @@ function StepIndicator({ step }: IndicatorProps) {
               {item.label}
             </span>
             {idx < items.length - 1 && (
-              <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
+              <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/50" />
             )}
           </li>
         );
@@ -161,7 +187,7 @@ interface PasswordProps {
   ) => void;
 }
 
-function PasswordStep({ token, onComplete }: PasswordProps) {
+function PasswordForm({ token, onComplete }: PasswordProps) {
   const setup = useWalkInSetup();
   const {
     register, handleSubmit, setError,
@@ -194,53 +220,43 @@ function PasswordStep({ token, onComplete }: PasswordProps) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <ShieldCheck className="h-4 w-4 text-primary" />
-          Elige tu contraseña
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-          <FormErrors message={errors.root?.message} />
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+      <FormErrors message={errors.root?.message} />
 
-          <div className="space-y-1.5">
-            <Label htmlFor="password">Contraseña</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="new-password"
-              aria-invalid={Boolean(errors.password)}
-              {...register("password")}
-            />
-            {errors.password && (
-              <p className="text-sm text-destructive">{errors.password.message}</p>
-            )}
-          </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="password">Contraseña</Label>
+        <Input
+          id="password"
+          type="password"
+          autoComplete="new-password"
+          aria-invalid={Boolean(errors.password)}
+          {...register("password")}
+        />
+        {errors.password && (
+          <p className="text-sm text-destructive">{errors.password.message}</p>
+        )}
+      </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="password_confirm">Confirma contraseña</Label>
-            <Input
-              id="password_confirm"
-              type="password"
-              autoComplete="new-password"
-              aria-invalid={Boolean(errors.password_confirm)}
-              {...register("password_confirm")}
-            />
-            {errors.password_confirm && (
-              <p className="text-sm text-destructive">
-                {errors.password_confirm.message}
-              </p>
-            )}
-          </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="password_confirm">Confirma contraseña</Label>
+        <Input
+          id="password_confirm"
+          type="password"
+          autoComplete="new-password"
+          aria-invalid={Boolean(errors.password_confirm)}
+          {...register("password_confirm")}
+        />
+        {errors.password_confirm && (
+          <p className="text-sm text-destructive">
+            {errors.password_confirm.message}
+          </p>
+        )}
+      </div>
 
-          <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? "Configurando…" : "Continuar"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+      <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+        {isSubmitting ? "Configurando…" : "Continuar"}
+      </Button>
+    </form>
   );
 }
 
@@ -253,13 +269,12 @@ interface CartillaProps {
   onDone: () => void;
 }
 
-function CartillaStep({ petId, onDone }: CartillaProps) {
+function CartillaForm({ petId, onDone }: CartillaProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   // useUploadPetDocument no puede ser condicional (rules-of-hooks).
-  // Cuando petId es null (edge de datos inconsistentes: setup sin
-  // pet asociado), el mutation no se dispara porque el guard de
-  // handleUpload bloquea, y el string vacío nunca llega al fetch.
+  // Con petId null cae a "" — el guard en handleUpload bloquea el
+  // fetch antes de que el string vacío llegue al endpoint.
   const upload = useUploadPetDocument(petId ?? "");
   const canUpload = !!petId && !!file && !upload.isPending;
 
@@ -290,126 +305,86 @@ function CartillaStep({ petId, onDone }: CartillaProps) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <FileText className="h-4 w-4 text-primary" />
-          Cartilla de vacunación
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Toma una foto de la cartilla completa (o sube un PDF si la
-          tienes escaneada). La necesitamos al día para cualquier
-          servicio — así protegemos a todos los peludos.
-        </p>
+    <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        La necesitamos al día para cualquier servicio — así
+        protegemos a todos los peludos.
+      </p>
 
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-20 flex-col gap-1"
-            onClick={() => {
-              // capture=environment activa la cámara trasera en
-              // móviles; en desktop igual abre el file picker.
-              if (inputRef.current) {
-                inputRef.current.setAttribute("capture", "environment");
-                inputRef.current.click();
-              }
-            }}
-          >
-            <Camera className="h-5 w-5" />
-            <span className="text-xs">Tomar foto</span>
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-20 flex-col gap-1"
-            onClick={() => {
-              if (inputRef.current) {
-                inputRef.current.removeAttribute("capture");
-                inputRef.current.click();
-              }
-            }}
-          >
-            <Upload className="h-5 w-5" />
-            <span className="text-xs">Subir archivo</span>
-          </Button>
-        </div>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*,application/pdf"
-          className="hidden"
-          onChange={handlePick}
-        />
-
-        {file && (
-          <div className="rounded-md border bg-muted/40 p-3 text-sm">
-            <p className="font-medium truncate">{file.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {(file.size / 1024 / 1024).toFixed(2)} MB
-            </p>
-          </div>
-        )}
-
-        <div className="flex flex-col gap-2 pt-2">
-          <Button
-            type="button"
-            size="lg"
-            onClick={handleUpload}
-            disabled={!canUpload}
-          >
-            {upload.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Subiendo…
-              </>
-            ) : (
-              "Subir cartilla"
-            )}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onDone}
-            disabled={upload.isPending}
-          >
-            Más tarde
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Step 3: done
-// ---------------------------------------------------------------------------
-
-interface DoneProps {
-  onGoHome: () => void;
-}
-
-function DoneStep({ onGoHome }: DoneProps) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-          ¡Bienvenido a Doggo Mundo!
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Tu cuenta ya está lista. Desde ahora puedes reservar
-          servicios, ver el historial de tu peludo, comprar en la
-          tienda y más.
-        </p>
-        <Button size="lg" className="w-full" onClick={onGoHome}>
-          Ir al inicio
+      <div className="grid grid-cols-2 gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          className="h-20 flex-col gap-1"
+          onClick={() => {
+            // capture=environment activa cámara trasera en móvil;
+            // en desktop igual abre el file picker.
+            if (inputRef.current) {
+              inputRef.current.setAttribute("capture", "environment");
+              inputRef.current.click();
+            }
+          }}
+        >
+          <Camera className="h-5 w-5" />
+          <span className="text-xs">Tomar foto</span>
         </Button>
-      </CardContent>
-    </Card>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-20 flex-col gap-1"
+          onClick={() => {
+            if (inputRef.current) {
+              inputRef.current.removeAttribute("capture");
+              inputRef.current.click();
+            }
+          }}
+        >
+          <Upload className="h-5 w-5" />
+          <span className="text-xs">Subir archivo</span>
+        </Button>
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*,application/pdf"
+        className="hidden"
+        onChange={handlePick}
+      />
+
+      {file && (
+        <div className="rounded-md border bg-muted/40 p-3 text-sm">
+          <p className="truncate font-medium">{file.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {(file.size / 1024 / 1024).toFixed(2)} MB
+          </p>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-2 pt-2">
+        <Button
+          type="button"
+          size="lg"
+          onClick={handleUpload}
+          disabled={!canUpload}
+        >
+          {upload.isPending ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Subiendo…
+            </>
+          ) : (
+            "Subir cartilla"
+          )}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onDone}
+          disabled={upload.isPending}
+        >
+          Más tarde
+        </Button>
+      </div>
+    </div>
   );
 }
