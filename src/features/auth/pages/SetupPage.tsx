@@ -189,6 +189,7 @@ interface PasswordProps {
 
 function PasswordForm({ token, onComplete }: PasswordProps) {
   const setup = useWalkInSetup();
+  const navigate = useNavigate();
   const {
     register, handleSubmit, setError,
     formState: { errors, isSubmitting },
@@ -209,6 +210,15 @@ function PasswordForm({ token, onComplete }: PasswordProps) {
       if (axios.isAxiosError(err) && err.response?.status === 400) {
         const detail = err.response.data?.detail;
         if (typeof detail === "string") {
+          // Token en estado terminal: no le vamos a dejar seguir
+          // dando contraseñas — es callejón sin salida. Redirigimos
+          // a login con un query param que LoginPage lee para
+          // mostrar el banner adecuado (usado / expirado / inválido).
+          const reason = classifyTokenError(detail);
+          if (reason) {
+            navigate(`/login?setup=${reason}`, { replace: true });
+            return;
+          }
           setError("root", { message: detail });
           return;
         }
@@ -387,4 +397,21 @@ function CartillaForm({ petId, onDone }: CartillaProps) {
       </div>
     </div>
   );
+}
+
+/** Match del `detail` string del backend a un slug para el query
+ *  param de /login. Devuelve null si no matchea ninguno de los
+ *  tres terminales conocidos — en ese caso el error se muestra
+ *  inline y el usuario puede reintentar.
+ *  Mirror del texto que emite `WalkInSetupView` en el backend
+ *  ("Token inválido." / "Token expirado." / "Token ya usado."). */
+export type SetupTokenReason = "used" | "expired" | "invalid";
+function classifyTokenError(detail: string): SetupTokenReason | null {
+  const norm = detail.toLowerCase();
+  if (norm.includes("usado")) return "used";
+  if (norm.includes("expirado")) return "expired";
+  if (norm.includes("inválido") || norm.includes("invalido")) {
+    return "invalid";
+  }
+  return null;
 }

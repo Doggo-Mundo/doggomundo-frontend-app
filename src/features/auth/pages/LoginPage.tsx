@@ -1,7 +1,8 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -31,9 +32,15 @@ interface LocationState {
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const login = useLogin();
   const authLogin = useAuthStore((s) => s.login);
   const from = (location.state as LocationState | null)?.from?.pathname ?? "/";
+
+  // F-F.3: cuando el /setup nos redirige porque el magic-link
+  // ya no sirve (usado/expirado/inválido), mostramos un banner
+  // arriba del form explicando por qué el usuario aterrizó aquí.
+  const setupNotice = getSetupNotice(searchParams.get("setup"));
 
   const {
     register,
@@ -88,6 +95,15 @@ export function LoginPage() {
       }
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        {setupNotice && (
+          <div
+            role="status"
+            className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-900/10 dark:text-amber-100"
+          >
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <p>{setupNotice}</p>
+          </div>
+        )}
         <FormErrors message={errors.root?.message} />
 
         <div className="space-y-1.5">
@@ -132,4 +148,32 @@ export function LoginPage() {
       </form>
     </AuthLayout>
   );
+}
+
+/** Mapea el query param `?setup=` (usado/expirado/inválido)
+ *  a un copy amable para el banner. Cualquier otro valor
+ *  (o ausencia) → null y el banner no se renderiza. Fuente
+ *  del slug: SetupPage.classifyTokenError. */
+function getSetupNotice(raw: string | null): string | null {
+  switch (raw) {
+    case "used":
+      return (
+        "El link para completar tu cuenta ya fue usado. "
+        + "Inicia sesión con la contraseña que elegiste."
+      );
+    case "expired":
+      return (
+        "El link para completar tu cuenta expiró. "
+        + "Si ya lo usaste antes, entra aquí; si no, "
+        + "pide a la sucursal que te envíe uno nuevo."
+      );
+    case "invalid":
+      return (
+        "El link para completar tu cuenta no es válido. "
+        + "Si ya tienes cuenta, entra con tu contraseña; "
+        + "si no, pide a la sucursal un nuevo link."
+      );
+    default:
+      return null;
+  }
 }
