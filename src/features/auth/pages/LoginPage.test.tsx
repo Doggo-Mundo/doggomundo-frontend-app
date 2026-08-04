@@ -50,6 +50,33 @@ describe("LoginPage — server error handling", () => {
     ).toBeInTheDocument();
   });
 
+  it("surfaces 400 non_field_errors from wrong credentials", async () => {
+    // El backend (accounts/serializers.py::LoginSerializer.validate)
+    // hace `raise ValidationError('Credenciales inválidas.')` con
+    // string plano. DRF lo empaqueta como
+    // `{non_field_errors: ['Credenciales inválidas.']}` en un 400
+    // — este es el shape real que ve el frontend en el flow del
+    // usuario que teclea password mal.
+    server.use(
+      http.post(`${API}/auth/login/`, () =>
+        HttpResponse.json(
+          { non_field_errors: ["Credenciales inválidas."] },
+          { status: 400 },
+        ),
+      ),
+    );
+    const { user } = renderWithProviders(<LoginPage />);
+    await user.type(screen.getByLabelText(/email/i), "foo@bar.com");
+    await user.type(
+      screen.getByLabelText(/contraseña/i, { selector: "input" }),
+      "wrong",
+    );
+    await user.click(screen.getByRole("button", { name: /entrar/i }));
+    expect(
+      await screen.findByText(/credenciales inválidas/i),
+    ).toBeInTheDocument();
+  });
+
   it("maps field-level 400 errors to the form", async () => {
     server.use(
       http.post(`${API}/auth/login/`, () =>

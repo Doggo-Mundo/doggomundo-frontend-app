@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
+  AlertTriangle,
   Calendar,
   Clock,
   PawPrint,
@@ -128,6 +129,14 @@ export function AppointmentDetailPage() {
         </p>
       </header>
 
+      {/* F-F.3: warning soft cuando el pet no tiene cartilla al
+          día. NO bloquea la reserva — es nudge friendly para que
+          el cliente suba la cartilla antes del servicio. El backend
+          controla el flag via `vaccination_warning`. */}
+      {appointment.vaccination_warning && appointment.pet && (
+        <VaccinationWarningCard petId={appointment.pet} />
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Detalles</CardTitle>
@@ -237,5 +246,40 @@ export function AppointmentDetailPage() {
         isLoading={cancel.isPending}
       />
     </div>
+  );
+}
+
+
+/** F-F.3: banner amable recordando subir cartilla al día. Es link
+ *  directo a la sección de documentos del pet — el cliente entra,
+ *  sube la foto, y el warning desaparece en el próximo refresh
+ *  cuando el pet tenga al menos una VaccinationRecord vigente. */
+function VaccinationWarningCard({ petId }: { petId: string }) {
+  return (
+    <Card className="border-amber-300 bg-amber-50/60 dark:bg-amber-900/10">
+      <CardContent className="flex items-start gap-3 py-4 text-sm">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+        <div className="flex-1 space-y-2">
+          <p className="font-medium text-amber-900 dark:text-amber-100">
+            Sube tu cartilla de vacunación al día
+          </p>
+          <p className="text-xs text-amber-800/80 dark:text-amber-200/80">
+            Si al momento de tu cita no tienes la cartilla
+            registrada y con vacunas vigentes, no podremos
+            completar el servicio (protegemos a todos los peludos).
+          </p>
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="border-amber-400 bg-white text-amber-900 hover:bg-amber-50"
+          >
+            <a href={`/pets/${petId}/documents`}>
+              Subir cartilla
+            </a>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

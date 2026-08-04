@@ -1,14 +1,15 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import axios from "axios";
+import { AlertCircle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
-import { FormErrors } from "@/components/shared/FormErrors";
 import { AuthLayout } from "@/features/auth/components/AuthLayout";
-import { mapApiErrors } from "@/features/auth/lib/map-api-errors";
 import {
   consumeFirstPetPending,
   consumeSegmentationPending,
@@ -31,21 +32,35 @@ interface LocationState {
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const login = useLogin();
   const authLogin = useAuthStore((s) => s.login);
   const from = (location.state as LocationState | null)?.from?.pathname ?? "/";
 
+  // F-F.3: cuando el /setup nos redirige porque el magic-link
+  // ya no sirve (usado/expirado/inválido), mostramos un banner
+  // arriba del form explicando por qué el usuario aterrizó aquí.
+  const setupNotice = getSetupNotice(searchParams.get("setup"));
+
   const {
     register,
     handleSubmit,
-    setError,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
 
+  // Local state para el error del servidor. Antes usábamos
+  // `setError("root", ...)` de react-hook-form, pero el error
+  // root se limpia en re-renders del resolver zod (cuando el
+  // usuario escribe) y desaparecía visualmente. Local state
+  // sobrevive hasta que el usuario re-envía el form o edita
+  // manualmente los campos y volvemos a submitir.
+  const [serverError, setServerError] = useState<string | null>(null);
+
   async function onSubmit(data: LoginFormValues) {
+    setServerError(null);
     try {
       const result = await login.mutateAsync(data);
       // Defense-in-depth: if a previous session on this browser
@@ -70,7 +85,7 @@ export function LoginPage() {
       }
       navigate(from, { replace: true });
     } catch (err) {
-      mapApiErrors(err, setError, "No pudimos iniciar sesión. Intenta de nuevo.");
+      setServerError(extractLoginError(err));
     }
   }
 
@@ -88,7 +103,24 @@ export function LoginPage() {
       }
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-        <FormErrors message={errors.root?.message} />
+        {setupNotice && (
+          <div
+            role="status"
+            className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-900/10 dark:text-amber-100"
+          >
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <p>{setupNotice}</p>
+          </div>
+        )}
+        {serverError && (
+          <div
+            role="alert"
+            className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>{serverError}</p>
+          </div>
+        )}
 
         <div className="space-y-1.5">
           <Label htmlFor="email">Email</Label>
@@ -132,4 +164,74 @@ export function LoginPage() {
       </form>
     </AuthLayout>
   );
+}
+
+/** Extrae un mensaje user-friendly de cualquier shape de error
+ *  del /login. Cubre los 3 casos reales que emite el backend:
+ *  - 400 con `{non_field_errors: [...]}` — credenciales mal, o
+ *    email no verificado, o account inactive.
+ *  - 400 con `{email: [...], password: [...]}` — validaciones
+ *    de campo (raro en login pero por defensiva).
+ *  - 401 con `{detail: "..."}` — algunos backends usan 401 para
+ *    creds mal en vez de 400.
+ *  Cualquier otro error (5xx, network, CORS) cae al fallback. */
+function extractLoginError(err: unknown): string {
+  const FALLBACK = "No pudimos iniciar sesión. Intenta de nuevo.";
+  if (!axios.isAxiosError(err)) return FALLBACK;
+  const status = err.response?.status;
+  const data = err.response?.data;
+
+  // 401 en login = credenciales mal. El `detail` de DRF puede
+  // venir en inglés técnico ("Given token not valid…") — no lo
+  // exponemos al usuario; siempre mensaje amable.
+  if (status === 401) {
+    return "Credenciales inválidas.";
+  }
+
+  if (status === 400 && typeof data === "object" && data !== null) {
+    const asRecord = data as Record<string, unknown>;
+    // Prioriza non_field_errors / detail (que es lo que DRF
+    // devuelve al hacer raise ValidationError('mensaje') sin key).
+    for (const key of ["non_field_errors", "detail"] as const) {
+      const val = asRecord[key];
+      if (typeof val === "string" && val.trim()) return val;
+      if (Array.isArray(val) && typeof val[0] === "string") return val[0];
+    }
+    // Fallback: cualquier field error, primera cadena que
+    // encontremos. Mejor mostrar algo que nada.
+    for (const val of Object.values(asRecord)) {
+      if (typeof val === "string" && val.trim()) return val;
+      if (Array.isArray(val) && typeof val[0] === "string") return val[0];
+    }
+  }
+
+  return FALLBACK;
+}
+
+/** Mapea el query param `?setup=` (usado/expirado/inválido)
+ *  a un copy amable para el banner. Cualquier otro valor
+ *  (o ausencia) → null y el banner no se renderiza. Fuente
+ *  del slug: SetupPage.classifyTokenError. */
+function getSetupNotice(raw: string | null): string | null {
+  switch (raw) {
+    case "used":
+      return (
+        "El link para completar tu cuenta ya fue usado. "
+        + "Inicia sesión con la contraseña que elegiste."
+      );
+    case "expired":
+      return (
+        "El link para completar tu cuenta expiró. "
+        + "Si ya lo usaste antes, entra aquí; si no, "
+        + "pide a la sucursal que te envíe uno nuevo."
+      );
+    case "invalid":
+      return (
+        "El link para completar tu cuenta no es válido. "
+        + "Si ya tienes cuenta, entra con tu contraseña; "
+        + "si no, pide a la sucursal un nuevo link."
+      );
+    default:
+      return null;
+  }
 }

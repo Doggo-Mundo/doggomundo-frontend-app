@@ -221,3 +221,44 @@ export function usePetDocuments(petId: string) {
     enabled: !!petId,
   });
 }
+
+/**
+ * F-F.3: subir un documento (foto/PDF) para un pet. Usado en el
+ * setup del walk-in para la cartilla de vacunación, y también
+ * desde la sección de documentos del pet.
+ *
+ * `document_type` es el enum del backend (CARTILLA_VACUNACION,
+ * RECETA, etc.). El backend setea `uploaded_by=request.user`
+ * automáticamente vía PetNestedMixin.
+ */
+export interface UploadPetDocumentInput {
+  document_type: string;
+  file: File;
+  description?: string;
+}
+
+export function useUploadPetDocument(petId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UploadPetDocumentInput) => {
+      const formData = new FormData();
+      formData.append("document_type", input.document_type);
+      formData.append("file", input.file);
+      if (input.description) {
+        formData.append("description", input.description);
+      }
+      return api
+        .post<PetDocument>(
+          `/pets/${petId}/documents/`,
+          formData,
+          {
+            headers: { "Content-Type": "multipart/form-data" },
+          },
+        )
+        .then((r) => r.data);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: petKeys.documents(petId) });
+    },
+  });
+}

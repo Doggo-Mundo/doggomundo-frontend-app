@@ -55,6 +55,11 @@ export interface AppointmentListItem {
 export interface Appointment extends AppointmentListItem {
   notes: string;
   items: AppointmentItem[];
+  /** F-F.3: true cuando el pet no tiene VaccinationRecord activo
+   *  con next_due_date >= hoy. Soft warning — no bloquea reserva;
+   *  la UI muestra un mensaje friendly recordando subir la
+   *  cartilla al día antes del servicio. */
+  vaccination_warning?: boolean;
   updated_at: string;
 }
 

@@ -27,6 +27,11 @@ const ResetPasswordPage = lazy(() =>
     default: m.ResetPasswordPage,
   })),
 );
+const SetupPage = lazy(() =>
+  import("@/features/auth/pages/SetupPage").then((m) => ({
+    default: m.SetupPage,
+  })),
+);
 
 const HomePage = lazy(() =>
   import("@/features/home/pages/HomePage").then((m) => ({ default: m.HomePage })),
@@ -235,6 +240,8 @@ export function AppRouter() {
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        {/* F-F.3: magic-link del walk-in registrado por staff. */}
+        <Route path="/setup" element={<SetupPage />} />
 
         {/* Authenticated users (any role can use the customer app) */}
         <Route element={<AuthGuard />}>
