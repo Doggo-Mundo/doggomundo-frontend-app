@@ -42,6 +42,34 @@ export function useLogin() {
 
 // ---------- Walk-in setup (F-F.3) ----------
 
+/** F-F.3: status del magic-link. Retorna el backend en el GET
+ *  /api/auth/setup/?token=xxx. La página de setup lo usa al
+ *  mount para decidir si mostrar el form o redirigir a login. */
+export type SetupTokenStatus = "valid" | "used" | "expired" | "invalid";
+
+/** GET /api/auth/setup/?token=xxx — chequea el status sin
+ *  canjear. Sin auth. Retorna 200 siempre; el discriminante vive
+ *  en el body. */
+export function useSetupStatus(token: string) {
+  return useQuery({
+    queryKey: ["auth", "setup-status", token] as const,
+    enabled: !!token,
+    queryFn: () =>
+      axios
+        .get<{ status: SetupTokenStatus }>(
+          `${API_BASE}/auth/setup/`,
+          { params: { token } },
+        )
+        .then((r) => r.data.status),
+    // El token no cambia mientras la página está abierta; si el
+    // usuario recarga, el fetch se hace de nuevo — no queremos
+    // cachearlo entre montages.
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+  });
+}
+
 /** F-F.3: input del POST /api/auth/setup/. `token` viene del query
  *  string del magic-link email. Campos del pet son opcionales — el
  *  cliente puede llenarlos ahora o después desde su perfil. */

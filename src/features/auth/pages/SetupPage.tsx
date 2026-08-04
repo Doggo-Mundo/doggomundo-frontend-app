@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormErrors } from "@/components/shared/FormErrors";
 import { AuthLayout } from "@/features/auth/components/AuthLayout";
-import { useWalkInSetup } from "@/api/hooks/use-auth";
+import { useSetupStatus, useWalkInSetup } from "@/api/hooks/use-auth";
 import { useUploadPetDocument } from "@/api/hooks/use-pets";
 import { useAuthStore } from "@/stores/auth-store";
 import { cn } from "@/lib/utils";
@@ -32,26 +32,47 @@ import { cn } from "@/lib/utils";
  *   3. Done: CTA a Home.
  */
 export function SetupPage() {
+  // Todos los hooks ANTES de cualquier early return (rules-of-hooks).
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token") ?? "";
   const navigate = useNavigate();
   const authLogin = useAuthStore((s) => s.login);
-
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const status = useSetupStatus(token);
   const [step, setStep] = useState<"password" | "cartilla" | "done">("password");
   const [petId, setPetId] = useState<string | null>(null);
 
+  // Guard 1: sesión activa. El magic-link es para completar
+  // onboarding — quien ya tiene sesión no debe verlo, se va al
+  // home. Cubre el caso del cliente que reciclla el email desde
+  // su cuenta ya activa (mismo device, cookie viva).
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
+  // Guard 2: falta el token en el URL — no hay nada que validar.
   if (!token) {
+    return <Navigate to="/login?setup=invalid" replace />;
+  }
+
+  // Guard 3: pre-valida el token contra el backend ANTES de
+  // mostrar el form. Sin esto, el usuario tendría que llenar
+  // contraseña + submit para descubrir que el link ya no sirve.
+  if (status.isLoading) {
     return (
-      <AuthLayout
-        title="Link inválido"
-        description="El link que abriste no trae un token válido."
-      >
-        <p className="text-sm text-muted-foreground">
-          Pide a la sucursal que te envíe uno nuevo — el token
-          expira a los 7 días.
-        </p>
+      <AuthLayout title="Cargando…" description="Un momento por favor.">
+        <div className="flex justify-center py-6">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
       </AuthLayout>
     );
+  }
+
+  // Token no-válido → redirect al login con el motivo. Solo
+  // saltamos el redirect en isError del network (mostramos form;
+  // el POST decidirá y redirigirá si falla).
+  if (!status.isError && status.data && status.data !== "valid") {
+    return <Navigate to={`/login?setup=${status.data}`} replace />;
   }
 
   if (step === "password") {
