@@ -40,6 +40,39 @@ export function useLogin() {
   });
 }
 
+// ---------- Walk-in setup (F-F.3) ----------
+
+/** F-F.3: input del POST /api/auth/setup/. `token` viene del query
+ *  string del magic-link email. Campos del pet son opcionales — el
+ *  cliente puede llenarlos ahora o después desde su perfil. */
+export interface WalkInSetupRequest {
+  token: string;
+  password: string;
+  password_confirm: string;
+  birth_date?: string;
+  breed_id?: string;
+  food_type_id?: string;
+  food_brand_id?: string;
+}
+
+interface WalkInSetupResponse {
+  access: string;
+  refresh: string;
+  user: User;
+  pet_id: string | null;
+}
+
+/** Canjea el magic-link + setea password. En caso de éxito
+ *  devuelve tokens JWT para autologin. */
+export function useWalkInSetup() {
+  return useMutation({
+    mutationFn: (data: WalkInSetupRequest): Promise<WalkInSetupResponse> =>
+      axios
+        .post<WalkInSetupResponse>(`${API_BASE}/auth/setup/`, data)
+        .then((r) => r.data),
+  });
+}
+
 // ---------- Register ----------
 
 export interface RegisterRequest {
