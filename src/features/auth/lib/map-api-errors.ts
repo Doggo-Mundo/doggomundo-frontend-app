@@ -1,5 +1,6 @@
 import type { UseFormSetError, FieldValues, Path } from "react-hook-form";
 import axios from "axios";
+import { toast } from "sonner";
 
 /**
  * Maps a DRF 400 error body onto react-hook-form field errors.
@@ -34,6 +35,7 @@ export function mapApiErrors<T extends FieldValues>(
 
     if (entries.length === 0) {
       setError("root" as Path<T>, { message: fallback });
+      toast.error(fallback);
       return;
     }
 
@@ -60,15 +62,44 @@ export function mapApiErrors<T extends FieldValues>(
     });
 
     if (rootMessages.length > 0) {
-      setError("root" as Path<T>, { message: rootMessages.join(" ") });
+      const joined = rootMessages.join(" ");
+      setError("root" as Path<T>, { message: joined });
+      // Toast redundante — si el FormErrors queda fuera del viewport
+      // o el usuario pestañeó, el toast lo cacha. Sin él pasa que
+      // el usuario reintenta 3 veces sin entender qué pasó.
+      toast.error(joined);
     }
     return;
   }
 
   if (axios.isAxiosError(err) && err.response?.status === 401) {
-    setError("root" as Path<T>, { message: "Credenciales inválidas." });
+    const msg = "Credenciales inválidas.";
+    setError("root" as Path<T>, { message: msg });
+    toast.error(msg);
     return;
   }
 
+  // Fallback: network error, 5xx, o cualquier cosa que no
+  // clasificamos. Loggeamos en consola para triage (aunque el
+  // usuario ve el mensaje amable) — Sentry captura el axios
+  // error si está enabled.
+  if (
+    typeof console !== "undefined"
+    && typeof console.warn === "function"
+  ) {
+    console.warn(
+      "[mapApiErrors] fallback path",
+      {
+        isAxiosError: axios.isAxiosError(err),
+        status: axios.isAxiosError(err)
+          ? err.response?.status
+          : undefined,
+        data: axios.isAxiosError(err)
+          ? err.response?.data
+          : undefined,
+      },
+    );
+  }
   setError("root" as Path<T>, { message: fallback });
+  toast.error(fallback);
 }
