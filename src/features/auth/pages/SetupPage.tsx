@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -11,9 +11,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PawCheckbox } from "@/components/ui/paw-checkbox";
 import { FormErrors } from "@/components/shared/FormErrors";
 import { AuthLayout } from "@/features/auth/components/AuthLayout";
-import { useSetupStatus, useWalkInSetup } from "@/api/hooks/use-auth";
+import {
+  useLegalDocs, useSetupStatus, useWalkInSetup,
+} from "@/api/hooks/use-auth";
 import { useUploadPetDocument } from "@/api/hooks/use-pets";
 import { useAuthStore } from "@/stores/auth-store";
 import { cn } from "@/lib/utils";
@@ -190,6 +193,22 @@ const passwordSchema = z
   .object({
     password: z.string().min(8, "Al menos 8 caracteres"),
     password_confirm: z.string(),
+    // F-G.2: los mismos 3 consentimientos que en RegisterPage — el
+    // walk-in aún no había firmado nada digitalmente cuando staff
+    // hizo el quick-register en sucursal.
+    terms_accepted: z.literal(true, {
+      errorMap: () => ({
+        message: "Debes aceptar los términos y condiciones.",
+      }),
+    }),
+    privacy_accepted: z.literal(true, {
+      errorMap: () => ({
+        message: "Debes aceptar el aviso de privacidad.",
+      }),
+    }),
+    disclaimer_accepted: z.literal(true, {
+      errorMap: () => ({ message: "Debes aceptar el disclaimer." }),
+    }),
   })
   .refine((d) => d.password === d.password_confirm, {
     message: "Las contraseñas no coinciden",
@@ -211,13 +230,29 @@ interface PasswordProps {
 function PasswordForm({ token, onComplete }: PasswordProps) {
   const setup = useWalkInSetup();
   const navigate = useNavigate();
+  const legalDocs = useLegalDocs();
   const {
-    register, handleSubmit, setError,
+    register, control, handleSubmit, setError,
     formState: { errors, isSubmitting },
   } = useForm<PasswordValues>({
     resolver: zodResolver(passwordSchema),
-    defaultValues: { password: "", password_confirm: "" },
+    defaultValues: {
+      password: "",
+      password_confirm: "",
+      // Ver RegisterPage: `false as unknown as true` es el patrón
+      // para reconciliar defaults desmarcados con el tipo literal
+      // `true` que exige el schema al validar.
+      terms_accepted: false as unknown as true,
+      privacy_accepted: false as unknown as true,
+      disclaimer_accepted: false as unknown as true,
+    },
   });
+
+  const termsUrl = legalDocs.data?.terms_and_conditions.url ?? "/legal/terms";
+  const privacyUrl =
+    legalDocs.data?.privacy_policy.url ?? "/legal/privacy";
+  const disclaimerUrl =
+    legalDocs.data?.disclaimer.url ?? "/legal/disclaimer";
 
   async function onSubmit(data: PasswordValues) {
     try {
@@ -225,6 +260,9 @@ function PasswordForm({ token, onComplete }: PasswordProps) {
         token,
         password: data.password,
         password_confirm: data.password_confirm,
+        terms_accepted: data.terms_accepted,
+        privacy_accepted: data.privacy_accepted,
+        disclaimer_accepted: data.disclaimer_accepted,
       });
       onComplete(r.access, r.refresh, r.user, r.pet_id);
     } catch (err) {
@@ -282,6 +320,84 @@ function PasswordForm({ token, onComplete }: PasswordProps) {
             {errors.password_confirm.message}
           </p>
         )}
+      </div>
+
+      <div className="space-y-2 rounded-md border bg-muted/30 p-3">
+        <Controller
+          control={control}
+          name="terms_accepted"
+          render={({ field }) => (
+            <PawCheckbox
+              checked={Boolean(field.value)}
+              onChange={(e) => field.onChange(e.target.checked)}
+              error={errors.terms_accepted?.message}
+              label={
+                <>
+                  He leído y acepto los{" "}
+                  <a
+                    href={termsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    Términos y condiciones
+                  </a>
+                  .
+                </>
+              }
+            />
+          )}
+        />
+        <Controller
+          control={control}
+          name="privacy_accepted"
+          render={({ field }) => (
+            <PawCheckbox
+              checked={Boolean(field.value)}
+              onChange={(e) => field.onChange(e.target.checked)}
+              error={errors.privacy_accepted?.message}
+              label={
+                <>
+                  He leído y acepto el{" "}
+                  <a
+                    href={privacyUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    Aviso de privacidad
+                  </a>
+                  .
+                </>
+              }
+            />
+          )}
+        />
+        <Controller
+          control={control}
+          name="disclaimer_accepted"
+          render={({ field }) => (
+            <PawCheckbox
+              checked={Boolean(field.value)}
+              onChange={(e) => field.onChange(e.target.checked)}
+              error={errors.disclaimer_accepted?.message}
+              label={
+                <>
+                  Entiendo el{" "}
+                  <a
+                    href={disclaimerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    Disclaimer
+                  </a>{" "}
+                  (Doggo Mundo no sustituye consejo veterinario).
+                </>
+              }
+            />
+          )}
+        />
       </div>
 
       <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>

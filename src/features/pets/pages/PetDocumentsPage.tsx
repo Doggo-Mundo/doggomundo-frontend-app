@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { BackLink } from "@/features/pets/components/BackLink";
+import { PetsBreadcrumb } from "@/features/pets/components/PetsBreadcrumb";
 import { usePet, usePetDocuments } from "@/api/hooks/use-pets";
 
 export function PetDocumentsPage() {
@@ -16,7 +16,7 @@ export function PetDocumentsPage() {
 
   return (
     <div className="space-y-4">
-      <BackLink to={`/pets/${id}`} label={pet?.name ?? "Volver"} />
+      <PetsBreadcrumb petId={id} petName={pet?.name} />
 
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">Documentos</h1>
