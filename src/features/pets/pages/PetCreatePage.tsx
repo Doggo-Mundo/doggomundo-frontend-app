@@ -33,6 +33,10 @@ import {
 } from "@/api/hooks/use-pets";
 import { GENDER_LABEL, SIZE_LABEL } from "@/types/pet";
 import type { CreatePetPayload, Gender, PetSize } from "@/types/pet";
+import {
+  birthDateSchema,
+  todayInMxTz,
+} from "@/features/pets/lib/birth-date";
 
 const SIZE_VALUES = ["SMALL", "MEDIUM", "LARGE", "X_LARGE"] as const;
 
@@ -45,7 +49,7 @@ const schema = z.object({
   }),
   gender: z.enum(["MALE", "FEMALE", "UNKNOWN"]).optional(),
   breed: z.string().optional(),
-  birth_date: z.string().optional(),
+  birth_date: birthDateSchema,
   food_type: z.string().optional(),
   food_brand: z.string().optional(),
 });
@@ -221,8 +225,15 @@ export function PetCreatePage() {
               <Input
                 id="birth_date"
                 type="date"
+                max={todayInMxTz()}
+                aria-invalid={Boolean(errors.birth_date)}
                 {...register("birth_date")}
               />
+              {errors.birth_date && (
+                <p className="text-sm text-destructive">
+                  {errors.birth_date.message}
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">

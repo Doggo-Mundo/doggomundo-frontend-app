@@ -29,6 +29,10 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { PetAvatar } from "@/features/pets/components/PetAvatar";
 import { BackLink } from "@/features/pets/components/BackLink";
 import { profileFields } from "@/features/pets/lib/pet-missing";
+import {
+  birthDateSchema,
+  todayInMxTz,
+} from "@/features/pets/lib/birth-date";
 import { mapApiErrors } from "@/features/auth/lib/map-api-errors";
 import {
   useBreeds,
@@ -55,7 +59,7 @@ const schema = z.object({
   size: z.enum(SIZE_VALUES).optional(),
   gender: z.enum(["MALE", "FEMALE", "UNKNOWN"]).optional(),
   breed: z.string().optional(),
-  birth_date: z.string().optional(),
+  birth_date: birthDateSchema,
   food_type: z.string().optional(),
   food_brand: z.string().optional(),
   health_notes: z.string().optional(),
@@ -429,7 +433,13 @@ function PetEditForm({ pet }: FormProps) {
 
             <div className="space-y-1.5">
               <Label htmlFor="birth_date">Fecha de nacimiento</Label>
-              <Input id="birth_date" type="date" {...register("birth_date")} />
+              <Input
+                id="birth_date"
+                type="date"
+                max={todayInMxTz()}
+                aria-invalid={Boolean(errors.birth_date)}
+                {...register("birth_date")}
+              />
               {errors.birth_date && (
                 <p className="text-sm text-destructive">
                   {errors.birth_date.message}
