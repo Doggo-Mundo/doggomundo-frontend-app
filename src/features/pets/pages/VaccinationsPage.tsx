@@ -3,7 +3,7 @@ import { Syringe } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { BackLink } from "@/features/pets/components/BackLink";
+import { PetsBreadcrumb } from "@/features/pets/components/PetsBreadcrumb";
 import { usePet, usePetVaccinations } from "@/api/hooks/use-pets";
 import { formatDate } from "@/lib/format-date";
 
@@ -16,7 +16,7 @@ export function VaccinationsPage() {
 
   return (
     <div className="space-y-4">
-      <BackLink to={`/pets/${id}`} label={pet?.name ?? "Volver"} />
+      <PetsBreadcrumb petId={id} petName={pet?.name} />
 
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">Vacunas</h1>

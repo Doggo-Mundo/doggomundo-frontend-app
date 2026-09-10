@@ -28,6 +28,7 @@ import { LoadingState } from "@/components/shared/LoadingState";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PetAvatar } from "@/features/pets/components/PetAvatar";
 import { BackLink } from "@/features/pets/components/BackLink";
+import { PetsBreadcrumb } from "@/features/pets/components/PetsBreadcrumb";
 import { profileFields } from "@/features/pets/lib/pet-missing";
 import {
   birthDateSchema,
@@ -94,7 +95,7 @@ export function PetEditPage() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <BackLink to={`/pets/${id}`} label="Volver" />
+        <PetsBreadcrumb petId={id} />
         <LoadingState rows={4} />
       </div>
     );
@@ -254,7 +255,7 @@ function PetEditForm({ pet }: FormProps) {
 
   return (
     <div className="space-y-4">
-      <BackLink to={`/pets/${pet.id}`} label={pet.name} />
+      <PetsBreadcrumb petId={pet.id} petName={pet.name} />
 
       <header>
         <h1 className="text-2xl font-semibold">Editar perfil</h1>
