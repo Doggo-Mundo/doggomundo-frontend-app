@@ -81,6 +81,11 @@ export interface WalkInSetupRequest {
   breed_id?: string;
   food_type_id?: string;
   food_brand_id?: string;
+  /** F-G.2: consentimientos legales. El backend rebota con 400
+   *  si alguno viene ausente o en false. */
+  terms_accepted: boolean;
+  privacy_accepted: boolean;
+  disclaimer_accepted: boolean;
 }
 
 interface WalkInSetupResponse {
@@ -101,6 +106,31 @@ export function useWalkInSetup() {
   });
 }
 
+// ---------- Legal docs (F-G.2) ----------
+
+/** F-G.2: catálogo público de documentos legales vigentes. El
+ *  RegisterPage lo consume para saber qué versión debe pedir
+ *  aceptar y a qué URL enlazar el "Ver …" al lado de cada
+ *  checkbox. Cache largo — versiones cambian raras veces. */
+export interface LegalDocsResponse {
+  terms_and_conditions: { version: string; url: string };
+  privacy_policy: { version: string; url: string };
+  disclaimer: { version: string; url: string };
+}
+
+export function useLegalDocs() {
+  return useQuery({
+    queryKey: ["auth", "legal-docs"] as const,
+    queryFn: () =>
+      axios
+        .get<LegalDocsResponse>(`${API_BASE}/auth/legal-docs/`)
+        .then((r) => r.data),
+    // 30 minutos: si el user tarda en llenar el form, quedas con
+    // la versión que le pintaste; nueva sesión trae la vigente.
+    staleTime: 30 * 60 * 1000,
+  });
+}
+
 // ---------- Register ----------
 
 export interface RegisterRequest {
@@ -110,6 +140,11 @@ export interface RegisterRequest {
   phone: string;
   password: string;
   password_confirm: string;
+  /** F-G.2: los 3 consentimientos son obligatorios en el backend
+   *  (F-G.1). El registro rebota con 400 si alguno es false. */
+  terms_accepted: boolean;
+  privacy_accepted: boolean;
+  disclaimer_accepted: boolean;
 }
 
 export function useRegister() {

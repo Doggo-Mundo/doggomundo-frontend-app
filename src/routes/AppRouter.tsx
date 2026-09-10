@@ -33,6 +33,25 @@ const SetupPage = lazy(() =>
   })),
 );
 
+// F-G.2: páginas legales públicas. Se abren desde el link "Ver …"
+// al lado de cada PawCheckbox del RegisterPage/SetupPage, con
+// target=_blank para que el usuario no pierda el form en curso.
+const TermsPage = lazy(() =>
+  import("@/features/legal/pages/TermsPage").then((m) => ({
+    default: m.TermsPage,
+  })),
+);
+const PrivacyPage = lazy(() =>
+  import("@/features/legal/pages/PrivacyPage").then((m) => ({
+    default: m.PrivacyPage,
+  })),
+);
+const DisclaimerPage = lazy(() =>
+  import("@/features/legal/pages/DisclaimerPage").then((m) => ({
+    default: m.DisclaimerPage,
+  })),
+);
+
 const HomePage = lazy(() =>
   import("@/features/home/pages/HomePage").then((m) => ({ default: m.HomePage })),
 );
@@ -242,6 +261,10 @@ export function AppRouter() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         {/* F-F.3: magic-link del walk-in registrado por staff. */}
         <Route path="/setup" element={<SetupPage />} />
+        {/* F-G.2: legales públicos — accesibles desde el registro. */}
+        <Route path="/legal/terms" element={<TermsPage />} />
+        <Route path="/legal/privacy" element={<PrivacyPage />} />
+        <Route path="/legal/disclaimer" element={<DisclaimerPage />} />
 
         {/* Authenticated users (any role can use the customer app) */}
         <Route element={<AuthGuard />}>

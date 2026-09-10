@@ -4,6 +4,7 @@ import { toZonedTime } from "date-fns-tz";
 import { OnboardingBanner } from "@/features/pets/components/OnboardingBanner";
 import { NextAppointmentHero } from "@/features/home/components/NextAppointmentHero";
 import { PetShowcase } from "@/features/home/components/PetShowcase";
+import { FirstPetDialog } from "@/features/home/components/FirstPetDialog";
 import {
   QuickActionTile,
   type QuickActionVariant,
@@ -138,6 +139,11 @@ export function HomePage() {
           </p>
         </div>
       </header>
+
+      {/* F-G.2: sin mascotas → pop-up (bloqueo suave) invitando a
+          registrar la primera. `pets === undefined` mientras carga,
+          así evitamos el flash en el primer render. */}
+      <FirstPetDialog open={Boolean(pets && pets.results.length === 0)} />
 
       {pets && <OnboardingBanner pets={pets.results} />}
 
