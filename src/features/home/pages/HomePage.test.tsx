@@ -145,4 +145,48 @@ describe("HomePage", () => {
       await screen.findByText(/aún no tienes citas próximas/i),
     ).toBeInTheDocument();
   });
+
+  it("hides the Memberships quick action when the plan catalog is empty", async () => {
+    // Data-driven gating: sin planes cargados en el catálogo el
+    // botón desaparece del home. Cuando el equipo dé de alta el
+    // primero, aparece sin redeploy.
+    server.use(
+      http.get(`${API}/pets/`, () => HttpResponse.json(paginated([]))),
+      http.get(`${API}/appointments/`, () =>
+        HttpResponse.json(paginated([])),
+      ),
+      http.get(`${API}/memberships/plans/`, () => HttpResponse.json([])),
+    );
+    renderWithProviders(<HomePage />);
+    // El resto de tiles siguen; solo el de membresías debe faltar.
+    await screen.findByText(/mis mascotas/i);
+    await waitFor(() =>
+      expect(screen.queryByText(/^membresías$/i)).not.toBeInTheDocument(),
+    );
+  });
+
+  it("shows the Memberships quick action when at least one plan exists", async () => {
+    server.use(
+      http.get(`${API}/pets/`, () => HttpResponse.json(paginated([]))),
+      http.get(`${API}/appointments/`, () =>
+        HttpResponse.json(paginated([])),
+      ),
+      http.get(`${API}/memberships/plans/`, () =>
+        HttpResponse.json([
+          {
+            id: "plan-1",
+            code: "PREMIUM",
+            name: "Premium",
+            price_mxn_cents: 49900,
+            billing_cycle: "monthly",
+            is_active: true,
+          },
+        ]),
+      ),
+    );
+    renderWithProviders(<HomePage />);
+    expect(
+      await screen.findByText(/^membresías$/i),
+    ).toBeInTheDocument();
+  });
 });

@@ -17,6 +17,7 @@ import { SHOP_ENABLED } from "@/lib/features";
 import { usePets } from "@/api/hooks/use-pets";
 import { useMyAppointments } from "@/api/hooks/use-appointments";
 import { usePlans as useDaycarePlans } from "@/api/hooks/use-daycare";
+import { useMembershipPlans } from "@/api/hooks/use-memberships";
 import { useAuthStore } from "@/stores/auth-store";
 
 interface QuickAction {
@@ -87,26 +88,36 @@ export function HomePage() {
   const { data: appointments, isLoading: appointmentsLoading } =
     useMyAppointments();
   const daycarePlans = useDaycarePlans();
+  const membershipPlans = useMembershipPlans();
 
   const greeting = useMemo(() => {
     const mxHour = toZonedTime(new Date(), TIMEZONE).getHours();
     return greetingForHour(mxHour);
   }, []);
 
-  // Hide the Day Care quick action when we KNOW the catalog is
-  // empty (loaded, zero results). Loading or error states keep
-  // it visible to avoid layout jumps and to let the customer try
-  // — the landing page has its own empty state that orients them.
+  // Hide the Day Care and Memberships quick actions when we KNOW
+  // the catalog is empty (loaded, zero results). Loading or error
+  // states keep the tile visible to avoid layout jumps and to let
+  // the customer try — the landing page has its own empty state
+  // that orients them. Data-driven en lugar de env var: cuando el
+  // equipo dé de alta el primer plan, la sección aparece sin
+  // redeploy.
   const daycareCatalogEmpty =
     !daycarePlans.isLoading
     && !daycarePlans.isError
     && (daycarePlans.data?.results.length ?? 0) === 0;
+  const membershipsCatalogEmpty =
+    !membershipPlans.isLoading
+    && !membershipPlans.isError
+    && (membershipPlans.data?.length ?? 0) === 0;
   const quickActions = useMemo(
     () =>
-      QUICK_ACTIONS_BASE.filter(
-        (a) => a.id !== "daycare" || !daycareCatalogEmpty,
-      ),
-    [daycareCatalogEmpty],
+      QUICK_ACTIONS_BASE.filter((a) => {
+        if (a.id === "daycare") return !daycareCatalogEmpty;
+        if (a.id === "memberships") return !membershipsCatalogEmpty;
+        return true;
+      }),
+    [daycareCatalogEmpty, membershipsCatalogEmpty],
   );
 
   const nextAppointment = useMemo(
