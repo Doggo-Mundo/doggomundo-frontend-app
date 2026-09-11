@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { LogOut, PawPrint, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { SHOP_ENABLED } from "@/lib/features";
 import { useAuthStore } from "@/stores/auth-store";
 import { useLogout } from "@/api/hooks/use-auth";
+import { useMembershipPlans } from "@/api/hooks/use-memberships";
 import { selectCartCount, useCartStore } from "@/stores/cart-store";
 import { resetUserSession } from "@/lib/session";
 
@@ -17,15 +19,28 @@ const ALL_DESKTOP_NAV = [
   { to: "/shop", label: "Tienda", end: false, key: "shop" },
 ];
 
-const DESKTOP_NAV = ALL_DESKTOP_NAV.filter(
-  (item) => SHOP_ENABLED || item.key !== "shop",
-);
-
 export function TopBar() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const logoutMutation = useLogout();
   const cartCount = useCartStore(selectCartCount);
+  // Data-driven: mismo criterio que HomePage — sin planes en el
+  // catálogo, la tab desaparece. Cuando alta el primer plan,
+  // reaparece sin redeploy.
+  const membershipPlans = useMembershipPlans();
+  const membershipsCatalogEmpty =
+    !membershipPlans.isLoading
+    && !membershipPlans.isError
+    && (membershipPlans.data?.length ?? 0) === 0;
+  const DESKTOP_NAV = useMemo(
+    () =>
+      ALL_DESKTOP_NAV.filter((item) => {
+        if (item.key === "shop") return SHOP_ENABLED;
+        if (item.key === "memberships") return !membershipsCatalogEmpty;
+        return true;
+      }),
+    [membershipsCatalogEmpty],
+  );
 
   async function handleLogout() {
     const refresh = localStorage.getItem("refresh_token");
