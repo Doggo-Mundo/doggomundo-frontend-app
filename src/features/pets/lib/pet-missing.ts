@@ -9,9 +9,9 @@ import type { Pet, PetListItem } from "@/types/pet";
  */
 export function nextMissingHintFromList(pet: PetListItem): string | null {
   if (pet.onboarding_completion_percentage >= 100) return null;
-  if (!pet.photo) return "Súbele su foto";
-  if (!pet.breed) return "Falta su raza";
-  if (!pet.gender) return "Falta su sexo";
+  if (!pet.photo) return "Sube la foto";
+  if (!pet.breed) return "Falta la raza";
+  if (!pet.gender) return "Falta el sexo";
   return "Últimos detalles";
 }
 
