@@ -43,10 +43,14 @@ export function PetDocumentsPage() {
                 <CardContent className="flex items-center gap-3 py-3">
                   <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{doc.title}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="truncate text-sm font-medium">
                       {doc.document_type_display}
                     </p>
+                    {doc.description && (
+                      <p className="truncate text-xs text-muted-foreground">
+                        {doc.description}
+                      </p>
+                    )}
                   </div>
                   {doc.file && (
                     <Button

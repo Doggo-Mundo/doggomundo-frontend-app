@@ -123,18 +123,121 @@ export interface Vaccination {
   updated_at: string;
 }
 
+/** F-I: estado del pipeline VLM (Dog-ID) sobre una cartilla.
+ *  El frontend polea el detail hasta que sea terminal (EXTRACTED
+ *  /CONFIRMED/FAILED/MANUAL). */
+export type VlmExtractionStatus =
+  | "NOT_APPLICABLE"
+  | "PENDING"
+  | "PROCESSING"
+  | "EXTRACTED"
+  | "CONFIRMED"
+  | "MANUAL"
+  | "FAILED";
+
+/** F-I: página adicional de un documento multi-hoja (cartilla). */
+export interface MedicalDocumentPage {
+  id: string;
+  file: string;
+  page_index: number;
+}
+
 export interface PetDocument {
   id: string;
   pet: string;
-  pet_name: string;
   document_type: string;
   document_type_display: string;
-  title: string;
   file: string | null;
-  notes: string;
+  /** F-I: páginas extra (cartillas multi-hoja). Vacía en docs de
+   *  un solo archivo. */
+  pages: MedicalDocumentPage[];
+  description: string;
+  uploaded_date: string;
+  uploaded_by: string | null;
+  uploaded_by_name: string | null;
+  uploaded_by_user_type: string | null;
+  vlm_extraction_status: VlmExtractionStatus;
+  vlm_extraction_status_display: string;
+  vlm_extracted_at: string | null;
+  /** F-I: JSON crudo devuelto por Dog-ID; el form de confirmación
+   *  lo consume para prellenar campos con badges de confianza. */
+  vlm_raw_extraction: VlmRawExtraction | null;
+  vlm_extraction_error: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+/** F-I: forma del JSON crudo que Dog-ID devuelve. Es el output del
+ *  VLM más metadata de calibración; el frontend lo usa read-only
+ *  para poblar la Caja 3. */
+export interface VlmRawExtraction {
+  posibles_multiples_perros?: boolean;
+  paciente?: {
+    nombre?: string | null;
+    especie?: string | null;
+    raza?: string | null;
+    fecha_nacimiento?: string | null;
+  };
+  vacunas?: VlmExtractedVaccine[];
+  proveedor?: string;
+  modelo?: string;
+  /** Metadata libre — puede contener duraciones, tokens, etc. */
+  [key: string]: unknown;
+}
+
+export interface VlmExtractedVaccine {
+  nombre_crudo?: string;
+  fecha_aplicacion?: string | null;
+  proxima_dosis?: string | null;
+  confianza?: "alta" | "media" | "baja" | string;
+  categoria?: string;
+  /** VaccineType del backend cuando el VLM lo puede mapear. */
+  tipo?: string;
+}
+
+/** F-I: enum de tipos de vacuna aceptados por el backend en
+ *  confirm-cartilla. Debe mantenerse sincronizado con
+ *  pets.models.VaccineType. */
+export type VaccineType =
+  | "RABIA"
+  | "MOQUILLO"
+  | "PARVOVIRUS"
+  | "LEPTOSPIROSIS"
+  | "BORDETELLA"
+  | "HEPATITIS"
+  | "PARAINFLUENZA"
+  | "TRIPLE_FELINA"
+  | "LEUCEMIA_FELINA"
+  | "OTRO";
+
+export const VACCINE_TYPE_LABEL: Record<VaccineType, string> = {
+  RABIA: "Rabia",
+  MOQUILLO: "Moquillo",
+  PARVOVIRUS: "Parvovirus",
+  LEPTOSPIROSIS: "Leptospirosis",
+  BORDETELLA: "Bordetella",
+  HEPATITIS: "Hepatitis",
+  PARAINFLUENZA: "Parainfluenza",
+  TRIPLE_FELINA: "Triple Felina",
+  LEUCEMIA_FELINA: "Leucemia Felina",
+  OTRO: "Otro",
+};
+
+/** F-I: payload de una vacuna confirmada — lo que el usuario acepta
+ *  en la Caja 3 (o digita a mano si el VLM falló). */
+export interface ConfirmedVaccinationInput {
+  vaccine_name: string;
+  vaccine_type: VaccineType;
+  administered_date: string;
+  next_due_date?: string | null;
+  vet_name?: string;
+  vet_clinic?: string;
+  batch_number?: string;
+}
+
+export interface ConfirmCartillaPayload {
+  vaccinations: ConfirmedVaccinationInput[];
 }
 
 export const SPECIES_LABEL: Record<Species, string> = {

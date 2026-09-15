@@ -13,6 +13,7 @@ import type {
   MedicalRecord,
   Vaccination,
   PetDocument,
+  ConfirmCartillaPayload,
 } from "@/types/pet";
 
 export const petKeys = {
@@ -26,6 +27,8 @@ export const petKeys = {
   medical: (id: string) => [...petKeys.all, "medical", id] as const,
   vaccinations: (id: string) => [...petKeys.all, "vaccinations", id] as const,
   documents: (id: string) => [...petKeys.all, "documents", id] as const,
+  document: (petId: string, docId: string) =>
+    [...petKeys.all, "documents", petId, docId] as const,
   breeds: ["pets", "breeds"] as const,
   foodTypes: ["pets", "food-types"] as const,
   foodBrands: ["pets", "food-brands"] as const,
@@ -231,9 +234,17 @@ export function usePetDocuments(petId: string) {
  * RECETA, etc.). El backend setea `uploaded_by=request.user`
  * automáticamente vía PetNestedMixin.
  */
+/** F-I: máximo total de archivos por documento (file + extras).
+ *  Debe mantenerse sincronizado con backend `MAX_DOCUMENT_PAGES`. */
+export const MAX_DOCUMENT_PAGES = 5;
+
 export interface UploadPetDocumentInput {
   document_type: string;
+  /** Primera página / archivo principal. Obligatorio. */
   file: File;
+  /** F-I: páginas extra (cartillas multi-hoja). El total
+   *  file + additional_files no puede exceder MAX_DOCUMENT_PAGES. */
+  additional_files?: File[];
   description?: string;
 }
 
@@ -247,6 +258,11 @@ export function useUploadPetDocument(petId: string) {
       if (input.description) {
         formData.append("description", input.description);
       }
+      // DRF ListField(child=FileField) espera múltiples entradas
+      // con la misma key. FormData permite esto con append repetido.
+      (input.additional_files ?? []).forEach((f) => {
+        formData.append("additional_files", f);
+      });
       return api
         .post<PetDocument>(
           `/pets/${petId}/documents/`,
@@ -259,6 +275,75 @@ export function useUploadPetDocument(petId: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: petKeys.documents(petId) });
+    },
+  });
+}
+
+/** F-I: detail de un documento con opción de polling.
+ *
+ *  Cuando el pipeline VLM está corriendo (PENDING/PROCESSING),
+ *  el componente pasa `poll: true` y este hook refetchea cada 3s
+ *  hasta que el status sea terminal. Al llegar a EXTRACTED/FAILED
+ *  el `refetchInterval` devuelve false y el polling para. */
+export function usePetDocument(
+  petId: string,
+  docId: string,
+  opts: { poll?: boolean } = {},
+) {
+  return useQuery({
+    queryKey: petKeys.document(petId, docId),
+    queryFn: () =>
+      api
+        .get<PetDocument>(`/pets/${petId}/documents/${docId}/`)
+        .then((r) => r.data),
+    enabled: !!petId && !!docId,
+    refetchInterval: (query) => {
+      if (!opts.poll) return false;
+      const data = query.state.data;
+      const status = data?.vlm_extraction_status;
+      const inFlight = status === "PENDING" || status === "PROCESSING";
+      return inFlight ? 3000 : false;
+    },
+  });
+}
+
+/** F-I: reintenta el pipeline VLM sobre una cartilla en estado
+ *  FAILED (o PENDING atascada). Devuelve el doc con status=PENDING
+ *  y arranca el thread background del backend. */
+export function useRetryExtraction(petId: string, docId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api
+        .post<PetDocument>(
+          `/pets/${petId}/documents/${docId}/retry-extraction/`,
+        )
+        .then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: petKeys.document(petId, docId) });
+      qc.invalidateQueries({ queryKey: petKeys.documents(petId) });
+    },
+  });
+}
+
+/** F-I: confirmar la cartilla — el frontend envía la lista final de
+ *  vacunas (VLM prellenó, usuario editó, o digitó a mano si falló),
+ *  el backend crea VaccinationRecords ligados al doc y marca el
+ *  status como CONFIRMED. Idempotente en el backend. */
+export function useConfirmCartilla(petId: string, docId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ConfirmCartillaPayload) =>
+      api
+        .post<Vaccination[]>(
+          `/pets/${petId}/documents/${docId}/confirm-cartilla/`,
+          payload,
+        )
+        .then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: petKeys.document(petId, docId) });
+      qc.invalidateQueries({ queryKey: petKeys.documents(petId) });
+      qc.invalidateQueries({ queryKey: petKeys.vaccinations(petId) });
     },
   });
 }
