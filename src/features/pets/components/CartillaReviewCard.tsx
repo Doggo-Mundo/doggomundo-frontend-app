@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useRef } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -206,16 +206,18 @@ function ReviewForm({ petId, docId, doc, status }: ReviewFormProps) {
     name: "vaccinations",
   });
 
-  const seedKey = useMemo(
-    () => `${doc.id}-${doc.vlm_extraction_status}`,
-    [doc.id, doc.vlm_extraction_status],
-  );
+  // F-I: sembramos el form UNA sola vez por doc. Antes usábamos
+  // isDirty como guarda, pero cualquier re-render podía volver a
+  // meter el effect y pisar la edición del usuario — se veía como
+  // fechas que "regresaban solas" al valor extraído por VLM.
+  const seededDocIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (form.formState.isDirty) return;
+    if (!doc) return;
+    if (seededDocIdRef.current === doc.id) return;
+    seededDocIdRef.current = doc.id;
     const seeds = seedFromVlm(doc.vlm_raw_extraction);
     replace(seeds.length ? seeds : [emptyVaccine()]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seedKey]);
+  }, [doc, replace]);
 
   const onSubmit = (values: FormValues) => {
     confirm.mutate(
