@@ -4,18 +4,27 @@ import { es } from "date-fns/locale";
 
 export const TIMEZONE = "America/Mexico_City";
 
+// Strings YYYY-MM-DD son DateField del backend (fechas calendario,
+// no instantes UTC). Sin este anclaje `new Date("2026-08-20")`
+// se interpreta como UTC medianoche, y al convertir a MX-6h queda
+// en 19/08 6pm. Ancla a UTC-mediodía para preservar la fecha.
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+function anchorDateOnly(s: string): string {
+  return DATE_ONLY_RE.test(s) ? `${s}T12:00:00Z` : s;
+}
+
 export function formatDate(dateString: string): string {
-  const zonedDate = toZonedTime(new Date(dateString), TIMEZONE);
+  const zonedDate = toZonedTime(new Date(anchorDateOnly(dateString)), TIMEZONE);
   return format(zonedDate, "dd/MM/yyyy");
 }
 
 export function formatDateTime(dateString: string): string {
-  const zonedDate = toZonedTime(new Date(dateString), TIMEZONE);
+  const zonedDate = toZonedTime(new Date(anchorDateOnly(dateString)), TIMEZONE);
   return format(zonedDate, "dd/MM/yyyy HH:mm");
 }
 
 export function formatLongDate(dateString: string): string {
-  const zonedDate = toZonedTime(new Date(dateString), TIMEZONE);
+  const zonedDate = toZonedTime(new Date(anchorDateOnly(dateString)), TIMEZONE);
   return format(zonedDate, "EEEE d 'de' MMMM", { locale: es });
 }
 
