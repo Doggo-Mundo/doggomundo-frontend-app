@@ -1,17 +1,12 @@
-import { Navigate, useNavigate, useParams } from "react-router-dom";
-import { CheckCircle2, Download, FileText, RotateCcw } from "lucide-react";
+import { Link, Navigate, useParams } from "react-router-dom";
+import { ArrowRight, Download, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PetsBreadcrumb } from "@/features/pets/components/PetsBreadcrumb";
 import { VlmStatusChip } from "@/features/pets/components/VlmStatusChip";
-import { CartillaUploader } from "@/features/pets/components/CartillaUploader";
-import {
-  useRetryExtraction,
-  usePet,
-  usePetDocuments,
-} from "@/api/hooks/use-pets";
+import { usePet, usePetDocuments } from "@/api/hooks/use-pets";
 import type { PetDocument } from "@/types/pet";
 
 export function PetDocumentsPage() {
@@ -32,7 +27,27 @@ export function PetDocumentsPage() {
         </p>
       </header>
 
-      <CartillaUploader petId={id} />
+      {/* F-I: la cartilla vive en la sección de Vacunas — es donde
+          el usuario espera cargarla y ver sus vacunas registradas.
+          Aquí ofrecemos el atajo en vez de duplicar el uploader. */}
+      <Card size="sm">
+        <CardContent className="flex items-center gap-3 py-3">
+          <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">¿Tienes una cartilla?</p>
+            <p className="text-xs text-muted-foreground">
+              Súbela en la sección de Vacunas para registrar
+              automáticamente lo que ya tiene tu peludo.
+            </p>
+          </div>
+          <Button asChild size="sm" variant="outline">
+            <Link to={`/pets/${id}/vaccinations`}>
+              Ir a Vacunas
+              <ArrowRight className="ml-1 h-4 w-4" />
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       {isLoading ? (
         <LoadingState rows={2} />
@@ -42,13 +57,13 @@ export function PetDocumentsPage() {
         <EmptyState
           icon={<FileText className="h-12 w-12" />}
           title="Sin documentos"
-          description="Sube tu cartilla arriba o espera a que el equipo cargue archivos."
+          description="Cuando el equipo suba recetas, resultados o certificados aparecerán aquí."
         />
       ) : (
         <ul className="space-y-3">
           {data.results.map((doc) => (
             <li key={doc.id}>
-              <DocumentRow petId={id} doc={doc} />
+              <DocumentRow doc={doc} />
             </li>
           ))}
         </ul>
@@ -58,22 +73,11 @@ export function PetDocumentsPage() {
 }
 
 interface DocumentRowProps {
-  petId: string;
   doc: PetDocument;
 }
 
-function DocumentRow({ petId, doc }: DocumentRowProps) {
-  const retry = useRetryExtraction(petId, doc.id);
-  const navigate = useNavigate();
+function DocumentRow({ doc }: DocumentRowProps) {
   const totalPages = 1 + (doc.pages?.length ?? 0);
-  const isCartilla = doc.document_type === "CARTILLA_VACUNACION";
-  const canConfirm =
-    isCartilla &&
-    (doc.vlm_extraction_status === "EXTRACTED" ||
-      doc.vlm_extraction_status === "CONFIRMED" ||
-      doc.vlm_extraction_status === "FAILED" ||
-      doc.vlm_extraction_status === "MANUAL");
-
   return (
     <Card size="sm">
       <CardContent className="flex items-center gap-3 py-3">
@@ -98,57 +102,19 @@ function DocumentRow({ petId, doc }: DocumentRowProps) {
               {doc.description}
             </p>
           )}
-          {doc.vlm_extraction_status === "FAILED" && (
-            <p className="mt-1 truncate text-xs text-rose-700">
-              No pudimos leer la cartilla automáticamente.
-            </p>
-          )}
         </div>
-        <div className="flex items-center gap-2">
-          {canConfirm && (
-            <Button
-              size="sm"
-              variant={
-                doc.vlm_extraction_status === "EXTRACTED"
-                  ? "default"
-                  : "outline"
-              }
-              onClick={() =>
-                navigate(
-                  `/pets/${petId}/documents/${doc.id}/confirm-cartilla`,
-                )
-              }
-            >
-              <CheckCircle2 className="mr-1 h-4 w-4" />
-              {doc.vlm_extraction_status === "CONFIRMED"
-                ? "Ver / editar"
-                : "Confirmar"}
-            </Button>
-          )}
-          {doc.vlm_extraction_status === "FAILED" && (
-            <Button
-              size="icon-sm"
-              variant="outline"
-              aria-label="Reintentar extracción"
-              disabled={retry.isPending}
-              onClick={() => retry.mutate()}
-            >
-              <RotateCcw />
-            </Button>
-          )}
-          {doc.file && (
-            <Button
-              asChild
-              size="icon-sm"
-              variant="outline"
-              aria-label="Descargar"
-            >
-              <a href={doc.file} target="_blank" rel="noreferrer">
-                <Download />
-              </a>
-            </Button>
-          )}
-        </div>
+        {doc.file && (
+          <Button
+            asChild
+            size="icon-sm"
+            variant="outline"
+            aria-label="Descargar"
+          >
+            <a href={doc.file} target="_blank" rel="noreferrer">
+              <Download />
+            </a>
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

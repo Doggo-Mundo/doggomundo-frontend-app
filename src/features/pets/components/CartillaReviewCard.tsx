@@ -1,12 +1,11 @@
 import { useEffect, useMemo } from "react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import {
   AlertTriangle,
-  ChevronLeft,
+  CheckCircle2,
   Loader2,
   Plus,
   RotateCcw,
@@ -29,17 +28,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { LoadingState } from "@/components/shared/LoadingState";
-import { PetsBreadcrumb } from "@/features/pets/components/PetsBreadcrumb";
-import { VlmStatusChip } from "@/features/pets/components/VlmStatusChip";
 import {
   useConfirmCartilla,
-  usePet,
   usePetDocument,
   useRetryExtraction,
 } from "@/api/hooks/use-pets";
+import { CartillaUploader } from "@/features/pets/components/CartillaUploader";
 import {
   VACCINE_TYPE_LABEL,
+  type PetDocument,
   type VaccineType,
   type VlmExtractedVaccine,
   type VlmRawExtraction,
@@ -73,8 +70,6 @@ const vaccineSchema = z
     vet_name: z.string().optional().or(z.literal("")),
     vet_clinic: z.string().optional().or(z.literal("")),
     batch_number: z.string().optional().or(z.literal("")),
-    /** Solo UI — se pasa desde el VLM para pintar el badge; no
-     *  viaja al backend. */
     _confidence: z.string().optional(),
   })
   .refine(
@@ -91,21 +86,105 @@ const vaccineSchema = z
 const schema = z.object({
   vaccinations: z
     .array(vaccineSchema)
-    .min(1, "Debes registrar al menos una vacuna."),
+    .min(1, "Al menos una vacuna."),
 });
 
 type FormValues = z.infer<typeof schema>;
 
-export function CartillaConfirmPage() {
-  const { id, docId } = useParams<{ id: string; docId: string }>();
-  const navigate = useNavigate();
+interface CartillaReviewCardProps {
+  petId: string;
+  /** Cartilla más reciente del pet (o null si nunca subió). */
+  latestCartilla: PetDocument | null;
+}
 
-  const { data: pet } = usePet(id ?? "");
-  const { data: doc, isLoading } = usePetDocument(id ?? "", docId ?? "", {
-    poll: true,
-  });
-  const retry = useRetryExtraction(id ?? "", docId ?? "");
-  const confirm = useConfirmCartilla(id ?? "", docId ?? "");
+/** F-I: bloque unificado que vive arriba de VaccinationsPage.
+ *
+ *  Estados y qué renderiza:
+ *  - Sin cartilla o última en CONFIRMED → uploader compacto para
+ *    subir una nueva (frente + reverso + hojas extra).
+ *  - PENDING/PROCESSING → tarjeta con spinner "leyendo cartilla".
+ *  - EXTRACTED → form editable con las vacunas prellenadas por el
+ *    VLM. Botón "Guardar y confirmar" al pie.
+ *  - FAILED → banner rojo con retry inline + entrada manual como
+ *    fallback (mismo form vacío).
+ *
+ *  Al confirmar, invalida el query key de vaccinations y las vacunas
+ *  guardadas aparecen inmediatamente en la lista de la página. */
+export function CartillaReviewCard({
+  petId,
+  latestCartilla,
+}: CartillaReviewCardProps) {
+  const docId = latestCartilla?.id ?? "";
+  // Polling activo mientras el pipeline esté corriendo.
+  const shouldPoll =
+    latestCartilla?.vlm_extraction_status === "PENDING" ||
+    latestCartilla?.vlm_extraction_status === "PROCESSING";
+  const { data: doc } = usePetDocument(petId, docId, { poll: shouldPoll });
+
+  const effective = doc ?? latestCartilla;
+
+  if (!effective || effective.vlm_extraction_status === "CONFIRMED") {
+    return (
+      <div className="space-y-4">
+        {effective?.vlm_extraction_status === "CONFIRMED" && (
+          <ConfirmedBanner />
+        )}
+        <CartillaUploader petId={petId} />
+      </div>
+    );
+  }
+
+  const status = effective.vlm_extraction_status;
+
+  if (status === "PENDING" || status === "PROCESSING") {
+    return (
+      <Card>
+        <CardContent className="flex items-center gap-3 py-6">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <div>
+            <p className="text-sm font-medium">Leyendo tu cartilla…</p>
+            <p className="text-xs text-muted-foreground">
+              Esto suele tomar unos segundos. En cuanto termine aparecerán
+              las vacunas para que las revises.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <ReviewForm
+      petId={petId}
+      docId={effective.id}
+      doc={effective}
+      status={status}
+    />
+  );
+}
+
+function ConfirmedBanner() {
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+      <CheckCircle2 className="h-4 w-4" />
+      Tus vacunas están al día. Si tienes una cartilla más reciente,
+      súbela aquí abajo.
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+interface ReviewFormProps {
+  petId: string;
+  docId: string;
+  doc: PetDocument;
+  status: "EXTRACTED" | "FAILED" | "MANUAL";
+}
+
+function ReviewForm({ petId, docId, doc, status }: ReviewFormProps) {
+  const retry = useRetryExtraction(petId, docId);
+  const confirm = useConfirmCartilla(petId, docId);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -116,29 +195,16 @@ export function CartillaConfirmPage() {
     name: "vaccinations",
   });
 
-  // Cuando la respuesta VLM llega, precargamos el form. Se ejecuta
-  // solo una vez por doc — si el usuario ya editó campos, no los
-  // pisamos.
   const seedKey = useMemo(
-    () => `${doc?.id}-${doc?.vlm_extraction_status}`,
-    [doc?.id, doc?.vlm_extraction_status],
+    () => `${doc.id}-${doc.vlm_extraction_status}`,
+    [doc.id, doc.vlm_extraction_status],
   );
   useEffect(() => {
-    if (!doc) return;
-    if (!form.formState.isDirty) {
-      const seeds = seedFromVlm(doc.vlm_raw_extraction);
-      replace(seeds.length ? seeds : [emptyVaccine()]);
-    }
-    // seedKey se compara para evitar loop; los deps de eslint no
-    // deben empujarnos a añadir replace/form (referencias estables).
+    if (form.formState.isDirty) return;
+    const seeds = seedFromVlm(doc.vlm_raw_extraction);
+    replace(seeds.length ? seeds : [emptyVaccine()]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seedKey]);
-
-  if (!id || !docId) return <Navigate to="/pets" replace />;
-
-  const isInFlight =
-    doc?.vlm_extraction_status === "PENDING" ||
-    doc?.vlm_extraction_status === "PROCESSING";
 
   const onSubmit = (values: FormValues) => {
     confirm.mutate(
@@ -155,124 +221,80 @@ export function CartillaConfirmPage() {
       },
       {
         onSuccess: () => {
-          toast.success("Vacunas registradas");
-          navigate(`/pets/${id}/vaccinations`);
+          toast.success("Vacunas guardadas");
+          form.reset({ vaccinations: [emptyVaccine()] });
         },
         onError: () => {
-          toast.error("No pudimos guardar las vacunas. Intenta de nuevo.");
+          toast.error("No pudimos guardar. Intenta de nuevo.");
         },
       },
     );
   };
 
   return (
-    <div className="space-y-4">
-      <PetsBreadcrumb petId={id} petName={pet?.name} />
-
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => navigate(`/pets/${id}/documents`)}
-      >
-        <ChevronLeft className="mr-1 h-4 w-4" />
-        Volver a documentos
-      </Button>
-
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-2">
-            <CardTitle>Confirmar cartilla</CardTitle>
-            {doc && <VlmStatusChip status={doc.vlm_extraction_status} />}
-          </div>
-          <CardDescription>
-            Revisa los datos que extrajimos de la foto y corrige lo que
-            haga falta antes de guardar.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {isLoading || !doc ? (
-            <LoadingState rows={3} />
-          ) : isInFlight ? (
-            <div className="flex items-center gap-3 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Estamos leyendo tu cartilla. En unos segundos podrás confirmar
-              los datos.
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">
+          {status === "EXTRACTED"
+            ? "Revisa tus vacunas"
+            : status === "FAILED"
+            ? "Registra tus vacunas"
+            : "Vacunas de la cartilla"}
+        </CardTitle>
+        <CardDescription>
+          {status === "EXTRACTED"
+            ? "Ya leímos tu cartilla. Ajusta lo que haga falta y guarda."
+            : status === "FAILED"
+            ? "No pudimos leer la cartilla. Puedes reintentar o digitar las vacunas aquí."
+            : "Digitadas desde la cartilla."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {status === "FAILED" && (
+          <div className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="flex-1 space-y-2">
+              <p>Extracción automática falló.</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={retry.isPending}
+                onClick={() => retry.mutate()}
+              >
+                <RotateCcw className="mr-1 h-4 w-4" />
+                {retry.isPending ? "Reintentando…" : "Reintentar lectura"}
+              </Button>
             </div>
-          ) : doc.vlm_extraction_status === "FAILED" ? (
-            <FailedBanner
-              onRetry={() => retry.mutate()}
-              retrying={retry.isPending}
+          </div>
+        )}
+
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+          {fields.map((field, index) => (
+            <VaccineRow
+              key={field.id}
+              index={index}
+              form={form}
+              onRemove={fields.length > 1 ? () => remove(index) : null}
             />
-          ) : null}
-
-          {doc && !isInFlight && (
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-4"
+          ))}
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => append(emptyVaccine())}
             >
-              {fields.map((field, index) => (
-                <VaccineRow
-                  key={field.id}
-                  index={index}
-                  form={form}
-                  onRemove={fields.length > 1 ? () => remove(index) : null}
-                />
-              ))}
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => append(emptyVaccine())}
-                >
-                  <Plus className="mr-1 h-4 w-4" /> Agregar vacuna
-                </Button>
-                <div className="flex-1" />
-                <Button
-                  type="submit"
-                  disabled={confirm.isPending}
-                >
-                  {confirm.isPending ? "Guardando..." : "Confirmar y guardar"}
-                </Button>
-              </div>
-            </form>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-
-interface FailedBannerProps {
-  onRetry: () => void;
-  retrying: boolean;
-}
-
-function FailedBanner({ onRetry, retrying }: FailedBannerProps) {
-  return (
-    <div className="flex items-start gap-3 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
-      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
-      <div className="flex-1 space-y-2">
-        <p className="font-medium">
-          No pudimos leer la cartilla automáticamente
-        </p>
-        <p className="text-rose-800">
-          Puedes reintentar o digitar las vacunas manualmente aquí abajo.
-        </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={retrying}
-          onClick={onRetry}
-        >
-          <RotateCcw className="mr-1 h-4 w-4" />
-          {retrying ? "Reintentando..." : "Reintentar extracción"}
-        </Button>
-      </div>
-    </div>
+              <Plus className="mr-1 h-4 w-4" /> Agregar otra vacuna
+            </Button>
+            <div className="flex-1" />
+            <Button type="submit" disabled={confirm.isPending}>
+              {confirm.isPending ? "Guardando…" : "Guardar vacunas"}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -292,8 +314,8 @@ function VaccineRow({ index, form, onRemove }: VaccineRowProps) {
   const errors = form.formState.errors?.vaccinations?.[index];
 
   return (
-    <div className="space-y-3 rounded-lg border p-3">
-      <div className="flex items-center justify-between gap-2">
+    <div className="space-y-2 rounded-lg border p-3">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-muted-foreground">
             Vacuna {index + 1}
@@ -305,15 +327,14 @@ function VaccineRow({ index, form, onRemove }: VaccineRowProps) {
             type="button"
             variant="ghost"
             size="icon-sm"
-            aria-label="Quitar vacuna"
+            aria-label="Quitar"
             onClick={onRemove}
           >
             <Trash2 />
           </Button>
         )}
       </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-2 sm:grid-cols-2">
         <div className="space-y-1 sm:col-span-2">
           <Label>Nombre en la etiqueta</Label>
           <Input
@@ -326,7 +347,6 @@ function VaccineRow({ index, form, onRemove }: VaccineRowProps) {
             </p>
           )}
         </div>
-
         <div className="space-y-1">
           <Label>Tipo</Label>
           <Controller
@@ -335,7 +355,7 @@ function VaccineRow({ index, form, onRemove }: VaccineRowProps) {
             render={({ field }) => (
               <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un tipo" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {VACCINE_TYPES.map((t) => (
@@ -347,13 +367,7 @@ function VaccineRow({ index, form, onRemove }: VaccineRowProps) {
               </Select>
             )}
           />
-          {errors?.vaccine_type && (
-            <p className="text-xs text-rose-700">
-              {errors.vaccine_type.message}
-            </p>
-          )}
         </div>
-
         <div className="space-y-1">
           <Label>Fecha de aplicación</Label>
           <Input
@@ -366,9 +380,8 @@ function VaccineRow({ index, form, onRemove }: VaccineRowProps) {
             </p>
           )}
         </div>
-
         <div className="space-y-1">
-          <Label>Próximo refuerzo (opcional)</Label>
+          <Label>Próximo refuerzo</Label>
           <Input
             type="date"
             {...form.register(`vaccinations.${index}.next_due_date`)}
@@ -379,12 +392,10 @@ function VaccineRow({ index, form, onRemove }: VaccineRowProps) {
             </p>
           )}
         </div>
-
         <div className="space-y-1">
           <Label>Veterinario (opcional)</Label>
           <Input {...form.register(`vaccinations.${index}.vet_name`)} />
         </div>
-
         <div className="space-y-1">
           <Label>Clínica (opcional)</Label>
           <Input {...form.register(`vaccinations.${index}.vet_clinic`)} />
@@ -405,7 +416,7 @@ function ConfidenceBadge({ value }: { value: string }) {
   return (
     <span
       className={
-        "rounded-full px-2 py-0.5 text-[11px] font-medium " + cfg.cls
+        "rounded-full px-2 py-0.5 text-[10px] font-medium " + cfg.cls
       }
     >
       {cfg.label}
@@ -442,11 +453,9 @@ function seedFromVlm(raw: VlmRawExtraction | null) {
   }));
 }
 
-/** Intenta mapear la categoría / tipo del VLM a un VaccineType del
- *  backend. Si no logra, cae a OTRO — el usuario puede corregir. */
 function normalizeVaccineType(v: VlmExtractedVaccine): VaccineType {
   const raw = (v.tipo ?? v.categoria ?? "").toLowerCase();
-  if (raw.includes("rabia")) return "RABIA";
+  if (raw.includes("rabia") || raw.includes("antirr")) return "RABIA";
   if (raw.includes("parvo")) return "PARVOVIRUS";
   if (raw.includes("moqui")) return "MOQUILLO";
   if (raw.includes("lepto")) return "LEPTOSPIROSIS";
