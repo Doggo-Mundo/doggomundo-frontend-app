@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { toLocalDateISO } from "@/lib/format-date";
 import { z } from "zod";
 import { toast } from "sonner";
 import {
@@ -63,7 +64,12 @@ const vaccineSchema = z
       .string()
       .min(1, "Requerido")
       .refine(
-        (v) => new Date(v) <= new Date(),
+        // F-I #7: comparar strings YYYY-MM-DD en local MX evita el
+        // bug de TZ: `new Date("2026-08-20")` se parsea UTC
+        // medianoche y en MX quedaba 21hs del día anterior —
+        // dependiendo de la hora dejaba pasar futuros o
+        // rechazaba válidos.
+        (v) => v <= toLocalDateISO(new Date()),
         "No puede ser fecha futura.",
       ),
     next_due_date: z.string().optional().or(z.literal("")),
@@ -122,13 +128,23 @@ export function CartillaReviewCard({
   const { data: doc } = usePetDocument(petId, docId, { poll: shouldPoll });
 
   const effective = doc ?? latestCartilla;
+  // F-I #8: si el cliente ya confirmó, seguimos permitiendo editar
+  // desde el mismo ReviewForm (usa confirmed_vaccinations como
+  // seed). El "modo edit" se activa con un botón en el banner; por
+  // default queda oculto para no distraer.
+  const [editingConfirmed, setEditingConfirmed] = useState(false);
 
-  if (!effective || effective.vlm_extraction_status === "CONFIRMED") {
+  if (!effective) {
+    return <CartillaUploader petId={petId} />;
+  }
+
+  if (
+    effective.vlm_extraction_status === "CONFIRMED" &&
+    !editingConfirmed
+  ) {
     return (
       <div className="space-y-4">
-        {effective?.vlm_extraction_status === "CONFIRMED" && (
-          <ConfirmedBanner />
-        )}
+        <ConfirmedBanner onEdit={() => setEditingConfirmed(true)} />
         <CartillaUploader petId={petId} />
       </div>
     );
@@ -153,13 +169,15 @@ export function CartillaReviewCard({
     );
   }
 
-  // NOT_APPLICABLE no debería ocurrir para cartillas (el backend lo
-  // reserva a docs que no son cartilla). Si por algún motivo llega
-  // en ese estado, degradamos al uploader — es el fallback más útil.
+  // NOT_APPLICABLE no debería ocurrir para cartillas. CONFIRMED
+  // llega aquí solo cuando el usuario hizo click en "Editar
+  // vacunas" (editingConfirmed=true); en ese caso queremos el
+  // ReviewForm — no el uploader — para que pueda corregir.
   if (
     status !== "EXTRACTED" &&
     status !== "FAILED" &&
-    status !== "MANUAL"
+    status !== "MANUAL" &&
+    status !== "CONFIRMED"
   ) {
     return <CartillaUploader petId={petId} />;
   }
@@ -174,12 +192,25 @@ export function CartillaReviewCard({
   );
 }
 
-function ConfirmedBanner() {
+function ConfirmedBanner({ onEdit }: { onEdit: () => void }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-      <CheckCircle2 className="h-4 w-4" />
-      Tus vacunas están al día. Si tienes una cartilla más reciente,
-      súbela aquí abajo.
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+      <div className="flex items-center gap-2">
+        <CheckCircle2 className="h-4 w-4 shrink-0" />
+        <span>
+          Tus vacunas están registradas. Puedes corregirlas o subir
+          una cartilla más reciente.
+        </span>
+      </div>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="shrink-0"
+        onClick={onEdit}
+      >
+        Editar vacunas
+      </Button>
     </div>
   );
 }
@@ -190,7 +221,7 @@ interface ReviewFormProps {
   petId: string;
   docId: string;
   doc: PetDocument;
-  status: "EXTRACTED" | "FAILED" | "MANUAL";
+  status: "EXTRACTED" | "FAILED" | "MANUAL" | "CONFIRMED";
 }
 
 function ReviewForm({ petId, docId, doc, status }: ReviewFormProps) {
@@ -239,14 +270,26 @@ function ReviewForm({ petId, docId, doc, status }: ReviewFormProps) {
           vet_clinic: v.vet_clinic || undefined,
           batch_number: v.batch_number || undefined,
         })),
+        // F-I #6: optimistic locking. Si el staff editó desde que
+        // este form se cargó, backend responde 409 y le pedimos al
+        // usuario recargar en vez de pisar los cambios ajenos.
+        expected_updated_at: doc.updated_at,
       },
       {
         onSuccess: () => {
           toast.success("Vacunas guardadas");
           form.reset({ vaccinations: [emptyVaccine()] });
         },
-        onError: () => {
-          toast.error("No pudimos guardar. Intenta de nuevo.");
+        onError: (err: unknown) => {
+          const status = (err as { response?: { status?: number } })
+            ?.response?.status;
+          if (status === 409) {
+            toast.error(
+              "Alguien del equipo actualizó tu cartilla. Recarga la pantalla.",
+            );
+          } else {
+            toast.error("No pudimos guardar. Intenta de nuevo.");
+          }
         },
       },
     );
@@ -260,6 +303,8 @@ function ReviewForm({ petId, docId, doc, status }: ReviewFormProps) {
             ? "Revisa tus vacunas"
             : status === "FAILED"
             ? "Registra tus vacunas"
+            : status === "CONFIRMED"
+            ? "Edita tus vacunas"
             : "Vacunas de la cartilla"}
         </CardTitle>
         <CardDescription>
@@ -267,6 +312,8 @@ function ReviewForm({ petId, docId, doc, status }: ReviewFormProps) {
             ? "Ya leímos tu cartilla. Ajusta lo que haga falta y guarda."
             : status === "FAILED"
             ? "No pudimos leer la cartilla. Puedes reintentar o digitar las vacunas aquí."
+            : status === "CONFIRMED"
+            ? "Modifica lo que necesites; guardar sobrescribe la lista actual."
             : "Digitadas desde la cartilla."}
         </CardDescription>
       </CardHeader>

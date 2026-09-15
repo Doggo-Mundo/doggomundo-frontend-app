@@ -97,13 +97,15 @@ export interface OnboardingStatus {
 export interface MedicalRecord {
   id: string;
   pet: string;
-  pet_name: string;
   record_type: string;
   record_type_display: string;
-  title: string;
-  description: string;
   date: string;
-  veterinarian: string;
+  diagnosis: string;
+  treatment: string;
+  vet_name: string;
+  vet_clinic: string;
+  notes: string;
+  attachments?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -256,6 +258,10 @@ export interface ConfirmedVaccinationInput {
 
 export interface ConfirmCartillaPayload {
   vaccinations: ConfirmedVaccinationInput[];
+  /** F-I #6 optimistic locking. Backend responde 409 si el doc
+   *  fue modificado desde este timestamp (staff editando en
+   *  paralelo, por ejemplo). */
+  expected_updated_at?: string;
 }
 
 export const SPECIES_LABEL: Record<Species, string> = {
