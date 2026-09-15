@@ -163,9 +163,27 @@ export interface PetDocument {
    *  lo consume para prellenar campos con badges de confianza. */
   vlm_raw_extraction: VlmRawExtraction | null;
   vlm_extraction_error: string;
+  /** F-I: vacunas actualmente confirmadas por este doc — el sheet
+   *  las usa como fuente de verdad después de CONFIRMED (en lugar
+   *  de re-mostrar vlm_raw_extraction, que es el output ORIGINAL
+   *  del VLM y no refleja las ediciones del cliente). */
+  confirmed_vaccinations: ConfirmedVaccinationRow[];
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+/** F-I: forma de las vacunas confirmadas embebidas en el detail
+ *  del doc, ordenadas por administered_date. */
+export interface ConfirmedVaccinationRow {
+  id: string;
+  vaccine_name: string;
+  vaccine_type: string;
+  administered_date: string | null;
+  next_due_date: string | null;
+  vet_name: string;
+  vet_clinic: string;
+  batch_number: string;
 }
 
 /** F-I: forma del JSON crudo que Dog-ID devuelve. Es el output del

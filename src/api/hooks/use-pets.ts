@@ -167,10 +167,11 @@ export function useUpdatePetPhoto(id: string) {
     mutationFn: (file: File) => {
       const formData = new FormData();
       formData.append("photo", file);
+      // Sin Content-Type explícito: axios lo genera con el boundary
+      // correcto para FormData. Setearlo a mano rompía el request
+      // en algunos entornos (backend recibía body sin boundary).
       return api
-        .patch<Pet>(`/pets/${id}/update-complete/`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        })
+        .patch<Pet>(`/pets/${id}/update-complete/`, formData)
         .then((r) => r.data);
     },
     onSuccess: () => {
@@ -278,14 +279,11 @@ export function useUploadPetDocument(petId: string) {
       (input.additional_files ?? []).forEach((f) => {
         formData.append("additional_files", f);
       });
+      // Sin Content-Type explícito: axios lo agrega con el boundary
+      // correcto para FormData. Fijarlo a mano quitaba el boundary
+      // y el backend recibía un body no parseable en algunos setups.
       return api
-        .post<PetDocument>(
-          `/pets/${petId}/documents/`,
-          formData,
-          {
-            headers: { "Content-Type": "multipart/form-data" },
-          },
-        )
+        .post<PetDocument>(`/pets/${petId}/documents/`, formData)
         .then((r) => r.data);
     },
     onSuccess: () => {

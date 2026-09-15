@@ -265,10 +265,10 @@ export function useUpdateMyPhoto() {
     mutationFn: (file: File) => {
       const formData = new FormData();
       formData.append("photo", file);
+      // Axios calcula Content-Type con el boundary correcto cuando
+      // el body es FormData. Fijarlo a mano rompe el request.
       return api
-        .patch<User>("/auth/me/", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        })
+        .patch<User>("/auth/me/", formData)
         .then((r) => r.data);
     },
     onSuccess: (user) => {

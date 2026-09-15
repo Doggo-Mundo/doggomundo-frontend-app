@@ -215,7 +215,15 @@ function ReviewForm({ petId, docId, doc, status }: ReviewFormProps) {
     if (!doc) return;
     if (seededDocIdRef.current === doc.id) return;
     seededDocIdRef.current = doc.id;
-    const seeds = seedFromVlm(doc.vlm_raw_extraction);
+    // F-I: si ya hay confirmed_vaccinations, esas son las ediciones
+    // del cliente. vlm_raw_extraction tiene los datos originales
+    // del VLM (immutable). Volver a mostrar el original después de
+    // confirmar era el bug de "fechas que se resetean".
+    const confirmed = doc.confirmed_vaccinations ?? [];
+    const seeds =
+      confirmed.length > 0
+        ? seedFromConfirmed(confirmed)
+        : seedFromVlm(doc.vlm_raw_extraction);
     replace(seeds.length ? seeds : [emptyVaccine()]);
   }, [doc, replace]);
 
@@ -463,6 +471,24 @@ function seedFromVlm(raw: VlmRawExtraction | null) {
     vet_clinic: "",
     batch_number: "",
     _confidence: v.confianza ?? "",
+  }));
+}
+
+/** F-I: seed desde las vacunas ya confirmadas — la fuente de verdad
+ *  post-CONFIRMED. Sin este orden reabrir el form pisaba edits del
+ *  usuario con los datos originales del VLM. */
+function seedFromConfirmed(
+  rows: NonNullable<PetDocument["confirmed_vaccinations"]>,
+) {
+  return rows.map((r) => ({
+    vaccine_name: r.vaccine_name,
+    vaccine_type: (r.vaccine_type as VaccineType) ?? "OTRO",
+    administered_date: r.administered_date ?? "",
+    next_due_date: r.next_due_date ?? "",
+    vet_name: r.vet_name ?? "",
+    vet_clinic: r.vet_clinic ?? "",
+    batch_number: r.batch_number ?? "",
+    _confidence: "",
   }));
 }
 
