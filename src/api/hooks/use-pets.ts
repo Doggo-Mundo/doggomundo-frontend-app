@@ -222,6 +222,21 @@ export function usePetDocuments(petId: string) {
         .get<PaginatedResponse<PetDocument>>(`/pets/${petId}/documents/`)
         .then((r) => r.data),
     enabled: !!petId,
+    // F-I: si hay alguna cartilla con VLM en vuelo, autopolleamos
+    // la lista cada 3s para que el chip pase de "Procesando..." a
+    // "Extraída" / "Falló" sin que el usuario tenga que recargar.
+    // Cuando no hay ninguno en flight el interval devuelve false y
+    // el polling se detiene solo — react-query evalúa este callback
+    // tras cada refetch.
+    refetchInterval: (query) => {
+      const results = query.state.data?.results ?? [];
+      const anyInFlight = results.some(
+        (d) =>
+          d.vlm_extraction_status === "PENDING" ||
+          d.vlm_extraction_status === "PROCESSING",
+      );
+      return anyInFlight ? 3000 : false;
+    },
   });
 }
 
