@@ -6,7 +6,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import axios from "axios";
 import {
-  Camera, CheckCircle2, ChevronRight, Loader2, Upload,
+  Camera, CheckCircle2, ChevronRight, Loader2, Upload, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,10 @@ import { AuthLayout } from "@/features/auth/components/AuthLayout";
 import {
   useLegalDocs, useSetupStatus, useWalkInSetup,
 } from "@/api/hooks/use-auth";
-import { useUploadPetDocument } from "@/api/hooks/use-pets";
+import {
+  MAX_DOCUMENT_PAGES,
+  useUploadPetDocument,
+} from "@/api/hooks/use-pets";
 import { useAuthStore } from "@/stores/auth-store";
 import { cn } from "@/lib/utils";
 
@@ -418,33 +421,50 @@ interface CartillaProps {
 
 function CartillaForm({ petId, onDone }: CartillaProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File | null>(null);
-  // useUploadPetDocument no puede ser condicional (rules-of-hooks).
-  // Con petId null cae a "" — el guard en handleUpload bloquea el
-  // fetch antes de que el string vacío llegue al endpoint.
+  // F-I: cartilla puede tener hasta MAX_DOCUMENT_PAGES hojas. El
+  // primer archivo va a MedicalDocument.file, el resto a `pages`.
+  const [files, setFiles] = useState<File[]>([]);
   const upload = useUploadPetDocument(petId ?? "");
-  const canUpload = !!petId && !!file && !upload.isPending;
+  const canUpload = !!petId && files.length > 0 && !upload.isPending;
+  const canAddMore = files.length < MAX_DOCUMENT_PAGES;
 
   function handlePick(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+    const picked = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!f) return;
-    if (f.size > 10 * 1024 * 1024) {
-      toast.error("El archivo es muy grande. Máximo 10 MB.");
-      return;
+    if (!picked.length) return;
+
+    const remaining = MAX_DOCUMENT_PAGES - files.length;
+    if (picked.length > remaining) {
+      toast.error(
+        `Solo puedes subir ${MAX_DOCUMENT_PAGES} páginas. Se agregaron las primeras ${remaining}.`,
+      );
     }
-    setFile(f);
+    const accepted: File[] = [];
+    for (const f of picked.slice(0, remaining)) {
+      if (f.size > 10 * 1024 * 1024) {
+        toast.error(`"${f.name}" excede 10 MB.`);
+        continue;
+      }
+      accepted.push(f);
+    }
+    if (accepted.length) setFiles((prev) => [...prev, ...accepted]);
+  }
+
+  function removeAt(index: number) {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleUpload() {
-    if (!file || !petId) return;
+    if (!files.length || !petId) return;
+    const [primary, ...rest] = files;
     try {
       await upload.mutateAsync({
         document_type: "CARTILLA_VACUNACION",
-        file,
+        file: primary,
+        additional_files: rest,
         description: "Cartilla subida al completar mi cuenta",
       });
-      toast.success("¡Cartilla subida! Nuestro equipo la revisará.");
+      toast.success("¡Cartilla subida! La estamos leyendo automáticamente.");
       onDone();
     } catch {
       toast.error("No pudimos subir la cartilla. Intenta otra vez.");
@@ -455,7 +475,8 @@ function CartillaForm({ petId, onDone }: CartillaProps) {
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">
         La necesitamos al día para cualquier servicio — así
-        protegemos a todos los peludos.
+        protegemos a todos los peludos. Puedes agregar hasta{" "}
+        {MAX_DOCUMENT_PAGES} páginas (frente, reverso, hojas extra).
       </p>
 
       <div className="grid grid-cols-2 gap-2">
@@ -463,11 +484,11 @@ function CartillaForm({ petId, onDone }: CartillaProps) {
           type="button"
           variant="outline"
           className="h-20 flex-col gap-1"
+          disabled={!canAddMore}
           onClick={() => {
-            // capture=environment activa cámara trasera en móvil;
-            // en desktop igual abre el file picker.
             if (inputRef.current) {
               inputRef.current.setAttribute("capture", "environment");
+              inputRef.current.removeAttribute("multiple");
               inputRef.current.click();
             }
           }}
@@ -479,9 +500,11 @@ function CartillaForm({ petId, onDone }: CartillaProps) {
           type="button"
           variant="outline"
           className="h-20 flex-col gap-1"
+          disabled={!canAddMore}
           onClick={() => {
             if (inputRef.current) {
               inputRef.current.removeAttribute("capture");
+              inputRef.current.setAttribute("multiple", "true");
               inputRef.current.click();
             }
           }}
@@ -498,13 +521,34 @@ function CartillaForm({ petId, onDone }: CartillaProps) {
         onChange={handlePick}
       />
 
-      {file && (
-        <div className="rounded-md border bg-muted/40 p-3 text-sm">
-          <p className="truncate font-medium">{file.name}</p>
-          <p className="text-xs text-muted-foreground">
-            {(file.size / 1024 / 1024).toFixed(2)} MB
-          </p>
-        </div>
+      {files.length > 0 && (
+        <ul className="space-y-2">
+          {files.map((f, idx) => (
+            <li
+              key={`${f.name}-${idx}`}
+              className="flex items-center gap-2 rounded-md border bg-muted/40 p-2 text-sm"
+            >
+              <span className="text-xs font-medium text-muted-foreground">
+                Pág. {idx + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate">{f.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {(f.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                aria-label="Quitar"
+                onClick={() => removeAt(idx)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </li>
+          ))}
+        </ul>
       )}
 
       <div className="flex flex-col gap-2 pt-2">
@@ -520,7 +564,7 @@ function CartillaForm({ petId, onDone }: CartillaProps) {
               Subiendo…
             </>
           ) : (
-            "Subir cartilla"
+            `Subir cartilla${files.length > 1 ? ` (${files.length} páginas)` : ""}`
           )}
         </Button>
         <Button
