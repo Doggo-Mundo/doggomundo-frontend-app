@@ -1,5 +1,5 @@
-import { Navigate, useParams } from "react-router-dom";
-import { Download, FileText, RotateCcw } from "lucide-react";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { CheckCircle2, Download, FileText, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoadingState } from "@/components/shared/LoadingState";
@@ -61,7 +61,15 @@ interface DocumentRowProps {
 
 function DocumentRow({ petId, doc }: DocumentRowProps) {
   const retry = useRetryExtraction(petId, doc.id);
+  const navigate = useNavigate();
   const totalPages = 1 + (doc.pages?.length ?? 0);
+  const isCartilla = doc.document_type === "CARTILLA_VACUNACION";
+  const canConfirm =
+    isCartilla &&
+    (doc.vlm_extraction_status === "EXTRACTED" ||
+      doc.vlm_extraction_status === "CONFIRMED" ||
+      doc.vlm_extraction_status === "FAILED" ||
+      doc.vlm_extraction_status === "MANUAL");
 
   return (
     <Card size="sm">
@@ -94,6 +102,26 @@ function DocumentRow({ petId, doc }: DocumentRowProps) {
           )}
         </div>
         <div className="flex items-center gap-2">
+          {canConfirm && (
+            <Button
+              size="sm"
+              variant={
+                doc.vlm_extraction_status === "EXTRACTED"
+                  ? "default"
+                  : "outline"
+              }
+              onClick={() =>
+                navigate(
+                  `/pets/${petId}/documents/${doc.id}/confirm-cartilla`,
+                )
+              }
+            >
+              <CheckCircle2 className="mr-1 h-4 w-4" />
+              {doc.vlm_extraction_status === "CONFIRMED"
+                ? "Ver / editar"
+                : "Confirmar"}
+            </Button>
+          )}
           {doc.vlm_extraction_status === "FAILED" && (
             <Button
               size="icon-sm"

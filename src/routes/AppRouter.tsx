@@ -102,6 +102,11 @@ const PetDocumentsPage = lazy(() =>
     default: m.PetDocumentsPage,
   })),
 );
+const CartillaConfirmPage = lazy(() =>
+  import("@/features/pets/pages/CartillaConfirmPage").then((m) => ({
+    default: m.CartillaConfirmPage,
+  })),
+);
 
 const BookingLandingPage = lazy(() =>
   import("@/features/booking/pages/BookingLandingPage").then((m) => ({
@@ -285,6 +290,10 @@ export function AppRouter() {
               <Route path="/pets/:id/medical-records" element={<MedicalRecordsPage />} />
               <Route path="/pets/:id/vaccinations" element={<VaccinationsPage />} />
               <Route path="/pets/:id/documents" element={<PetDocumentsPage />} />
+              <Route
+                path="/pets/:id/documents/:docId/confirm-cartilla"
+                element={<CartillaConfirmPage />}
+              />
 
               <Route path="/book" element={<BookingLandingPage />} />
               <Route path="/book/business-unit" element={<BusinessUnitPickerPage />} />
