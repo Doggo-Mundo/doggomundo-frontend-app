@@ -53,6 +53,9 @@ export interface AppointmentListItem {
 }
 
 export interface Appointment extends AppointmentListItem {
+  /** F-H2: BU code (FOTO / GROOMING / etc.). El customer app lo
+   *  usa para condicionar UI como la galería. */
+  business_unit_code?: string;
   notes: string;
   items: AppointmentItem[];
   /** F-F.3: true cuando el pet no tiene VaccinationRecord activo
