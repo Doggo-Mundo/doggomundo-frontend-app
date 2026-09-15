@@ -153,6 +153,17 @@ export function CartillaReviewCard({
     );
   }
 
+  // NOT_APPLICABLE no debería ocurrir para cartillas (el backend lo
+  // reserva a docs que no son cartilla). Si por algún motivo llega
+  // en ese estado, degradamos al uploader — es el fallback más útil.
+  if (
+    status !== "EXTRACTED" &&
+    status !== "FAILED" &&
+    status !== "MANUAL"
+  ) {
+    return <CartillaUploader petId={petId} />;
+  }
+
   return (
     <ReviewForm
       petId={petId}

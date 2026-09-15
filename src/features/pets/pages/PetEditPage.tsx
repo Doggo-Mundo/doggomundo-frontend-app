@@ -238,16 +238,19 @@ function PetEditForm({ pet }: FormProps) {
         last = await updateComplete.mutateAsync(completeChanges);
       }
 
-      // Always land on the detail page after saving. If the user just
-      // finished filling everything, swap the regular toast for the
-      // celebratory one — they can decide whether to reserve from the
-      // "Reservar para X" CTA at the top of the detail page.
+      // F-I: cuando el perfil se completa al 100% en esta edición,
+      // cerramos el loop del onboarding llevando al usuario a la
+      // sección de Vacunas — es el siguiente paso natural (subir
+      // cartilla) y el más olvidable si no se le empuja. Si vino
+      // a editar sin llegar a 100%, quedamos en el detail como
+      // siempre.
       if (last && last.onboarding_completion_percentage >= 100) {
         celebrateCompletion();
+        navigate(`/pets/${pet.id}/vaccinations`, { replace: true });
       } else {
         toast.success("Perfil actualizado. ¡Sigue así! 🦴");
+        navigate(`/pets/${pet.id}`, { replace: true });
       }
-      navigate(`/pets/${pet.id}`, { replace: true });
     } catch (err) {
       mapApiErrors(err, setError, "No pudimos guardar los cambios.");
     }
