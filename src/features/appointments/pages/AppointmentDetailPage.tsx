@@ -22,6 +22,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { BackLink } from "@/features/pets/components/BackLink";
 import { AppointmentStatusBadge } from "@/features/appointments/components/AppointmentStatusBadge";
+import { SessionPhotosGallery } from "@/features/appointments/components/SessionPhotosGallery";
 import { isTerminal } from "@/features/appointments/lib/filter";
 import {
   useAppointment,
@@ -200,6 +201,11 @@ export function AppointmentDetailPage() {
             {appointment.notes}
           </CardContent>
         </Card>
+      )}
+
+      {/* F-H2: galería solo para sesiones Doggo Foto. */}
+      {appointment.business_unit_code === "FOTO" && (
+        <SessionPhotosGallery appointmentId={appointment.id} />
       )}
 
       {!terminal && (
