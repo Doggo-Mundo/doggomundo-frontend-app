@@ -27,6 +27,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { PetAvatar } from "@/features/pets/components/PetAvatar";
 import { BackLink } from "@/features/pets/components/BackLink";
 import { PetDaycareSection } from "@/features/daycare/components/PetDaycareSection";
+import { DAYCARE_ENABLED } from "@/lib/features";
 import { missingFieldLabels } from "@/features/pets/lib/pet-missing";
 import { usePet, useDeletePet, useUpdatePetPhoto } from "@/api/hooks/use-pets";
 import { useBookingFlowStore } from "@/stores/booking-flow-store";
@@ -255,7 +256,9 @@ export function PetDetailPage() {
         </Card>
       )}
 
-      <PetDaycareSection petId={pet.id} petName={pet.name} />
+      {DAYCARE_ENABLED && (
+        <PetDaycareSection petId={pet.id} petName={pet.name} />
+      )}
 
       <Card>
         <CardHeader>

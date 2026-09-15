@@ -6,6 +6,7 @@ import { LoadingState } from "@/components/shared/LoadingState";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PetsBreadcrumb } from "@/features/pets/components/PetsBreadcrumb";
 import { VlmStatusChip } from "@/features/pets/components/VlmStatusChip";
+import { CartillaUploader } from "@/features/pets/components/CartillaUploader";
 import {
   useRetryExtraction,
   usePet,
@@ -31,6 +32,8 @@ export function PetDocumentsPage() {
         </p>
       </header>
 
+      <CartillaUploader petId={id} />
+
       {isLoading ? (
         <LoadingState rows={2} />
       ) : isError ? (
@@ -39,7 +42,7 @@ export function PetDocumentsPage() {
         <EmptyState
           icon={<FileText className="h-12 w-12" />}
           title="Sin documentos"
-          description="Los archivos que suba el equipo aparecerán aquí."
+          description="Sube tu cartilla arriba o espera a que el equipo cargue archivos."
         />
       ) : (
         <ul className="space-y-3">

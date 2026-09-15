@@ -13,7 +13,7 @@ import { findNextUpcoming } from "@/features/appointments/lib/filter";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { TIMEZONE } from "@/lib/format-date";
-import { SHOP_ENABLED } from "@/lib/features";
+import { DAYCARE_ENABLED, SHOP_ENABLED } from "@/lib/features";
 import { usePets } from "@/api/hooks/use-pets";
 import { useMyAppointments } from "@/api/hooks/use-appointments";
 import { usePlans as useDaycarePlans } from "@/api/hooks/use-daycare";
@@ -113,7 +113,9 @@ export function HomePage() {
   const quickActions = useMemo(
     () =>
       QUICK_ACTIONS_BASE.filter((a) => {
-        if (a.id === "daycare") return !daycareCatalogEmpty;
+        // Env flag toma precedencia — el módulo puede no estar
+        // operativo aún aunque el backend tenga planes cargados.
+        if (a.id === "daycare") return DAYCARE_ENABLED && !daycareCatalogEmpty;
         if (a.id === "memberships") return !membershipsCatalogEmpty;
         return true;
       }),

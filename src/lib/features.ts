@@ -17,3 +17,11 @@ function readBoolEnv(name: string): boolean {
  * manages the product catalog so the data stays warm for v2.
  */
 export const SHOP_ENABLED = readBoolEnv("VITE_SHOP_ENABLED");
+
+/**
+ * Doggo Day Care: evaluación de temperamento + booking de días +
+ * planes prepagados. Se apaga cuando el módulo aún no está operativo
+ * en una sucursal (staff, cronograma, recursos físicos no listos)
+ * para que el cliente no vea la sección y crea que puede reservar.
+ */
+export const DAYCARE_ENABLED = readBoolEnv("VITE_DAYCARE_ENABLED");
