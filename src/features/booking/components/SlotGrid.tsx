@@ -48,10 +48,50 @@ function durationMin(slot: AvailableSlot): number {
   return Math.round(ms / 60_000);
 }
 
+/** F-Slots B: agrupa slots que comparten inicio+fin (misma capacidad
+ *  agregada). Antes con 2 recursos el cliente veía 2 chips
+ *  idénticos "09:30" — confuso y sugería 2 opciones distintas. Ahora
+ *  ve UN chip con "N disponibles". Al reservar tomamos el primer
+ *  slot libre del grupo — backend valida capacidad al confirmar. */
+interface SlotGroup {
+  /** El slot que se reserva al hacer click. Es el primer bookable
+   *  del grupo (o el primero si ninguno es bookable, aunque en ese
+   *  caso el chip queda disabled). */
+  primary: AvailableSlot;
+  /** Cantidad total de slots en el mismo (start, end) que están
+   *  disponibles — se muestra como "N disponibles". */
+  availableCount: number;
+}
+
+function groupIdenticalSlots(slots: AvailableSlot[]): SlotGroup[] {
+  const map = new Map<string, SlotGroup>();
+  for (const s of slots) {
+    const key = `${s.start}|${s.end}`;
+    const prev = map.get(key);
+    if (!prev) {
+      map.set(key, {
+        primary: s,
+        availableCount: s.is_available ? 1 : 0,
+      });
+    } else {
+      // Preferimos como primary el primer bookable — si el primero
+      // no lo era, lo reemplazamos por este.
+      if (!prev.primary.is_available && s.is_available) {
+        prev.primary = s;
+      }
+      if (s.is_available) prev.availableCount += 1;
+    }
+  }
+  return Array.from(map.values());
+}
+
 export function SlotGrid({ slots, selectedStart, onSelect }: Props) {
+  const grouped = groupIdenticalSlots(slots);
   const groups = PERIODS.map((period) => ({
     period,
-    items: slots.filter((s) => period.match(getLocalHour(s.start))),
+    items: grouped.filter(
+      (g) => period.match(getLocalHour(g.primary.start)),
+    ),
   })).filter((g) => g.items.length > 0);
 
   return (
@@ -76,12 +116,14 @@ export function SlotGrid({ slots, selectedStart, onSelect }: Props) {
           </div>
 
           <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
-            {items.map((slot) => {
-              const disabled = !slot.is_available;
+            {items.map((group) => {
+              const slot = group.primary;
+              const disabled = group.availableCount === 0;
               const active = slot.start === selectedStart;
+              const showMulti = group.availableCount > 1;
               return (
                 <button
-                  key={slot.id}
+                  key={`${slot.start}-${slot.end}`}
                   type="button"
                   onClick={() => !disabled && onSelect(slot)}
                   disabled={disabled}
@@ -96,7 +138,6 @@ export function SlotGrid({ slots, selectedStart, onSelect }: Props) {
                       "pointer-events-none opacity-40 hover:translate-y-0 hover:border-accent/15 hover:bg-surface-soft hover:shadow-none",
                   )}
                 >
-                  {/* Decorative top accent bar on hover/active. */}
                   <span
                     className={cn(
                       "absolute inset-x-0 top-0 h-1 transition-opacity",
@@ -120,6 +161,7 @@ export function SlotGrid({ slots, selectedStart, onSelect }: Props) {
                     )}
                   >
                     {durationMin(slot)} min
+                    {showMulti && ` · ${group.availableCount} disponibles`}
                   </span>
                 </button>
               );
