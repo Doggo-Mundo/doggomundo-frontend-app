@@ -68,7 +68,7 @@ describe("HomePage", () => {
     // The banner now surfaces the first missing field. The default fixture
     // has no photo, so the hint should call that out specifically.
     expect(
-      await screen.findByText(/súbele su foto de nala/i),
+      await screen.findByText(/sube la foto de nala/i),
     ).toBeInTheDocument();
   });
 

@@ -300,7 +300,7 @@ function PetEditForm({ pet }: FormProps) {
               <p className="text-sm text-muted-foreground">
                 {pet.photo
                   ? "Cámbiale la foto si quieres lucirlo distinto."
-                  : "Súbele una foto para reconocerlo en la app."}
+                  : "Sube una foto para reconocerlo en la app."}
               </p>
               <Button
                 type="button"
