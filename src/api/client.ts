@@ -4,11 +4,14 @@ import { resetUserSession } from "@/lib/session";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
+// Sin Content-Type default: axios lo elige por payload — JSON para
+// objetos, multipart/form-data (con boundary) para FormData. Fijar
+// el default a application/json es un footgun: cualquier merge de
+// headers (por ejemplo pasar `headers: { Authorization: ... }` sin
+// spread) re-inyectaba application/json y el multipart perdía el
+// boundary. Admin client ya lo omite — mantenemos la simetría.
 export const api = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
 });
 
 api.interceptors.request.use((config) => {

@@ -43,20 +43,35 @@ export function MedicalRecordsPage() {
                 <CardContent className="space-y-2 py-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{record.title}</p>
+                      <p className="truncate text-sm font-medium">
+                        {record.record_type_display}
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        {record.record_type_display} · {formatDate(record.date)}
+                        {formatDate(record.date)}
                       </p>
                     </div>
                   </div>
-                  {record.description && (
-                    <p className="whitespace-pre-line text-sm text-muted-foreground">
-                      {record.description}
+                  {record.diagnosis && (
+                    <p className="whitespace-pre-line text-sm">
+                      <span className="font-medium">Diagnóstico: </span>
+                      {record.diagnosis}
                     </p>
                   )}
-                  {record.veterinarian && (
+                  {record.treatment && (
+                    <p className="whitespace-pre-line text-sm">
+                      <span className="font-medium">Tratamiento: </span>
+                      {record.treatment}
+                    </p>
+                  )}
+                  {record.notes && (
+                    <p className="whitespace-pre-line text-sm text-muted-foreground">
+                      {record.notes}
+                    </p>
+                  )}
+                  {(record.vet_name || record.vet_clinic) && (
                     <p className="text-xs text-muted-foreground">
-                      Vet: {record.veterinarian}
+                      {record.vet_name}
+                      {record.vet_clinic ? ` · ${record.vet_clinic}` : ""}
                     </p>
                   )}
                 </CardContent>

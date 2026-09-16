@@ -280,7 +280,7 @@ function VaccinationWarningCard({ petId }: { petId: string }) {
             variant="outline"
             className="border-amber-400 bg-white text-amber-900 hover:bg-amber-50"
           >
-            <a href={`/pets/${petId}/documents`}>
+            <a href={`/pets/${petId}/vaccinations`}>
               Subir cartilla
             </a>
           </Button>

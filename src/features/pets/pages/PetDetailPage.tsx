@@ -27,8 +27,14 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { PetAvatar } from "@/features/pets/components/PetAvatar";
 import { BackLink } from "@/features/pets/components/BackLink";
 import { PetDaycareSection } from "@/features/daycare/components/PetDaycareSection";
+import { DAYCARE_ENABLED } from "@/lib/features";
 import { missingFieldLabels } from "@/features/pets/lib/pet-missing";
-import { usePet, useDeletePet, useUpdatePetPhoto } from "@/api/hooks/use-pets";
+import {
+  usePet,
+  useDeletePet,
+  usePetVaccinations,
+  useUpdatePetPhoto,
+} from "@/api/hooks/use-pets";
 import { useBookingFlowStore } from "@/stores/booking-flow-store";
 import { GENDER_LABEL } from "@/types/pet";
 import { formatAgeFromBirth, formatDate } from "@/lib/format-date";
@@ -65,6 +71,13 @@ export function PetDetailPage() {
   const updatePhoto = useUpdatePetPhoto(id ?? "");
   const resetBookingFlow = useBookingFlowStore((s) => s.reset);
   const setBookingPet = useBookingFlowStore((s) => s.setPet);
+  // F-I: si el pet no tiene vacunas registradas, mostramos un nudge
+  // que empuja al usuario a la sección de Vacunas para subir la
+  // cartilla. Es la única acción del onboarding que queda oculta
+  // detrás del menú y la gente no la descubre sola.
+  const { data: vaccinations } = usePetVaccinations(id ?? "");
+  const hasNoVaccinations =
+    vaccinations !== undefined && vaccinations.results.length === 0;
 
   if (!id) return <Navigate to="/pets" replace />;
 
@@ -255,7 +268,31 @@ export function PetDetailPage() {
         </Card>
       )}
 
-      <PetDaycareSection petId={pet.id} petName={pet.name} />
+      {hasNoVaccinations && (
+        <Card className="border-accent/40 bg-accent/10">
+          <CardContent className="flex flex-wrap items-center gap-3 py-4">
+            <Syringe className="h-5 w-5 shrink-0 text-accent-foreground" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">
+                Sube la cartilla de {pet.name}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Extraemos las vacunas automáticamente y te avisamos
+                cuando toque cada refuerzo.
+              </p>
+            </div>
+            <Button asChild size="sm">
+              <Link to={`/pets/${pet.id}/vaccinations`}>
+                Subir cartilla
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {DAYCARE_ENABLED && (
+        <PetDaycareSection petId={pet.id} petName={pet.name} />
+      )}
 
       <Card>
         <CardHeader>

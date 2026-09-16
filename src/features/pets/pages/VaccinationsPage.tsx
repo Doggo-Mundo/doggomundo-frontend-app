@@ -2,17 +2,30 @@ import { Navigate, useParams } from "react-router-dom";
 import { Syringe } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoadingState } from "@/components/shared/LoadingState";
-import { EmptyState } from "@/components/shared/EmptyState";
 import { PetsBreadcrumb } from "@/features/pets/components/PetsBreadcrumb";
-import { usePet, usePetVaccinations } from "@/api/hooks/use-pets";
+import { CartillaReviewCard } from "@/features/pets/components/CartillaReviewCard";
+import {
+  usePet,
+  usePetDocuments,
+  usePetVaccinations,
+} from "@/api/hooks/use-pets";
 import { formatDate } from "@/lib/format-date";
+import type { PetDocument } from "@/types/pet";
 
 export function VaccinationsPage() {
   const { id } = useParams<{ id: string }>();
   const { data: pet } = usePet(id ?? "");
-  const { data, isLoading, isError } = usePetVaccinations(id ?? "");
+  const { data: vaccinationsData, isLoading, isError } = usePetVaccinations(
+    id ?? "",
+  );
+  // F-I: los documentos también viven acá — la cartilla es la
+  // vía primaria para cargar vacunas. usePetDocuments auto-pollea
+  // si hay alguna cartilla PENDING/PROCESSING.
+  const { data: docsData } = usePetDocuments(id ?? "");
 
   if (!id) return <Navigate to="/pets" replace />;
+
+  const latestCartilla = findLatestCartilla(docsData?.results ?? []);
 
   return (
     <div className="space-y-4">
@@ -21,44 +34,65 @@ export function VaccinationsPage() {
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">Vacunas</h1>
         <p className="text-sm text-muted-foreground">
-          Aplicadas y próximas dosis.
+          Sube tu cartilla y nosotros extraemos las vacunas automáticamente.
         </p>
       </header>
 
-      {isLoading ? (
-        <LoadingState rows={2} />
-      ) : isError ? (
-        <EmptyState title="No pudimos cargar las vacunas" />
-      ) : !data || data.results.length === 0 ? (
-        <EmptyState
-          icon={<Syringe className="h-12 w-12" />}
-          title="Sin vacunas registradas"
-          description="Cuando el equipo veterinario cargue vacunas, aparecerán aquí."
-        />
-      ) : (
-        <ul className="space-y-3">
-          {data.results.map((v) => (
-            <li key={v.id}>
-              <Card size="sm">
-                <CardContent className="space-y-1 py-3">
-                  <p className="text-sm font-medium">{v.vaccine_name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Aplicada: {formatDate(v.administered_date)}
-                    {v.next_due_date && (
-                      <> · Próxima: {formatDate(v.next_due_date)}</>
-                    )}
-                  </p>
-                  {v.batch_number && (
+      <CartillaReviewCard petId={id} latestCartilla={latestCartilla} />
+
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold text-muted-foreground">
+          Vacunas registradas
+        </h2>
+        {isLoading ? (
+          <LoadingState rows={2} />
+        ) : isError ? (
+          <p className="text-sm text-rose-700">
+            No pudimos cargar las vacunas.
+          </p>
+        ) : !vaccinationsData || vaccinationsData.results.length === 0 ? (
+          <Card size="sm">
+            <CardContent className="flex items-center gap-3 py-4 text-sm text-muted-foreground">
+              <Syringe className="h-5 w-5" />
+              Aún no hay vacunas registradas.
+            </CardContent>
+          </Card>
+        ) : (
+          <ul className="space-y-2">
+            {vaccinationsData.results.map((v) => (
+              <li key={v.id}>
+                <Card size="sm">
+                  <CardContent className="space-y-1 py-3">
+                    <p className="text-sm font-medium">{v.vaccine_name}</p>
                     <p className="text-xs text-muted-foreground">
-                      Lote: {v.batch_number}
+                      Aplicada: {formatDate(v.administered_date)}
+                      {v.next_due_date && (
+                        <> · Próxima: {formatDate(v.next_due_date)}</>
+                      )}
                     </p>
-                  )}
-                </CardContent>
-              </Card>
-            </li>
-          ))}
-        </ul>
-      )}
+                    {v.batch_number && (
+                      <p className="text-xs text-muted-foreground">
+                        Lote: {v.batch_number}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
+  );
+}
+
+/** Devuelve la cartilla más reciente del pet, o null si no hay.
+ *  El backend ya ordena por uploaded_date desc, así que tomamos la
+ *  primera. */
+function findLatestCartilla(docs: PetDocument[]): PetDocument | null {
+  return (
+    docs.find(
+      (d) => d.document_type === "CARTILLA_VACUNACION" && d.is_active,
+    ) ?? null
   );
 }
