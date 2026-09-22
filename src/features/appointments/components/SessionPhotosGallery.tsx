@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Camera, Download, X } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Camera, Download, Loader2, X } from "lucide-react";
+import { toast } from "sonner";
 import { api } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,6 +43,31 @@ export function SessionPhotosGallery({ appointmentId }: Props) {
 
   const photos = query.data ?? [];
 
+  // Descarga vía axios: un <a href> directo no manda el
+  // Authorization: Bearer y el endpoint devuelve 401. Fetchamos el
+  // zip como blob, disparamos el download programáticamente.
+  const download = useMutation({
+    mutationFn: async () => {
+      const res = await api.get<Blob>(
+        `/appointments/${appointmentId}/photos/download-all/`,
+        { responseType: "blob" },
+      );
+      const url = URL.createObjectURL(res.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `doggo-fotos-${appointmentId.slice(0, 8)}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      // El blob puede seguir siendo referenciado; revoke tras el
+      // click para liberar la memoria.
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    },
+    onError: () => {
+      toast.error("No pudimos preparar la descarga. Intenta de nuevo.");
+    },
+  });
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -55,19 +81,18 @@ export function SessionPhotosGallery({ appointmentId }: Props) {
           )}
         </CardTitle>
         {photos.length > 0 && (
-          <Button asChild size="sm" variant="outline">
-            {/* Descarga directa — el backend responde con
-                Content-Disposition attachment y el browser
-                dispara el save-as. */}
-            <a
-              href={`${
-                import.meta.env.VITE_API_BASE_URL ?? "/api"
-              }/appointments/${appointmentId}/photos/download-all/`}
-              rel="noreferrer"
-            >
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => download.mutate()}
+            disabled={download.isPending}
+          >
+            {download.isPending ? (
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+            ) : (
               <Download className="mr-1 h-4 w-4" />
-              Descargar todas
-            </a>
+            )}
+            {download.isPending ? "Preparando..." : "Descargar todas"}
           </Button>
         )}
       </CardHeader>

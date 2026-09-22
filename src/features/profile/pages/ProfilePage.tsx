@@ -287,6 +287,15 @@ export function ProfilePage() {
             </Link>
           </Button>
           <Button asChild variant="outline" className="w-full justify-between">
+            <Link to="/my/photos">
+              <span className="flex items-center gap-2">
+                <Camera className="h-4 w-4" />
+                Mis fotos
+              </span>
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="w-full justify-between">
             <Link to="/my/orders">
               <span className="flex items-center gap-2">
                 <Receipt className="h-4 w-4" />
