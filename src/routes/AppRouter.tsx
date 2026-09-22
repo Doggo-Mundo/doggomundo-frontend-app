@@ -154,6 +154,16 @@ const AppointmentDetailPage = lazy(() =>
     default: m.AppointmentDetailPage,
   })),
 );
+const MyPhotosPage = lazy(() =>
+  import("@/features/appointments/pages/MyPhotosPage").then((m) => ({
+    default: m.MyPhotosPage,
+  })),
+);
+const PhotoSessionDetailPage = lazy(() =>
+  import("@/features/appointments/pages/PhotoSessionDetailPage").then((m) => ({
+    default: m.PhotoSessionDetailPage,
+  })),
+);
 
 const MyOrdersPage = lazy(() =>
   import("@/features/orders/pages/MyOrdersPage").then((m) => ({
@@ -297,6 +307,9 @@ export function AppRouter() {
 
               <Route path="/my/appointments" element={<MyAppointmentsPage />} />
               <Route path="/my/appointments/:id" element={<AppointmentDetailPage />} />
+
+              <Route path="/my/photos" element={<MyPhotosPage />} />
+              <Route path="/my/photos/:id" element={<PhotoSessionDetailPage />} />
 
               <Route path="/my/orders" element={<MyOrdersPage />} />
               <Route path="/my/orders/:id" element={<OrderDetailPage />} />
