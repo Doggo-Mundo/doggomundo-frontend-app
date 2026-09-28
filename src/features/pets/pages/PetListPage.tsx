@@ -15,7 +15,7 @@ export function PetListPage() {
     <div className="space-y-4">
       <header className="flex items-center justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold">Mis mascotas</h1>
+          <h1 className="text-2xl font-semibold">Mis Doggos</h1>
           <p className="text-sm text-muted-foreground">
             Registra sus datos para reservar servicios.
           </p>
@@ -33,19 +33,19 @@ export function PetListPage() {
       ) : isError ? (
         <EmptyState
           icon={<PawPrint className="h-12 w-12" />}
-          title="No pudimos cargar tus mascotas"
+          title="No pudimos cargar tus Doggos"
           description="Revisa tu conexión e intenta de nuevo."
         />
       ) : !data || data.results.length === 0 ? (
         <EmptyState
           illustration={<EmptyPawsIllustration />}
-          title="Aún no has registrado ninguna mascota"
-          description="Agrega la primera para comenzar a reservar servicios."
+          title="Aún no has registrado ningún Doggo"
+          description="Agrega el primero para comenzar a reservar servicios."
           action={
             <Button asChild>
               <Link to="/pets/new">
                 <Plus />
-                Agregar mi primera mascota
+                Agregar mi primer Doggo
               </Link>
             </Button>
           }

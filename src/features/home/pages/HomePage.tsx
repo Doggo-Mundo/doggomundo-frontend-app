@@ -49,7 +49,7 @@ const ALL_QUICK_ACTIONS: QuickAction[] = [
   {
     id: "pets",
     to: "/pets",
-    label: "Mis mascotas",
+    label: "Mis Doggos",
     description: "Gestiona sus perfiles",
     icon: PawPrint,
     variant: "amber",

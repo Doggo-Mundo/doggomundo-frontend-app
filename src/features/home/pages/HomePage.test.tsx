@@ -159,7 +159,7 @@ describe("HomePage", () => {
     );
     renderWithProviders(<HomePage />);
     // El resto de tiles siguen; solo el de membresías debe faltar.
-    await screen.findByText(/mis mascotas/i);
+    await screen.findByText(/mis doggos/i);
     await waitFor(() =>
       expect(screen.queryByText(/^membresías$/i)).not.toBeInTheDocument(),
     );

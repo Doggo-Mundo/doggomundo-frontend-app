@@ -214,14 +214,14 @@ export function DaycareEnrollPage() {
       {/* Pet selector */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">¿Para cuál mascota?</CardTitle>
+          <CardTitle className="text-base">¿Para cuál Doggo?</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 pt-0">
           {activePets.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               Primero{" "}
               <Link to="/pets/new" className="font-medium text-primary underline">
-                agrega una mascota
+                agrega un Doggo
               </Link>
               .
             </p>
@@ -435,7 +435,7 @@ function EnrollSuccess({ enrollment, paidOnline }: EnrollSuccessProps) {
             <span className="text-sm font-medium">{enrollment.plan_name}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Mascota</span>
+            <span className="text-sm text-muted-foreground">Doggo</span>
             <span className="text-sm font-medium">{enrollment.pet_name}</span>
           </div>
           <hr className="border-border" />

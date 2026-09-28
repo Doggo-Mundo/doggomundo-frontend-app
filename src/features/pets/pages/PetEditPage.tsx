@@ -104,8 +104,8 @@ export function PetEditPage() {
   if (isError || !pet) {
     return (
       <div className="space-y-4">
-        <BackLink to="/pets" label="Mis mascotas" />
-        <EmptyState title="No pudimos cargar esta mascota" />
+        <BackLink to="/pets" label="Mis Doggos" />
+        <EmptyState title="No pudimos cargar este Doggo" />
       </div>
     );
   }

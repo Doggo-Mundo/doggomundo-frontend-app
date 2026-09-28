@@ -31,14 +31,14 @@ export function PetsBreadcrumb({ petId, petName }: Props) {
         className="inline-flex items-center gap-1 hover:text-foreground"
       >
         <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-        Mis mascotas
+        Mis Doggos
       </Link>
       <ChevronRight className="h-3.5 w-3.5 opacity-60" aria-hidden="true" />
       <Link
         to={`/pets/${petId}`}
         className="hover:text-foreground"
       >
-        {petName ?? "Mascota"}
+        {petName ?? "Doggo"}
       </Link>
     </nav>
   );

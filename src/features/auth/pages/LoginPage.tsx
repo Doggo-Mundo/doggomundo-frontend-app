@@ -92,7 +92,7 @@ export function LoginPage() {
   return (
     <AuthLayout
       title="Entra a tu cuenta"
-      description="Gestiona a tu mascota y tus reservas"
+      description="Gestiona a tu Doggo y tus reservas"
       footer={
         <span>
           ¿Nuevo por aquí?{" "}

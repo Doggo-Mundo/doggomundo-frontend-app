@@ -52,8 +52,8 @@ export function FollowUpSuggestions({
         <h3 className="text-sm font-semibold">¿Aprovechas la visita?</h3>
         <p className="text-xs text-muted-foreground">
           {suggestions.length === 1
-            ? "Te apartamos el siguiente turno para tu otra mascota."
-            : "Te apartamos los siguientes turnos para tus otras mascotas."}
+            ? "Te apartamos el siguiente turno para tu otro Doggo."
+            : "Te apartamos los siguientes turnos para tus otros Doggos."}
         </p>
       </div>
       <div className="space-y-2">

@@ -35,22 +35,22 @@ export function PetPickerPage() {
       <BookingStepHeader
         stepKey="pet"
         backTo="/book/slot"
-        title="¿Para cuál de tus mascotas?"
+        title="¿Para cuál de tus Doggos?"
       />
 
       {isLoading ? (
         <LoadingState rows={2} />
       ) : isError ? (
-        <EmptyState title="No pudimos cargar tus mascotas" />
+        <EmptyState title="No pudimos cargar tus Doggos" />
       ) : !data || data.results.length === 0 ? (
         <EmptyState
           illustration={<EmptyPawsIllustration />}
-          title="Primero necesitas una mascota"
+          title="Primero necesitas registrar un Doggo"
           action={
             <Button asChild>
               <Link to="/pets/new">
                 <Plus />
-                Agregar mascota
+                Agregar Doggo
               </Link>
             </Button>
           }
@@ -97,7 +97,7 @@ export function PetPickerPage() {
             <Button asChild variant="outline" className="w-full">
               <Link to="/pets/new" state={{ from: "/book/pet" }}>
                 <Plus />
-                Agregar otra mascota
+                Agregar otro Doggo
               </Link>
             </Button>
           </li>

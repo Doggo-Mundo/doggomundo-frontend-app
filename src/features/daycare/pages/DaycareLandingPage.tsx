@@ -53,8 +53,8 @@ export function DaycareLandingPage() {
         ) : !petsData || petsData.results.length === 0 ? (
           <EmptyState
             illustration={<EmptyPawsIllustration />}
-            title="Aún no registras mascotas"
-            description="Agrega una mascota antes de inscribirla al day care."
+            title="Aún no registras Doggos"
+            description="Agrega un Doggo antes de inscribirlo al day care."
           />
         ) : (
           <ul className="space-y-2">

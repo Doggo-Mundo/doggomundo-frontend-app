@@ -235,7 +235,7 @@ export function ProfilePage() {
           <CardDescription>
             {segmentation
               ? "Personalizamos tu experiencia con base en tus respuestas. Puedes actualizarlas cuando quieras."
-              : "Cuéntanos sobre ti y tu perro (2 min) para personalizar tu experiencia."}
+              : "Cuéntanos sobre ti y tu Doggo (2 min) para personalizar tu experiencia."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -274,14 +274,14 @@ export function ProfilePage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Accesos</CardTitle>
-          <CardDescription>Tus mascotas, pagos y más.</CardDescription>
+          <CardDescription>Tus Doggos, pagos y más.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           <Button asChild variant="outline" className="w-full justify-between">
             <Link to="/pets">
               <span className="flex items-center gap-2">
                 <PawPrint className="h-4 w-4" />
-                Mis mascotas
+                Mis Doggos
               </span>
               <ChevronRight className="h-4 w-4" />
             </Link>

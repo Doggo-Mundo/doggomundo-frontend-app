@@ -93,7 +93,7 @@ export function TopBar() {
         <div className="ml-auto flex items-center gap-1">
           <Link
             to="/pets"
-            aria-label="Mis mascotas"
+            aria-label="Mis Doggos"
             className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             <PawPrint className="h-4 w-4" />
