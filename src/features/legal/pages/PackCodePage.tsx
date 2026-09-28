@@ -29,6 +29,7 @@ export function PackCodePage() {
       title="Código de la Manada"
       version="1.0"
       effectiveDate="2026-09-28"
+      hidePlaceholderNotice
     >
       <p>
         Estas son las reglas de convivencia del espacio Doggo Mundo.
@@ -87,14 +88,6 @@ export function PackCodePage() {
           Toca para ampliar
         </span>
       </button>
-
-      <p style={{ fontSize: "0.9em", color: "var(--muted-foreground)" }}>
-        ¿No puedes ver la imagen?{" "}
-        <a href={IMAGE_SRC} target="_blank" rel="noopener noreferrer">
-          Abrir en pestaña nueva
-        </a>
-        .
-      </p>
 
       {/* Montaje condicional del viewer: cada apertura arranca con
           state fresco (scale=1, offset centrado) sin necesidad de un
