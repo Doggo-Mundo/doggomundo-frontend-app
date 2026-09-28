@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { Maximize2, Minus, Plus, RotateCcw, X } from "lucide-react";
 import { LegalPageLayout } from "@/features/legal/components/LegalPageLayout";
@@ -102,12 +96,18 @@ export function PackCodePage() {
         .
       </p>
 
-      <ImageZoomViewer
-        open={viewerOpen}
-        onOpenChange={setViewerOpen}
-        src={IMAGE_SRC}
-        alt={IMAGE_ALT}
-      />
+      {/* Montaje condicional del viewer: cada apertura arranca con
+          state fresco (scale=1, offset centrado) sin necesidad de un
+          effect de reset. Al cerrar se desmonta — Radix Dialog no
+          juega su animación de fade-out, cambio aceptable por la
+          simplicidad. */}
+      {viewerOpen && (
+        <ImageZoomViewer
+          onClose={() => setViewerOpen(false)}
+          src={IMAGE_SRC}
+          alt={IMAGE_ALT}
+        />
+      )}
     </LegalPageLayout>
   );
 }
@@ -117,8 +117,7 @@ export function PackCodePage() {
 // ---------------------------------------------------------------------------
 
 interface ZoomViewerProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
   src: string;
   alt: string;
 }
@@ -144,17 +143,27 @@ const BUTTON_STEP = 0.5;
  *
  *  Nota de diseño: NO usamos DialogContent del preset porque
  *  queremos full-screen sin el max-w-sm ni el padding. Componemos
- *  Root/Portal/Overlay/Content directo. */
-function ImageZoomViewer({ open, onOpenChange, src, alt }: ZoomViewerProps) {
+ *  Root/Portal/Overlay/Content directo. Se monta sólo cuando el
+ *  usuario abre el viewer — así cada apertura arranca fresco sin
+ *  necesitar un effect de reset. */
+function ImageZoomViewer({ onClose, src, alt }: ZoomViewerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
   // Tamaño "fit-to-screen" de la imagen dentro del contenedor. Se
-  // recalcula al abrir el viewer y al hacer resize.
+  // recalcula al montar (ResizeObserver dispara inicial) y ante
+  // cambios de tamaño (rotate, resize, split-screen).
   const [imgSize, setImgSize] = useState({ w: 0, h: 0 });
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [initialOffset, setInitialOffset] = useState({ x: 0, y: 0 });
+
+  // Estado visible de la interacción — vive en useState (no en
+  // refs) porque render lo lee para el cursor y la transition CSS.
+  // Refs leídos en render disparan react-hooks/refs.
+  const [isDragging, setIsDragging] = useState(false);
+  const [isPinching, setIsPinching] = useState(false);
+  const isInteracting = isDragging || isPinching;
 
   /** Calcula el fit-to-screen + offset inicial (imagen centrada).
    *  Sale con `false` si aún no tenemos las dimensiones del
@@ -179,32 +188,19 @@ function ImageZoomViewer({ open, onOpenChange, src, alt }: ZoomViewerProps) {
     return true;
   }, []);
 
-  // Al abrir el modal calculamos el fit una vez. Si la imagen aún
-  // no cargó, dejamos que onLoad de la <img> dispare el fit cuando
-  // termine. Al cerrar reseteamos para que la próxima apertura
-  // arranque limpia.
-  useLayoutEffect(() => {
-    if (!open) {
-      setScale(1);
-      setOffset({ x: 0, y: 0 });
-      return;
-    }
-    fit();
-  }, [open, fit]);
-
-  // Recalcular cuando cambia el tamaño del contenedor (rotate,
-  // resize, split-screen). Mantenemos la escala pero reajustamos
-  // el fit para que el "100%" siga siendo pantalla completa.
+  // ResizeObserver dispara la primera vez al empezar a observar,
+  // y luego en cada resize del contenedor. Como el setState pasa
+  // dentro del callback del observer (no en el body del effect
+  // directamente), respeta react-hooks/set-state-in-effect.
   useEffect(() => {
-    if (!open) return;
-    const onResize = () => fit();
-    window.addEventListener("resize", onResize);
-    window.addEventListener("orientationchange", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("orientationchange", onResize);
-    };
-  }, [open, fit]);
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      fit();
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fit]);
 
   /** Cambia scale conservando el punto (cx, cy) del contenedor.
    *  Fórmula derivada de que la imagen está en transform
@@ -254,7 +250,10 @@ function ImageZoomViewer({ open, onOpenChange, src, alt }: ZoomViewerProps) {
   );
 
   // ------ Drag / Pan (mouse + 1 dedo, vía Pointer events) ------
-  const dragRef = useRef<{
+  // Datos "de arranque" del gesto viven en un ref porque no deben
+  // re-renderizar cada movimiento del puntero; el flag público
+  // (isDragging) sí es state.
+  const dragStartRef = useRef<{
     pointerId: number;
     startX: number;
     startY: number;
@@ -264,20 +263,21 @@ function ImageZoomViewer({ open, onOpenChange, src, alt }: ZoomViewerProps) {
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     // Segundo dedo (o más) → pinch se encarga.
-    if (e.pointerType === "touch" && pinchRef.current) return;
+    if (e.pointerType === "touch" && isPinching) return;
     if (scale <= 1) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    dragRef.current = {
+    dragStartRef.current = {
       pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
       baseX: offset.x,
       baseY: offset.y,
     };
+    setIsDragging(true);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current;
+    const drag = dragStartRef.current;
     if (!drag || drag.pointerId !== e.pointerId) return;
     setOffset({
       x: drag.baseX + (e.clientX - drag.startX),
@@ -286,14 +286,15 @@ function ImageZoomViewer({ open, onOpenChange, src, alt }: ZoomViewerProps) {
   };
 
   const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current;
+    const drag = dragStartRef.current;
     if (!drag || drag.pointerId !== e.pointerId) return;
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    dragRef.current = null;
+    dragStartRef.current = null;
+    setIsDragging(false);
   };
 
   // ------ Pinch (dos dedos, vía Touch events) ------
-  const pinchRef = useRef<{
+  const pinchStartRef = useRef<{
     startDistance: number;
     startScale: number;
     centerX: number;
@@ -309,21 +310,23 @@ function ImageZoomViewer({ open, onOpenChange, src, alt }: ZoomViewerProps) {
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
     // Cortar drag de un dedo si venía en curso.
-    dragRef.current = null;
+    dragStartRef.current = null;
+    setIsDragging(false);
     const t0 = e.touches[0];
     const t1 = e.touches[1];
     const midX = (t0.clientX + t1.clientX) / 2;
     const midY = (t0.clientY + t1.clientY) / 2;
-    pinchRef.current = {
+    pinchStartRef.current = {
       startDistance: touchDistance(t0, t1),
       startScale: scale,
       centerX: midX - rect.left,
       centerY: midY - rect.top,
     };
+    setIsPinching(true);
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    const pinch = pinchRef.current;
+    const pinch = pinchStartRef.current;
     if (!pinch || e.touches.length !== 2) return;
     const dist = touchDistance(e.touches[0], e.touches[1]);
     const factor = dist / pinch.startDistance;
@@ -331,15 +334,20 @@ function ImageZoomViewer({ open, onOpenChange, src, alt }: ZoomViewerProps) {
   };
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (e.touches.length < 2) pinchRef.current = null;
+    if (e.touches.length < 2) {
+      pinchStartRef.current = null;
+      setIsPinching(false);
+    }
   };
 
-  // Wheel non-passive: React attach pasivo por default y nuestro
-  // preventDefault no toma. Registramos manual con { passive: false }
-  // para evitar que el navegador haga scroll de la página.
+  // Non-passive listeners para poder preventDefault en wheel/pinch:
+  // React attach pasivo por default y nuestro preventDefault
+  // sintético no toma. Registramos manual con { passive: false }
+  // para que la página no scrollee al hacer wheel dentro del
+  // viewer ni pinch-zoomee el viewport en touch.
   useEffect(() => {
     const el = containerRef.current;
-    if (!el || !open) return;
+    if (!el) return;
     const wheel = (e: WheelEvent) => e.preventDefault();
     const touchMove = (e: TouchEvent) => {
       if (e.touches.length >= 2) e.preventDefault();
@@ -350,12 +358,17 @@ function ImageZoomViewer({ open, onOpenChange, src, alt }: ZoomViewerProps) {
       el.removeEventListener("wheel", wheel);
       el.removeEventListener("touchmove", touchMove);
     };
-  }, [open]);
-
-  const isInteracting = Boolean(dragRef.current || pinchRef.current);
+  }, []);
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+    <DialogPrimitive.Root
+      open
+      onOpenChange={(next) => {
+        // Radix llama con `false` cuando el user cierra (ESC /
+        // click en overlay / etc.). Traducimos a onClose.
+        if (!next) onClose();
+      }}
+    >
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay
           className={[
@@ -408,7 +421,11 @@ function ImageZoomViewer({ open, onOpenChange, src, alt }: ZoomViewerProps) {
             </ToolbarButton>
             <ToolbarButton
               onClick={reset}
-              disabled={scale === 1 && offset.x === initialOffset.x && offset.y === initialOffset.y}
+              disabled={
+                scale === 1 &&
+                offset.x === initialOffset.x &&
+                offset.y === initialOffset.y
+              }
               label="Restablecer zoom"
             >
               <RotateCcw size={18} aria-hidden />
@@ -420,7 +437,7 @@ function ImageZoomViewer({ open, onOpenChange, src, alt }: ZoomViewerProps) {
             >
               <Plus size={18} aria-hidden />
             </ToolbarButton>
-            <ToolbarButton onClick={() => onOpenChange(false)} label="Cerrar">
+            <ToolbarButton onClick={onClose} label="Cerrar">
               <X size={18} aria-hidden />
             </ToolbarButton>
           </div>
