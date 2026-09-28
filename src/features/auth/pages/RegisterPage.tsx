@@ -22,9 +22,10 @@ const registerSchema = z
       .regex(/^\+?\d{10,15}$/, "Teléfono inválido (10–15 dígitos)"),
     password: z.string().min(8, "Mínimo 8 caracteres"),
     password_confirm: z.string(),
-    // F-G.2: 3 consentimientos required. Zod `literal(true)` es la
-    // forma limpia de forzar "solo checked pasa". Msg específico
-    // por doc para que aparezca a la altura del checkbox correcto.
+    // F-G.2 + F-G.4: 4 consentimientos required. Zod `literal(true)`
+    // es la forma limpia de forzar "solo checked pasa". Msg
+    // específico por doc para que aparezca a la altura del checkbox
+    // correcto.
     terms_accepted: z.literal(true, {
       errorMap: () => ({
         message: "Debes aceptar los términos y condiciones.",
@@ -37,6 +38,11 @@ const registerSchema = z
     }),
     disclaimer_accepted: z.literal(true, {
       errorMap: () => ({ message: "Debes aceptar el disclaimer." }),
+    }),
+    pack_code_accepted: z.literal(true, {
+      errorMap: () => ({
+        message: "Debes aceptar el Código de la Manada.",
+      }),
     }),
   })
   .refine((d) => d.password === d.password_confirm, {
@@ -72,6 +78,7 @@ export function RegisterPage() {
       terms_accepted: false as unknown as true,
       privacy_accepted: false as unknown as true,
       disclaimer_accepted: false as unknown as true,
+      pack_code_accepted: false as unknown as true,
     },
   });
 
@@ -80,6 +87,8 @@ export function RegisterPage() {
     legalDocs.data?.privacy_policy.url ?? "/legal/privacy";
   const disclaimerUrl =
     legalDocs.data?.disclaimer.url ?? "/legal/disclaimer";
+  const packCodeUrl =
+    legalDocs.data?.code_of_the_pack.url ?? "/legal/codigo-de-la-manada";
 
   async function onSubmit(data: RegisterFormValues) {
     try {
@@ -268,6 +277,31 @@ export function RegisterPage() {
                       Disclaimer
                     </a>{" "}
                     (Doggo Mundo no sustituye consejo veterinario).
+                  </>
+                }
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="pack_code_accepted"
+            render={({ field }) => (
+              <PawCheckbox
+                checked={Boolean(field.value)}
+                onChange={(e) => field.onChange(e.target.checked)}
+                error={errors.pack_code_accepted?.message}
+                label={
+                  <>
+                    He leído y acepto el{" "}
+                    <a
+                      href={packCodeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-primary hover:underline"
+                    >
+                      Código de la Manada
+                    </a>
+                    .
                   </>
                 }
               />

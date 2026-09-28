@@ -51,6 +51,11 @@ const DisclaimerPage = lazy(() =>
     default: m.DisclaimerPage,
   })),
 );
+const PackCodePage = lazy(() =>
+  import("@/features/legal/pages/PackCodePage").then((m) => ({
+    default: m.PackCodePage,
+  })),
+);
 
 const HomePage = lazy(() =>
   import("@/features/home/pages/HomePage").then((m) => ({ default: m.HomePage })),
@@ -275,6 +280,7 @@ export function AppRouter() {
         <Route path="/legal/terms" element={<TermsPage />} />
         <Route path="/legal/privacy" element={<PrivacyPage />} />
         <Route path="/legal/disclaimer" element={<DisclaimerPage />} />
+        <Route path="/legal/codigo-de-la-manada" element={<PackCodePage />} />
 
         {/* Authenticated users (any role can use the customer app) */}
         <Route element={<AuthGuard />}>

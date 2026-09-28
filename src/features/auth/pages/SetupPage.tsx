@@ -196,9 +196,9 @@ const passwordSchema = z
   .object({
     password: z.string().min(8, "Al menos 8 caracteres"),
     password_confirm: z.string(),
-    // F-G.2: los mismos 3 consentimientos que en RegisterPage — el
-    // walk-in aún no había firmado nada digitalmente cuando staff
-    // hizo el quick-register en sucursal.
+    // F-G.2 + F-G.4: los mismos 4 consentimientos que en
+    // RegisterPage — el walk-in aún no había firmado nada
+    // digitalmente cuando staff hizo el quick-register en sucursal.
     terms_accepted: z.literal(true, {
       errorMap: () => ({
         message: "Debes aceptar los términos y condiciones.",
@@ -211,6 +211,11 @@ const passwordSchema = z
     }),
     disclaimer_accepted: z.literal(true, {
       errorMap: () => ({ message: "Debes aceptar el disclaimer." }),
+    }),
+    pack_code_accepted: z.literal(true, {
+      errorMap: () => ({
+        message: "Debes aceptar el Código de la Manada.",
+      }),
     }),
   })
   .refine((d) => d.password === d.password_confirm, {
@@ -248,6 +253,7 @@ function PasswordForm({ token, onComplete }: PasswordProps) {
       terms_accepted: false as unknown as true,
       privacy_accepted: false as unknown as true,
       disclaimer_accepted: false as unknown as true,
+      pack_code_accepted: false as unknown as true,
     },
   });
 
@@ -256,6 +262,8 @@ function PasswordForm({ token, onComplete }: PasswordProps) {
     legalDocs.data?.privacy_policy.url ?? "/legal/privacy";
   const disclaimerUrl =
     legalDocs.data?.disclaimer.url ?? "/legal/disclaimer";
+  const packCodeUrl =
+    legalDocs.data?.code_of_the_pack.url ?? "/legal/codigo-de-la-manada";
 
   async function onSubmit(data: PasswordValues) {
     try {
@@ -266,6 +274,7 @@ function PasswordForm({ token, onComplete }: PasswordProps) {
         terms_accepted: data.terms_accepted,
         privacy_accepted: data.privacy_accepted,
         disclaimer_accepted: data.disclaimer_accepted,
+        pack_code_accepted: data.pack_code_accepted,
       });
       onComplete(r.access, r.refresh, r.user, r.pet_id);
     } catch (err) {
@@ -396,6 +405,31 @@ function PasswordForm({ token, onComplete }: PasswordProps) {
                     Disclaimer
                   </a>{" "}
                   (Doggo Mundo no sustituye consejo veterinario).
+                </>
+              }
+            />
+          )}
+        />
+        <Controller
+          control={control}
+          name="pack_code_accepted"
+          render={({ field }) => (
+            <PawCheckbox
+              checked={Boolean(field.value)}
+              onChange={(e) => field.onChange(e.target.checked)}
+              error={errors.pack_code_accepted?.message}
+              label={
+                <>
+                  He leído y acepto el{" "}
+                  <a
+                    href={packCodeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    Código de la Manada
+                  </a>
+                  .
                 </>
               }
             />
