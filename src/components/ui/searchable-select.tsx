@@ -60,12 +60,27 @@ export function SearchableSelect<T extends SearchableSelectOption>({
     [options, value],
   );
 
-  // Match sin diacríticos + case-insensitive para que "aleman"
-  // encuentre "Alemán" sin obligar al usuario a poner tildes.
+  // Match tokenizado: partimos la query en palabras (sin
+  // stopwords, sin acentos, case-insensitive) y una opción se
+  // considera candidata si al menos UNA palabra del query casa
+  // con alguna palabra del nombre — así "gigante de los pirineos"
+  // encuentra "Gran Pirineo" y "Mastín de los Pirineos" aunque
+  // "gigante" no matchee nada, porque "pirineos" ~= "pirineo".
+  // Ordenamos por número de palabras matcheadas para que las más
+  // relevantes queden arriba.
   const filtered = React.useMemo(() => {
     const q = normalize(query);
     if (!q) return options;
-    return options.filter((o) => normalize(o.name).includes(q));
+    const queryTokens = tokenize(q);
+    if (queryTokens.length === 0) return options;
+    const scored: Array<{ option: T; score: number }> = [];
+    for (const option of options) {
+      const nameTokens = tokenize(normalize(option.name));
+      const score = countMatches(queryTokens, nameTokens);
+      if (score > 0) scored.push({ option, score });
+    }
+    scored.sort((a, b) => b.score - a.score);
+    return scored.map((s) => s.option);
   }, [options, query]);
 
   // El botón "Crear" aparece cuando: onCreate está habilitado, hay
@@ -229,4 +244,44 @@ function normalize(raw: string): string {
     .replace(/\p{Diacritic}/gu, "")
     .trim()
     .toLowerCase();
+}
+
+/** Palabras cortas que no aportan al match — si Jackie escribe
+ *  "gigante de los pirineos", nos interesa "gigante" y "pirineos",
+ *  no "de" ni "los". Tokens de 1 char (letras sueltas) también
+ *  fuera para evitar noise. */
+const SPANISH_STOPWORDS = new Set([
+  "de", "del", "el", "la", "los", "las", "y", "con", "a", "en",
+]);
+
+/** Divide una cadena normalizada en palabras significativas.
+ *  Requiere >= 2 chars y no estar en la lista de stopwords. */
+function tokenize(normalized: string): string[] {
+  const words: string[] = [];
+  for (const raw of normalized.split(/\s+/)) {
+    const w = raw.trim();
+    if (w.length < 2) continue;
+    if (SPANISH_STOPWORDS.has(w)) continue;
+    words.push(w);
+  }
+  return words;
+}
+
+/** Cuenta cuántos tokens del query casan con alguna palabra del
+ *  nombre. Match bidireccional por prefijo — así "pirineos" en la
+ *  query casa con "pirineo" del nombre y viceversa. */
+function countMatches(
+  queryTokens: string[],
+  nameTokens: string[],
+): number {
+  let count = 0;
+  for (const q of queryTokens) {
+    for (const n of nameTokens) {
+      if (n.startsWith(q) || q.startsWith(n)) {
+        count++;
+        break;
+      }
+    }
+  }
+  return count;
 }
