@@ -133,6 +133,67 @@ describe("SearchableSelect", () => {
     await waitFor(() => expect(onChange).toHaveBeenCalledWith("new-42"));
   });
 
+  it("matches by any query word (fuzzy tokenized)", async () => {
+    // Escenario real: Jackie busca 'gigante de los pirineos' y
+    // aunque 'gigante' no matchea nada, 'pirineos' debe traer las
+    // razas que contienen 'pirineo' — incluida la Mastín de los
+    // Pirineos y el Gran Pirineo.
+    const opts = [
+      { id: "1", name: "Beagle" },
+      { id: "2", name: "Gran Pirineo" },
+      { id: "3", name: "Mastín de los Pirineos" },
+      { id: "4", name: "Pastor Alemán" },
+    ];
+    render(
+      <SearchableSelect options={opts} value={null} onChange={vi.fn()} />,
+    );
+    await userEvent.click(screen.getByRole("button"));
+    await userEvent.type(
+      screen.getByPlaceholderText("Buscar…"),
+      "gigante de los pirineos",
+    );
+    expect(screen.getByText("Gran Pirineo")).toBeInTheDocument();
+    expect(screen.getByText("Mastín de los Pirineos")).toBeInTheDocument();
+    expect(screen.queryByText("Beagle")).not.toBeInTheDocument();
+    expect(screen.queryByText("Pastor Alemán")).not.toBeInTheDocument();
+  });
+
+  it("ranks options with more matched words first", async () => {
+    const opts = [
+      { id: "1", name: "Pastor Blanco" },
+      { id: "2", name: "Pastor Alemán" },
+      { id: "3", name: "Alemán del Rin" },
+    ];
+    render(
+      <SearchableSelect options={opts} value={null} onChange={vi.fn()} />,
+    );
+    await userEvent.click(screen.getByRole("button"));
+    await userEvent.type(
+      screen.getByPlaceholderText("Buscar…"),
+      "pastor aleman",
+    );
+    // "Pastor Alemán" tiene 2 matches; los otros 1 cada uno. Debe
+    // aparecer primero en el DOM.
+    const items = screen.getAllByRole("option");
+    expect(items[0]).toHaveTextContent("Pastor Alemán");
+  });
+
+  it("stopwords alone do not filter — returns full list", async () => {
+    render(
+      <SearchableSelect
+        options={OPTIONS}
+        value={null}
+        onChange={vi.fn()}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button"));
+    await userEvent.type(screen.getByPlaceholderText("Buscar…"), "de los");
+    // No hubo tokens útiles → mostramos todo, no "Sin resultados".
+    expect(screen.getByText("Beagle")).toBeInTheDocument();
+    expect(screen.getByText("Bulldog Francés")).toBeInTheDocument();
+    expect(screen.getByText("Pastor Alemán")).toBeInTheDocument();
+  });
+
   it("does NOT offer 'Crear' for query shorter than 2 chars", async () => {
     render(
       <SearchableSelect
