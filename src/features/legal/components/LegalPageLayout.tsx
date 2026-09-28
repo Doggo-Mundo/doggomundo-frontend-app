@@ -8,6 +8,10 @@ interface Props {
   effectiveDate: string;
   /** Versión — debe coincidir con `LEGAL_DOC_VERSIONS` del backend. */
   version: string;
+  /** Oculta el aviso de "borrador operativo" del pie. Úsalo cuando
+   *  la página ya está sirviendo copy final (imagen o texto que
+   *  entregó el cliente / despacho legal). */
+  hidePlaceholderNotice?: boolean;
   children: React.ReactNode;
 }
 
@@ -21,7 +25,13 @@ interface Props {
  * el copy final, se reemplaza el contenido de cada página sin
  * tocar este layout.
  */
-export function LegalPageLayout({ title, effectiveDate, version, children }: Props) {
+export function LegalPageLayout({
+  title,
+  effectiveDate,
+  version,
+  hidePlaceholderNotice = false,
+  children,
+}: Props) {
   return (
     <div
       className="min-h-dvh"
@@ -53,12 +63,17 @@ export function LegalPageLayout({ title, effectiveDate, version, children }: Pro
             {children}
           </div>
 
-          {/* Aviso de placeholder — se elimina cuando entre el copy real */}
-          <div className="mt-8 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-900/10 dark:text-amber-100">
-            <strong>Aviso:</strong> este documento es un borrador
-            operativo. La versión definitiva la revisa y firma el
-            despacho legal antes de salir a producción.
-          </div>
+          {/* Aviso de placeholder — visible mientras el copy sea
+              borrador operativo. Cada página lo puede apagar cuando
+              ya sirve la versión final entregada por el cliente o
+              el despacho legal. */}
+          {!hidePlaceholderNotice && (
+            <div className="mt-8 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-900/10 dark:text-amber-100">
+              <strong>Aviso:</strong> este documento es un borrador
+              operativo. La versión definitiva la revisa y firma el
+              despacho legal antes de salir a producción.
+            </div>
+          )}
         </article>
       </div>
     </div>
