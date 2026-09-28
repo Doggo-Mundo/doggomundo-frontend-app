@@ -26,7 +26,7 @@ export const BUSINESS_UNIT_DESCRIPTION: Record<BusinessUnitCode, string> = {
   AUTOLAVADO: "Baño asistido por nuestro equipo",
   GROOMING: "Corte, estilo y cuidado a fondo",
   FOTO: "Cabina self-service para fotos",
-  CAFE: "Pasa un rato con tu peludo",
+  CAFE: "Pasa un rato con tu Doggo",
   VET: "Consulta con nuestro veterinario",
   RETAIL: "Tienda de productos",
   EXPERIENCIA: "Actividades y eventos",

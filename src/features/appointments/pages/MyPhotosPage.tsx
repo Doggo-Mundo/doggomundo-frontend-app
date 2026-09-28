@@ -20,7 +20,7 @@ export function MyPhotosPage() {
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">Mis fotos</h1>
         <p className="text-sm text-muted-foreground">
-          Recuerdos de cada sesión de tu perro en Doggo Mundo.
+          Recuerdos de cada sesión de tu Doggo en Doggo Mundo.
         </p>
       </header>
 

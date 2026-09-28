@@ -96,17 +96,17 @@ export function PetCreatePage() {
       toast.success(`${pet.name} quedó registrado. Ahora completa su perfil.`);
       navigate(`/pets/${pet.id}/edit`, { replace: true });
     } catch (err) {
-      mapApiErrors(err, setError, "No pudimos crear la mascota.");
+      mapApiErrors(err, setError, "No pudimos crear el Doggo.");
     }
   }
 
   return (
     <div className="space-y-4">
-      <BackLink to="/pets" label="Mis mascotas" />
+      <BackLink to="/pets" label="Mis Doggos" />
 
       <Card>
         <CardHeader>
-          <CardTitle>Nueva mascota</CardTitle>
+          <CardTitle>Nuevo Doggo</CardTitle>
           <CardDescription>
             Con el nombre basta para empezar. Luego podrás completar su perfil.
           </CardDescription>
@@ -275,7 +275,7 @@ export function PetCreatePage() {
             </div>
 
             <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Guardando…" : "Crear mascota"}
+              {isSubmitting ? "Guardando…" : "Crear Doggo"}
             </Button>
           </form>
         </CardContent>

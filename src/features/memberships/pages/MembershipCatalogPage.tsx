@@ -20,7 +20,7 @@ export function MembershipCatalogPage() {
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">Membresías</h1>
         <p className="text-sm text-muted-foreground">
-          Planes mensuales o trimestrales con servicios incluidos para tu peludo.
+          Planes mensuales o trimestrales con servicios incluidos para tu Doggo.
         </p>
       </header>
 
@@ -52,7 +52,7 @@ export function MembershipCatalogPage() {
         <EmptyState
           icon={<PackageX className="h-12 w-12" />}
           title="Aún no hay planes disponibles"
-          description="Pronto habrá membresías para tu peludo."
+          description="Pronto habrá membresías para tu Doggo."
         />
       ) : (
         <ul className="space-y-3">

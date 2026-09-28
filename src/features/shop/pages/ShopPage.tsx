@@ -33,7 +33,7 @@ export function ShopPage() {
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">Tienda</h1>
         <p className="text-sm text-muted-foreground">
-          Productos curados para tu peludo.
+          Productos curados para tu Doggo.
         </p>
       </header>
 

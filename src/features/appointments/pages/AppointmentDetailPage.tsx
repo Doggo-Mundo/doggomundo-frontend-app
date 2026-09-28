@@ -272,7 +272,7 @@ function VaccinationWarningCard({ petId }: { petId: string }) {
           <p className="text-xs text-amber-800/80 dark:text-amber-200/80">
             Si al momento de tu cita no tienes la cartilla
             registrada y con vacunas vigentes, no podremos
-            completar el servicio (protegemos a todos los peludos).
+            completar el servicio (protegemos a todos los Doggos).
           </p>
           <Button
             asChild

@@ -14,7 +14,7 @@ import { selectCartCount, useCartStore } from "@/stores/cart-store";
 const ALL_TABS = [
   { to: "/", label: "Inicio", icon: Home, end: true, key: "home" },
   { to: "/book", label: "Reservar", icon: CalendarPlus, end: false, key: "book" },
-  { to: "/pets", label: "Mascotas", icon: PawPrint, end: false, key: "pets" },
+  { to: "/pets", label: "Doggos", icon: PawPrint, end: false, key: "pets" },
   {
     to: "/my/appointments",
     label: "Citas",

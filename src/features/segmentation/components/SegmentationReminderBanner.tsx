@@ -47,7 +47,7 @@ export function SegmentationReminderBanner() {
         <p className="font-medium">Ayúdanos a personalizar tu experiencia</p>
         <p className="text-xs text-muted-foreground">
           2 minutos. Vas a ver recomendaciones y beneficios más relevantes
-          para ti y tu perro.
+          para ti y tu Doggo.
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-1">

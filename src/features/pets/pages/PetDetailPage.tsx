@@ -92,10 +92,10 @@ export function PetDetailPage() {
   async function handleDelete() {
     try {
       await deletePet.mutateAsync();
-      toast.success("La mascota fue eliminada.");
+      toast.success("El Doggo fue eliminado.");
       navigate("/pets", { replace: true });
     } catch {
-      toast.error("No pudimos eliminar la mascota.");
+      toast.error("No pudimos eliminar el Doggo.");
     }
   }
 
@@ -122,7 +122,7 @@ export function PetDetailPage() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <BackLink to="/pets" label="Mis mascotas" />
+        <BackLink to="/pets" label="Mis Doggos" />
         <LoadingState rows={3} />
       </div>
     );
@@ -131,9 +131,9 @@ export function PetDetailPage() {
   if (isError || !pet) {
     return (
       <div className="space-y-4">
-        <BackLink to="/pets" label="Mis mascotas" />
+        <BackLink to="/pets" label="Mis Doggos" />
         <EmptyState
-          title="No pudimos cargar esta mascota"
+          title="No pudimos cargar este Doggo"
           description="Revisa que el enlace sea correcto."
         />
       </div>
@@ -146,7 +146,7 @@ export function PetDetailPage() {
 
   return (
     <div className="space-y-4">
-      <BackLink to="/pets" label="Mis mascotas" />
+      <BackLink to="/pets" label="Mis Doggos" />
 
       <Card>
         <CardContent className="flex items-center gap-4 py-4">
@@ -320,7 +320,7 @@ export function PetDetailPage() {
         onClick={() => setConfirmOpen(true)}
       >
         <Trash2 />
-        Eliminar mascota
+        Eliminar Doggo
       </Button>
 
       <ConfirmDialog

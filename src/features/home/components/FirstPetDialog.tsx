@@ -51,12 +51,11 @@ export function FirstPetDialog({ open }: Props) {
             <PawPrint className="h-7 w-7 text-primary" />
           </div>
           <DialogTitle className="text-center text-xl">
-            Cuéntanos de tu peludo
+            Cuéntanos de tu Doggo
           </DialogTitle>
           <DialogDescription className="text-center">
-            Registra a tu mascota para reservar servicios, guardar
-            su cartilla y llevar su expediente clínico en un solo
-            lugar.
+            Registra a tu Doggo para reservar servicios, guardar su
+            cartilla y llevar su expediente clínico en un solo lugar.
           </DialogDescription>
         </DialogHeader>
 
@@ -67,7 +66,7 @@ export function FirstPetDialog({ open }: Props) {
               state={{ first: true }}
               onClick={() => setDismissed(true)}
             >
-              Registrar mi mascota
+              Registrar mi Doggo
             </Link>
           </Button>
           <Button

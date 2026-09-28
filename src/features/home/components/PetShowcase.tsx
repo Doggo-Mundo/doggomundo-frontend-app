@@ -35,7 +35,7 @@ export function PetShowcase({ pets, appointments }: Props) {
   return (
     <section className="space-y-3">
       <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        Tus peludos
+        Tus Doggos
       </h2>
       {/* pt-1 evita que el hover:-translate-y-0.5 + shadow-md de las
           cards se corten arriba por el overflow-x-auto (solo scroll

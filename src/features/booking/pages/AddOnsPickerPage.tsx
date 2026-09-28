@@ -71,7 +71,7 @@ export function AddOnsPickerPage() {
         stepKey="addons"
         backTo="/book/pet"
         title="¿Le agregas algo especial?"
-        description="Opcional. Un shampoo, un juguete o un premio para tu peludo."
+        description="Opcional. Un shampoo, un juguete o un premio para tu Doggo."
       />
 
       {isLoading ? (

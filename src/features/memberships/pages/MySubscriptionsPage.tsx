@@ -86,7 +86,7 @@ export function MySubscriptionsPage() {
           }
           description={
             tab === "active"
-              ? "Explora los planes disponibles y elige el que mejor le acomode a tu peludo."
+              ? "Explora los planes disponibles y elige el que mejor le acomode a tu Doggo."
               : undefined
           }
           action={

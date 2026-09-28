@@ -104,7 +104,7 @@ export function SetupPage() {
     return (
       <AuthLayout
         title="Cartilla de vacunación"
-        description="Sube una foto o PDF de la cartilla de tu peludo."
+        description="Sube una foto o PDF de la cartilla de tu Doggo."
       >
         <StepIndicator step="cartilla" />
         <CartillaForm
@@ -475,7 +475,7 @@ function CartillaForm({ petId, onDone }: CartillaProps) {
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">
         La necesitamos al día para cualquier servicio — así
-        protegemos a todos los peludos. Puedes agregar hasta{" "}
+        protegemos a todos los Doggos. Puedes agregar hasta{" "}
         {MAX_DOCUMENT_PAGES} páginas (frente, reverso, hojas extra).
       </p>
 

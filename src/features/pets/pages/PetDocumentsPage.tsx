@@ -37,7 +37,7 @@ export function PetDocumentsPage() {
             <p className="text-sm font-medium">¿Tienes una cartilla?</p>
             <p className="text-xs text-muted-foreground">
               Súbela en la sección de Vacunas para registrar
-              automáticamente lo que ya tiene tu peludo.
+              automáticamente lo que ya tiene tu Doggo.
             </p>
           </div>
           <Button asChild size="sm" variant="outline">
