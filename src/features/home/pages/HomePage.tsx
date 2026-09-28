@@ -148,7 +148,7 @@ export function HomePage() {
             {user ? `, ${user.first_name}` : ""}
           </h1>
           <p className="text-sm text-muted-foreground">
-            ¿Qué haremos hoy por tu peludo?
+            ¿Qué haremos hoy por tu Doggo?
           </p>
         </div>
       </header>
@@ -185,7 +185,7 @@ export function HomePage() {
         // the real content swaps in.
         <section className="space-y-2">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Tus peludos
+            Tus Doggos
           </p>
           <div className="flex gap-3 overflow-x-auto">
             {[0, 1, 2].map((i) => (

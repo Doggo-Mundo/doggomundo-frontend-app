@@ -28,7 +28,7 @@ export function DaycareLandingPage() {
           </span>
         </div>
         <h1 className="text-2xl font-semibold">
-          Tu peludo en buenas patas todo el día
+          Tu Doggo en buenas patas todo el día
         </h1>
         <p className="text-sm text-muted-foreground">
           Déjalo con nosotros mientras trabajas. Socializa, juega y descansa en
