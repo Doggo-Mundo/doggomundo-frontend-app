@@ -86,6 +86,9 @@ export interface WalkInSetupRequest {
   terms_accepted: boolean;
   privacy_accepted: boolean;
   disclaimer_accepted: boolean;
+  /** F-G.4: Código de la Manada — reglas de convivencia del
+   *  espacio Doggo Mundo. Backend también rebota con 400. */
+  pack_code_accepted: boolean;
 }
 
 interface WalkInSetupResponse {
@@ -116,6 +119,7 @@ export interface LegalDocsResponse {
   terms_and_conditions: { version: string; url: string };
   privacy_policy: { version: string; url: string };
   disclaimer: { version: string; url: string };
+  code_of_the_pack: { version: string; url: string };
 }
 
 export function useLegalDocs() {
@@ -140,11 +144,12 @@ export interface RegisterRequest {
   phone: string;
   password: string;
   password_confirm: string;
-  /** F-G.2: los 3 consentimientos son obligatorios en el backend
-   *  (F-G.1). El registro rebota con 400 si alguno es false. */
+  /** F-G.2 + F-G.4: los 4 consentimientos son obligatorios en el
+   *  backend. El registro rebota con 400 si alguno es false. */
   terms_accepted: boolean;
   privacy_accepted: boolean;
   disclaimer_accepted: boolean;
+  pack_code_accepted: boolean;
 }
 
 export function useRegister() {
