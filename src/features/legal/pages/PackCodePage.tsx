@@ -81,19 +81,17 @@ export function PackCodePage() {
           position: "relative",
         }}
       >
-        {/* Grilla tipo tríptico/brochure: los "paneles" del PDF se
-            reordenan según el viewport. Con auto-fit + minmax(300px)
-            crecemos hasta la cantidad de columnas que quepan en el
-            ancho disponible — 1 en mobile, 2 tablet, 3-6 en desktop
-            wide. `dense` rellena huecos con paneles cortos para
-            que Cover + Preamble no dejen aire debajo. */}
+        {/* Layout tipo masonry/Pinterest usando CSS multi-column:
+            los paneles fluyen top-to-bottom llenando cada columna
+            antes de saltar a la siguiente, así los paneles cortos
+            (Cover, Preámbulo) NO dejan aire debajo — la siguiente
+            regla se coloca ahí mismo. `column-width` deja al
+            browser decidir cuántas columnas caben — 1 en mobile,
+            2 en tablet, 4-5 en desktop wide. */}
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-            gap: "1rem",
-            alignItems: "start",
-            gridAutoFlow: "dense",
+            columnWidth: "20rem",
+            columnGap: "1rem",
           }}
         >
           <Panel accent="cover">
@@ -315,6 +313,20 @@ function Panel({ accent = "default", children }: PanelProps) {
         border: `1px solid ${BORDER}`,
         boxShadow: "0 4px 16px rgba(34, 45, 86, 0.05)",
         position: "relative",
+        // masonry: evitar que el navegador parta un panel entre
+        // columnas. `break-inside` cubre CSS multi-column moderna;
+        // `pageBreakInside` es fallback para engines viejos que
+        // aún respetan la vieja spec de impresión.
+        breakInside: "avoid",
+        pageBreakInside: "avoid",
+        // `column-gap` solo separa horizontal — el vertical entre
+        // paneles apilados en la misma columna se maneja aquí.
+        marginBottom: "1rem",
+        // `inline-block` obliga al panel a comportarse como una
+        // unidad indivisible dentro del flujo de columnas (algunos
+        // engines tratan `block` con break-inside como parseable).
+        display: "inline-block",
+        width: "100%",
       }}
     >
       {children}
