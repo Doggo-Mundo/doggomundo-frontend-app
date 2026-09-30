@@ -76,16 +76,33 @@ export function PackCodePage() {
 
       <div
         style={{
-          maxWidth: "44rem",
+          maxWidth: "80rem",
           margin: "0 auto",
           padding: "0 1.25rem",
           position: "relative",
         }}
       >
-        <Cover />
+        {/* Grilla tipo tríptico/brochure: los "paneles" del PDF se
+            reordenan según el viewport — 3 columnas en desktop
+            ancho, 2 en tablet, 1 en mobile. Con `auto-fit +
+            minmax(320px, 1fr)` la CSS decide sola cuántas caben. */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+            gap: "1.25rem",
+            alignItems: "start",
+          }}
+        >
+          <Panel accent="cover">
+            <Cover />
+          </Panel>
 
-        <Preamble />
+          <Panel>
+            <Preamble />
+          </Panel>
 
+          <Panel>
         <Rule
           number={1}
           title={
@@ -133,7 +150,9 @@ export function PackCodePage() {
             esta regla.
           </Point>
         </Rule>
+          </Panel>
 
+          <Panel>
         <Rule number={2} title="Mi humano cuida de mí">
           <Point
             n={7}
@@ -182,7 +201,9 @@ export function PackCodePage() {
             nuestra visita.
           </Point>
         </Rule>
+          </Panel>
 
+          <Panel>
         <Rule
           number={3}
           title={
@@ -214,7 +235,9 @@ export function PackCodePage() {
             instalaciones y servicios de Doggo Mundo.
           </ProseCard>
         </Rule>
+          </Panel>
 
+          <Panel>
         <Rule number={4} title="Mi humano es responsable">
           <Point
             n={1}
@@ -257,11 +280,42 @@ export function PackCodePage() {
             o culpa grave comprobada de su parte.
           </Point>
         </Rule>
+          </Panel>
+        </div>
 
         <Footer />
 
         <PlaceholderNotice />
       </div>
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------
+// Panel (card individual del "tríptico")
+// -----------------------------------------------------------------
+
+interface PanelProps {
+  /** Cuando es `cover` aplicamos padding más generoso y quitamos
+   *  el tinte tenue del interior para que el título respire. */
+  accent?: "cover" | "default";
+  children: ReactNode;
+}
+
+function Panel({ accent = "default", children }: PanelProps) {
+  const isCover = accent === "cover";
+  return (
+    <div
+      style={{
+        background: PAPER,
+        borderRadius: "1.5rem",
+        padding: isCover ? "2rem 1.5rem" : "1.5rem 1.35rem",
+        border: `1px solid ${BORDER}`,
+        boxShadow: "0 6px 24px rgba(34, 45, 86, 0.06)",
+        position: "relative",
+      }}
+    >
+      {children}
     </div>
   );
 }
@@ -275,7 +329,7 @@ function Cover() {
     <header
       style={{
         textAlign: "center",
-        padding: "2.5rem 0 2rem",
+        padding: "0.5rem 0",
         position: "relative",
       }}
     >
@@ -293,7 +347,7 @@ function Cover() {
           fontFamily: FREDOKA,
           fontWeight: 500,
           color: NAVY,
-          fontSize: "clamp(2.5rem, 8vw, 3.75rem)",
+          fontSize: "clamp(2.25rem, 6vw, 3rem)",
           lineHeight: 1,
           margin: 0,
           fontStyle: "italic",
@@ -307,7 +361,7 @@ function Cover() {
           fontFamily: FREDOKA,
           fontWeight: 700,
           color: CORAL,
-          fontSize: "clamp(3rem, 10vw, 4.5rem)",
+          fontSize: "clamp(2.5rem, 7vw, 3.5rem)",
           lineHeight: 1,
           margin: "0.25rem 0 0",
           fontStyle: "italic",
@@ -340,18 +394,38 @@ function Cover() {
 
 function Preamble() {
   return (
-    <div
-      style={{
-        background: PAPER,
-        border: `1px solid ${BORDER}`,
-        borderRadius: "1.25rem",
-        padding: "1.25rem 1.25rem",
-        marginTop: "1.5rem",
-        position: "relative",
-        boxShadow: "0 2px 12px rgba(34, 45, 86, 0.04)",
-      }}
-    >
-      <p style={{ margin: 0, fontSize: "0.98rem", lineHeight: 1.6 }}>
+    <div style={{ position: "relative" }}>
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: "-0.5rem",
+          right: "-0.25rem",
+        }}
+      >
+        <SparkleBurst color={NAVY_BADGE} size={24} />
+      </div>
+      <div
+        style={{
+          fontFamily: FREDOKA,
+          fontWeight: 600,
+          fontSize: "0.75rem",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          color: CORAL,
+          marginBottom: "0.75rem",
+        }}
+      >
+        Antes de empezar
+      </div>
+      <p
+        style={{
+          margin: 0,
+          fontSize: "0.98rem",
+          lineHeight: 1.6,
+          color: NAVY,
+        }}
+      >
         Al aceptar este código como parte de tu registro digital,
         declaras ser propietario, poseedor y/o responsable del o los
         perros que registres en Doggo Mundo, y manifiestas{" "}
@@ -373,7 +447,7 @@ interface RuleProps {
 
 function Rule({ number, title, children }: RuleProps) {
   return (
-    <section style={{ marginTop: "3rem" }}>
+    <section>
       <div style={{ position: "relative", marginBottom: "1.25rem" }}>
         <span
           style={{
