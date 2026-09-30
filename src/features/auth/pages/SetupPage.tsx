@@ -23,6 +23,12 @@ import {
 } from "@/api/hooks/use-pets";
 import { useAuthStore } from "@/stores/auth-store";
 import { cn } from "@/lib/utils";
+import {
+  PACK_CODE_SIGNATURE_KEY,
+  PACK_CODE_SIGNED_EVENT,
+  clearStoredSignature,
+  readStoredSignature,
+} from "@/features/legal/pack-code-signature";
 
 /** Mensaje que emite PackCodePage al cerrar por firma exitosa —
  *  el tab padre (register/setup) lo escucha para marcar la
@@ -271,23 +277,43 @@ function PasswordForm({ token, onComplete }: PasswordProps) {
   const packCodeUrl =
     legalDocs.data?.code_of_the_pack.url ?? "/legal/codigo-de-la-manada";
 
-  // Pack code se firma en pestaña aparte — al firmar hace
-  // postMessage y aquí marcamos el checkbox. No podemos pre-llenar
-  // datos vía query string acá porque en el setup no pedimos nombre
-  // ni teléfono (vienen del walk-in del staff).
+  // Pack code se firma en pestaña aparte. Tres canales de detección
+  // (belt-and-suspenders para que el checkbox NUNCA quede stuck):
+  //  1) `message` (postMessage del tab que firmó)
+  //  2) `storage` (localStorage sync entre pestañas mismo origin)
+  //  3) `PACK_CODE_SIGNED_EVENT` (CustomEvent same-tab)
+  // Y en el mount, rehidratar del localStorage si ya firmó antes.
+  // Nota: en el setup no pre-llenamos datos vía query string porque
+  // no tenemos nombre/teléfono a mano (vienen del walk-in del staff).
   const packCodeSigned = watch("pack_code_accepted");
   useEffect(() => {
-    function handler(event: MessageEvent) {
-      if (event.origin !== window.location.origin) return;
-      const data = event.data as { type?: string } | undefined;
-      if (data?.type !== PACK_CODE_SIGNED_MESSAGE) return;
+    const markSigned = () =>
       setValue("pack_code_accepted", true as unknown as true, {
         shouldValidate: true,
         shouldDirty: true,
       });
-    }
-    window.addEventListener("message", handler);
-    return () => window.removeEventListener("message", handler);
+
+    if (readStoredSignature()) markSigned();
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { type?: string } | undefined;
+      if (data?.type === PACK_CODE_SIGNED_MESSAGE) markSigned();
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== PACK_CODE_SIGNATURE_KEY) return;
+      if (event.newValue) markSigned();
+    };
+    const onCustom = () => markSigned();
+
+    window.addEventListener("message", onMessage);
+    window.addEventListener("storage", onStorage);
+    window.addEventListener(PACK_CODE_SIGNED_EVENT, onCustom);
+    return () => {
+      window.removeEventListener("message", onMessage);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(PACK_CODE_SIGNED_EVENT, onCustom);
+    };
   }, [setValue]);
 
   async function onSubmit(data: PasswordValues) {
@@ -301,6 +327,9 @@ function PasswordForm({ token, onComplete }: PasswordProps) {
         disclaimer_accepted: data.disclaimer_accepted,
         pack_code_accepted: data.pack_code_accepted,
       });
+      // Backend ya creó el LegalAcceptance — el estado UI en
+      // localStorage ya no aporta.
+      clearStoredSignature();
       onComplete(r.access, r.refresh, r.user, r.pet_id);
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 400) {

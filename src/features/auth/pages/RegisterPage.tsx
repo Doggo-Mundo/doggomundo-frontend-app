@@ -12,6 +12,12 @@ import { FormErrors } from "@/components/shared/FormErrors";
 import { AuthLayout } from "@/features/auth/components/AuthLayout";
 import { mapApiErrors } from "@/features/auth/lib/map-api-errors";
 import { useLegalDocs, useRegister } from "@/api/hooks/use-auth";
+import {
+  PACK_CODE_SIGNATURE_KEY,
+  PACK_CODE_SIGNED_EVENT,
+  clearStoredSignature,
+  readStoredSignature,
+} from "@/features/legal/pack-code-signature";
 
 /** Mensaje que emite PackCodePage al cerrar por firma exitosa —
  *  el tab padre (register/setup) lo escucha para marcar la
@@ -98,23 +104,44 @@ export function RegisterPage() {
   const packCodeBaseUrl =
     legalDocs.data?.code_of_the_pack.url ?? "/legal/codigo-de-la-manada";
 
-  // Pack code se firma en pestaña aparte (target=_blank). Al firmar
-  // ese tab hace postMessage → aquí marcamos el checkbox. Como el
-  // usuario no puede tocar el checkbox directo, esto lo obliga a
-  // pasar por el flujo de firma.
+  // Pack code se firma en pestaña aparte. Tres canales de detección
+  // (belt-and-suspenders para que el checkbox NUNCA quede stuck):
+  //  1) `message` (postMessage del tab que firmó, cuando hay opener)
+  //  2) `storage` (localStorage sync entre pestañas del mismo origin)
+  //  3) `PACK_CODE_SIGNED_EVENT` (CustomEvent local — cubre el caso
+  //     raro de que firma y register vivan en el mismo tab)
+  // Y en el mount, si el user ya firmó en otro momento
+  // (localStorage persiste), arrancamos con el checkbox marcado.
   const packCodeSigned = watch("pack_code_accepted");
   useEffect(() => {
-    function handler(event: MessageEvent) {
-      if (event.origin !== window.location.origin) return;
-      const data = event.data as { type?: string } | undefined;
-      if (data?.type !== PACK_CODE_SIGNED_MESSAGE) return;
+    const markSigned = () =>
       setValue("pack_code_accepted", true as unknown as true, {
         shouldValidate: true,
         shouldDirty: true,
       });
-    }
-    window.addEventListener("message", handler);
-    return () => window.removeEventListener("message", handler);
+
+    // Rehidratar del localStorage en el mount.
+    if (readStoredSignature()) markSigned();
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { type?: string } | undefined;
+      if (data?.type === PACK_CODE_SIGNED_MESSAGE) markSigned();
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== PACK_CODE_SIGNATURE_KEY) return;
+      if (event.newValue) markSigned();
+    };
+    const onCustom = () => markSigned();
+
+    window.addEventListener("message", onMessage);
+    window.addEventListener("storage", onStorage);
+    window.addEventListener(PACK_CODE_SIGNED_EVENT, onCustom);
+    return () => {
+      window.removeEventListener("message", onMessage);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(PACK_CODE_SIGNED_EVENT, onCustom);
+    };
   }, [setValue]);
 
   // Pre-llena los datos del sign form del pack code con lo que ya
@@ -135,6 +162,10 @@ export function RegisterPage() {
   async function onSubmit(data: RegisterFormValues) {
     try {
       await registerMutation.mutateAsync(data);
+      // El backend ya creó el `LegalAcceptance` con el audit trail
+      // completo — el estado UI en localStorage ya no aporta y
+      // podría confundir a otro usuario en el mismo dispositivo.
+      clearStoredSignature();
       navigate(`/verify-email?email=${encodeURIComponent(data.email)}`, {
         replace: true,
       });

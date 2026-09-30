@@ -1,6 +1,7 @@
 import "@fontsource-variable/fredoka";
 import { Fragment, useEffect, useState } from "react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
+import { saveStoredSignature } from "@/features/legal/pack-code-signature";
 import {
   AlertTriangle,
   Bone,
@@ -57,6 +58,22 @@ const BODY_FONT = "'Montserrat Variable', system-ui, sans-serif";
 // -----------------------------------------------------------------
 
 export function PackCodePage() {
+  const cover = (
+    <Panel accent="cover">
+      <Cover />
+    </Panel>
+  );
+  const preamble = (
+    <Panel>
+      <Preamble />
+    </Panel>
+  );
+  const signForm = (
+    <Panel>
+      <SignForm />
+    </Panel>
+  );
+
   return (
     <div
       style={{
@@ -82,20 +99,14 @@ export function PackCodePage() {
           position: "relative",
         }}
       >
-        {/* Distribución JS: dividimos los 6 paneles en N columnas
-            respetando el orden de lectura y preservando pesos
-            aproximados. Los engines CSS (multi-column, grid) no
-            garantizan usar TODAS las N columnas cuando el contenido
-            es limitado — acá lo hacemos determinístico. */}
-        <MasonryColumns>
-          <Panel accent="cover">
-            <Cover />
-          </Panel>
-
-          <Panel>
-            <Preamble />
-          </Panel>
-
+        {/* Layout:
+            - Mobile (1 col): todo apilado en orden de lectura,
+              SignForm al final.
+            - Desktop: col 0 lleva Cover + Preámbulo + SignForm
+              (para que el usuario firme sin scrollear todo el
+              documento — aprovecha el aire libre de esa columna).
+              Las 4 Reglas se reparten en las columnas restantes. */}
+        <PackCodeLayout leading={[cover, preamble, signForm]}>
           <Panel>
         <Rule
           number={1}
@@ -275,11 +286,7 @@ export function PackCodePage() {
           </Point>
         </Rule>
           </Panel>
-
-          <Panel>
-            <SignForm />
-          </Panel>
-        </MasonryColumns>
+        </PackCodeLayout>
 
         <Footer />
 
@@ -319,33 +326,66 @@ function Panel({ accent = "default", children }: PanelProps) {
 }
 
 // -----------------------------------------------------------------
-// MasonryColumns — distribución determinística por JS
+// PackCodeLayout — orquesta la posición de la SignForm por viewport
 // -----------------------------------------------------------------
 
-interface MasonryProps {
+interface PackCodeLayoutProps {
+  /** Bloques que van en la columna izquierda en desktop (Cover,
+   *  Preámbulo, SignForm). En mobile se mezclan con `children`
+   *  reservando el último (SignForm) para el final absoluto. */
+  leading: ReactNode[];
+  /** Las 4 Reglas — se distribuyen entre las columnas restantes
+   *  en desktop, o se apilan en medio en mobile. */
   children: ReactNode;
 }
 
-/** Reparte los paneles en N columnas verticales según el viewport
- *  actual, preservando el orden de lectura. La idea: recorrer los
- *  paneles en orden y arrancar una nueva columna cuando la altura
- *  acumulada de la columna actual supera el target `total / N` —
- *  así siempre llenamos las N columnas antes de sobrecargar una.
- *  Con esto garantizamos que el ancho disponible se ocupe siempre,
- *  cosa que CSS multi-column no aseguraba en desktop wide. */
-function MasonryColumns({ children }: MasonryProps) {
+/** Layout responsive del código de la manada.
+ *  - 1 columna (mobile): [Cover, Preámbulo, Regla 1..4, SignForm].
+ *    SignForm al final para no romper la lectura.
+ *  - N > 1 columnas (desktop): col 0 = [Cover, Preámbulo, SignForm]
+ *    para que el usuario firme sin scrollear todo el documento y
+ *    aprovechar el aire libre de esa columna corta. Las Reglas se
+ *    reparten entre las N-1 columnas restantes preservando su
+ *    orden de lectura. */
+function PackCodeLayout({ leading, children }: PackCodeLayoutProps) {
   const cols = useColumnCount();
-  // Pesos empíricos por altura aproximada de cada panel — orden
-  // debe coincidir con el orden en que los hijos se declaran en la
-  // página (Cover, Preámbulo, Regla 1..4, SignForm). Si mañana
-  // agregamos otro panel hay que actualizar el arreglo.
-  const weights = [2, 1.5, 6, 5, 4, 6, 4.5];
-  const items = Array.isArray(children) ? children : [children];
-  const columns = distributeInOrder(items, cols, weights);
+  const rules = Array.isArray(children) ? children : [children];
+  // Pesos aproximados de las 4 Reglas por altura (5/4/3 puntos +
+  // Deslinde largo). Los usa distributeInOrder para decidir cuándo
+  // saltar de columna.
+  const ruleWeights = [6, 5, 4, 6];
+
+  if (cols === 1) {
+    // Mobile: leading[0..-2] arriba, Reglas en medio, SignForm al
+    // final (leading[leading.length - 1]).
+    const head = leading.slice(0, -1);
+    const tail = leading[leading.length - 1];
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "0.85rem",
+        }}
+      >
+        {head.map((node, i) => (
+          <Fragment key={`h${i}`}>{node}</Fragment>
+        ))}
+        {rules.map((node, i) => (
+          <Fragment key={`r${i}`}>{node}</Fragment>
+        ))}
+        <Fragment key="tail">{tail}</Fragment>
+      </div>
+    );
+  }
+
+  // Desktop: primera columna = leading, resto = Reglas repartidas.
+  const ruleColumns = distributeInOrder(rules, cols - 1, ruleWeights);
+  const allColumns = [leading, ...ruleColumns];
 
   return (
     <div style={{ display: "flex", alignItems: "flex-start", gap: "0.85rem" }}>
-      {columns.map((col, i) => (
+      {allColumns.map((col, i) => (
         <div
           key={i}
           style={{
@@ -811,15 +851,22 @@ function SignForm() {
     setSubmitted(true);
     if (!validate()) return;
 
+    const signature = {
+      full_name: fullName.trim(),
+      phone: phone.trim(),
+      pet_names: petNames.trim(),
+      signed_at: new Date().toISOString(),
+    };
     const payload: SignaturePayload = {
       type: PACK_CODE_SIGNED_MESSAGE,
-      signature: {
-        full_name: fullName.trim(),
-        phone: phone.trim(),
-        pet_names: petNames.trim(),
-        signed_at: new Date().toISOString(),
-      },
+      signature,
     };
+
+    // Persistir SIEMPRE en localStorage — así el register lo
+    // detecta aunque no exista `window.opener` (visita directa) o
+    // la pestaña padre se haya cerrado. También sirve para
+    // sobrevivir a un reload de la pestaña de registro.
+    saveStoredSignature(signature);
 
     const opener = window.opener as Window | null;
     if (opener && !opener.closed) {
@@ -836,7 +883,8 @@ function SignForm() {
       setTimeout(() => window.close(), 250);
     } else {
       // Visita directa (link compartido, bookmark). No hay a quién
-      // avisarle — mostramos confirmación local.
+      // avisarle vía postMessage — pero localStorage + storage
+      // event ya avisó a los otros tabs si el register está abierto.
       setOrphanSigned(true);
     }
   }
