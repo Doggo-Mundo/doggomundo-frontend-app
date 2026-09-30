@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,6 +12,11 @@ import { FormErrors } from "@/components/shared/FormErrors";
 import { AuthLayout } from "@/features/auth/components/AuthLayout";
 import { mapApiErrors } from "@/features/auth/lib/map-api-errors";
 import { useLegalDocs, useRegister } from "@/api/hooks/use-auth";
+
+/** Mensaje que emite PackCodePage al cerrar por firma exitosa —
+ *  el tab padre (register/setup) lo escucha para marcar la
+ *  huellita como aceptada. */
+const PACK_CODE_SIGNED_MESSAGE = "pack-code-signed";
 
 const registerSchema = z
   .object({
@@ -65,6 +71,8 @@ export function RegisterPage() {
     control,
     handleSubmit,
     setError,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -87,8 +95,42 @@ export function RegisterPage() {
     legalDocs.data?.privacy_policy.url ?? "/legal/privacy";
   const disclaimerUrl =
     legalDocs.data?.disclaimer.url ?? "/legal/disclaimer";
-  const packCodeUrl =
+  const packCodeBaseUrl =
     legalDocs.data?.code_of_the_pack.url ?? "/legal/codigo-de-la-manada";
+
+  // Pack code se firma en pestaña aparte (target=_blank). Al firmar
+  // ese tab hace postMessage → aquí marcamos el checkbox. Como el
+  // usuario no puede tocar el checkbox directo, esto lo obliga a
+  // pasar por el flujo de firma.
+  const packCodeSigned = watch("pack_code_accepted");
+  useEffect(() => {
+    function handler(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { type?: string } | undefined;
+      if (data?.type !== PACK_CODE_SIGNED_MESSAGE) return;
+      setValue("pack_code_accepted", true as unknown as true, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [setValue]);
+
+  // Pre-llena los datos del sign form del pack code con lo que ya
+  // escribió el usuario en el register — evita re-tipear nombre y
+  // teléfono en la pestaña de firma.
+  const firstName = watch("first_name");
+  const lastName = watch("last_name");
+  const phone = watch("phone");
+  const packCodeUrl = (() => {
+    const params = new URLSearchParams();
+    const name = [firstName, lastName].filter(Boolean).join(" ").trim();
+    if (name) params.set("name", name);
+    if (phone) params.set("phone", phone);
+    const query = params.toString();
+    return query ? `${packCodeBaseUrl}?${query}` : packCodeBaseUrl;
+  })();
 
   async function onSubmit(data: RegisterFormValues) {
     try {
@@ -282,27 +324,52 @@ export function RegisterPage() {
               />
             )}
           />
+          {/* F-G.4: el pack code no se puede marcar directo — el
+              usuario TIENE que abrir la pestaña de firma, llenar
+              sus datos y firmar. Al firmar, esa pestaña emite
+              postMessage y este useEffect marca el checkbox como
+              aceptado. */}
           <Controller
             control={control}
             name="pack_code_accepted"
             render={({ field }) => (
               <PawCheckbox
                 checked={Boolean(field.value)}
-                onChange={(e) => field.onChange(e.target.checked)}
+                disabled
+                readOnly
+                onChange={() => {
+                  /* no-op: solo se marca vía la firma en la pestaña
+                     nueva; ver onClick del link "Firmar" abajo. */
+                }}
                 error={errors.pack_code_accepted?.message}
                 label={
-                  <>
-                    He leído y acepto el{" "}
-                    <a
-                      href={packCodeUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium text-primary hover:underline"
-                    >
-                      Código de la Manada
-                    </a>
-                    .
-                  </>
+                  packCodeSigned ? (
+                    <span>
+                      <strong>Firmaste</strong> el{" "}
+                      <a
+                        href={packCodeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-primary hover:underline"
+                      >
+                        Código de la Manada
+                      </a>
+                      . ¡Bienvenido a la manada!
+                    </span>
+                  ) : (
+                    <span>
+                      Debes{" "}
+                      <a
+                        href={packCodeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-primary underline"
+                      >
+                        firmar el Código de la Manada
+                      </a>
+                      . Se abre en otra pestaña.
+                    </span>
+                  )
                 }
               />
             )}

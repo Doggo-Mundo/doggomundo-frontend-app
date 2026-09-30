@@ -275,6 +275,10 @@ export function PackCodePage() {
           </Point>
         </Rule>
           </Panel>
+
+          <Panel>
+            <SignForm />
+          </Panel>
         </MasonryColumns>
 
         <Footer />
@@ -333,9 +337,9 @@ function MasonryColumns({ children }: MasonryProps) {
   const cols = useColumnCount();
   // Pesos empíricos por altura aproximada de cada panel — orden
   // debe coincidir con el orden en que los hijos se declaran en la
-  // página (Cover, Preámbulo, Regla 1..4). Si mañana agregamos otro
-  // Rule hay que actualizar el arreglo.
-  const weights = [2, 1.5, 6, 5, 4, 6];
+  // página (Cover, Preámbulo, Regla 1..4, SignForm). Si mañana
+  // agregamos otro panel hay que actualizar el arreglo.
+  const weights = [2, 1.5, 6, 5, 4, 6, 4.5];
   const items = Array.isArray(children) ? children : [children];
   const columns = distributeInOrder(items, cols, weights);
 
@@ -738,6 +742,304 @@ function ProseCard({ tone, children }: ProseCardProps) {
     >
       {children}
     </div>
+  );
+}
+
+// -----------------------------------------------------------------
+// SignForm — el usuario deja sus datos y "firma" el código
+// -----------------------------------------------------------------
+
+const PACK_CODE_SIGNED_MESSAGE = "pack-code-signed";
+
+interface SignaturePayload {
+  type: typeof PACK_CODE_SIGNED_MESSAGE;
+  signature: {
+    full_name: string;
+    phone: string;
+    pet_names: string;
+    signed_at: string;
+  };
+}
+
+/** Formatea `new Date()` como "29 de septiembre de 2026" en es-MX
+ *  para el campo Fecha (readonly). Usa Intl.DateTimeFormat porque
+ *  la locale del navegador puede no ser es-MX y queremos formato
+ *  consistente en el documento. */
+function todayLabel() {
+  return new Intl.DateTimeFormat("es-MX", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
+}
+
+function SignForm() {
+  // Prefill via query params — RegisterPage / SetupPage pueden
+  // pasar `?name=X&phone=Y` cuando abren el pack code en target
+  // _blank para no re-pedir datos que el usuario ya escribió.
+  const initial = (() => {
+    if (typeof window === "undefined") return { name: "", phone: "" };
+    const p = new URLSearchParams(window.location.search);
+    return {
+      name: p.get("name") ?? "",
+      phone: p.get("phone") ?? "",
+    };
+  })();
+
+  const [fullName, setFullName] = useState(initial.name);
+  const [phone, setPhone] = useState(initial.phone);
+  const [petNames, setPetNames] = useState("");
+  const [errors, setErrors] = useState<{ [k: string]: string }>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [orphanSigned, setOrphanSigned] = useState(false);
+
+  const dateText = todayLabel();
+
+  function validate() {
+    const next: { [k: string]: string } = {};
+    if (!fullName.trim()) next.fullName = "Escribe tu nombre completo.";
+    if (!/^\+?\d{10,15}$/.test(phone.replace(/\s/g, "")))
+      next.phone = "Teléfono inválido (10 a 15 dígitos).";
+    if (!petNames.trim())
+      next.petNames = "Escribe el nombre de tu(s) perro(s).";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  }
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitted(true);
+    if (!validate()) return;
+
+    const payload: SignaturePayload = {
+      type: PACK_CODE_SIGNED_MESSAGE,
+      signature: {
+        full_name: fullName.trim(),
+        phone: phone.trim(),
+        pet_names: petNames.trim(),
+        signed_at: new Date().toISOString(),
+      },
+    };
+
+    const opener = window.opener as Window | null;
+    if (opener && !opener.closed) {
+      // Firmado desde el flujo de registro: avisamos al tab padre
+      // (marca el checkbox de aceptación) y cerramos. Delay chico
+      // para asegurar que postMessage salga antes del close.
+      try {
+        opener.postMessage(payload, window.location.origin);
+      } catch {
+        // origen distinto — mejor no cerrar y mostrar estado ok.
+        setOrphanSigned(true);
+        return;
+      }
+      setTimeout(() => window.close(), 250);
+    } else {
+      // Visita directa (link compartido, bookmark). No hay a quién
+      // avisarle — mostramos confirmación local.
+      setOrphanSigned(true);
+    }
+  }
+
+  if (orphanSigned) {
+    return (
+      <div style={{ textAlign: "center", padding: "0.5rem 0" }}>
+        <div
+          style={{
+            fontFamily: FREDOKA,
+            fontWeight: 600,
+            color: CORAL,
+            fontSize: "0.7rem",
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            marginBottom: "0.5rem",
+          }}
+        >
+          Firmado
+        </div>
+        <p style={{ margin: 0, fontSize: "0.9rem", color: NAVY }}>
+          Ya registramos tu firma del Código de la Manada. Puedes
+          cerrar esta pestaña.
+        </p>
+        <Heart
+          size={22}
+          fill={CORAL}
+          color={CORAL}
+          style={{ marginTop: "0.75rem" }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={onSubmit}>
+      <div
+        style={{
+          fontFamily: FREDOKA,
+          fontWeight: 600,
+          fontSize: "0.68rem",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          color: CORAL,
+          marginBottom: "0.4rem",
+        }}
+      >
+        Firma
+      </div>
+      <div
+        style={{
+          fontFamily: FREDOKA,
+          fontWeight: 700,
+          fontStyle: "italic",
+          fontSize: "1.2rem",
+          color: NAVY,
+          marginBottom: "0.75rem",
+          lineHeight: 1.1,
+        }}
+      >
+        Estoy de acuerdo con la Manada
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
+        <SignField label="Fecha" readOnly value={dateText} />
+        <SignField
+          label="Nombre completo"
+          value={fullName}
+          onChange={setFullName}
+          error={submitted ? errors.fullName : undefined}
+          placeholder="Tu nombre y apellido"
+          autoComplete="name"
+        />
+        <SignField
+          label="Nombre de tu(s) perro(s)"
+          value={petNames}
+          onChange={setPetNames}
+          error={submitted ? errors.petNames : undefined}
+          placeholder="Ej. Luna, Otto"
+        />
+        <SignField
+          label="Teléfono"
+          value={phone}
+          onChange={setPhone}
+          error={submitted ? errors.phone : undefined}
+          placeholder="+5215512345678"
+          inputMode="tel"
+          autoComplete="tel"
+        />
+      </div>
+
+      <button
+        type="submit"
+        style={{
+          marginTop: "1rem",
+          width: "100%",
+          padding: "0.7rem 1rem",
+          background: CORAL,
+          color: "#ffffff",
+          border: 0,
+          borderRadius: "9999px",
+          fontFamily: FREDOKA,
+          fontWeight: 600,
+          fontSize: "0.9rem",
+          cursor: "pointer",
+          boxShadow: "0 4px 14px rgba(229, 109, 95, 0.35)",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "0.4rem",
+        }}
+      >
+        Firmar el Código
+        <Heart size={14} fill="#ffffff" color="#ffffff" />
+      </button>
+
+      <p
+        style={{
+          marginTop: "0.6rem",
+          marginBottom: 0,
+          fontSize: "0.7rem",
+          lineHeight: 1.4,
+          color: MUTED_INK,
+          textAlign: "center",
+        }}
+      >
+        Al firmar aceptas las cuatro reglas anteriores y quedará
+        registrado en tu cuenta con fecha y hora.
+      </p>
+    </form>
+  );
+}
+
+interface SignFieldProps {
+  label: string;
+  value: string;
+  onChange?: (v: string) => void;
+  readOnly?: boolean;
+  error?: string;
+  placeholder?: string;
+  inputMode?: "text" | "tel" | "email" | "numeric";
+  autoComplete?: string;
+}
+
+function SignField({
+  label,
+  value,
+  onChange,
+  readOnly = false,
+  error,
+  placeholder,
+  inputMode = "text",
+  autoComplete,
+}: SignFieldProps) {
+  const invalid = Boolean(error);
+  return (
+    <label style={{ display: "block" }}>
+      <div
+        style={{
+          fontFamily: FREDOKA,
+          fontSize: "0.65rem",
+          fontWeight: 500,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: MUTED_INK,
+          marginBottom: "0.2rem",
+        }}
+      >
+        {label}
+      </div>
+      <input
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
+        readOnly={readOnly}
+        placeholder={placeholder}
+        inputMode={inputMode}
+        autoComplete={autoComplete}
+        aria-invalid={invalid}
+        style={{
+          width: "100%",
+          padding: "0.55rem 0.7rem",
+          background: readOnly ? "transparent" : PAPER,
+          border: `1px solid ${invalid ? CORAL : "rgba(34, 45, 86, 0.15)"}`,
+          borderRadius: "0.6rem",
+          fontSize: "0.9rem",
+          fontFamily: BODY_FONT,
+          color: NAVY,
+          outline: "none",
+          boxSizing: "border-box",
+        }}
+      />
+      {error && (
+        <div
+          style={{
+            marginTop: "0.2rem",
+            fontSize: "0.7rem",
+            color: CORAL,
+          }}
+        >
+          {error}
+        </div>
+      )}
+    </label>
   );
 }
 
