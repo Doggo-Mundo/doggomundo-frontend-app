@@ -473,7 +473,7 @@ function PasswordForm({ token, onComplete }: PasswordProps) {
           className={
             packCodeSigned
               ? "rounded-md bg-primary/10 px-2 py-1.5 ring-1 ring-primary/30 transition-colors"
-              : "rounded-md bg-destructive/5 px-2 py-1.5 ring-1 ring-destructive/25 ring-dashed transition-colors"
+              : "rounded-md bg-accent/15 px-2 py-1.5 ring-1 ring-accent/50 ring-dashed transition-colors"
           }
         >
           <Controller
@@ -510,7 +510,7 @@ function PasswordForm({ token, onComplete }: PasswordProps) {
                         href={packCodeUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="font-semibold text-destructive underline underline-offset-2"
+                        className="font-semibold text-primary underline underline-offset-2"
                       >
                         firmar el Código de la Manada
                       </a>
