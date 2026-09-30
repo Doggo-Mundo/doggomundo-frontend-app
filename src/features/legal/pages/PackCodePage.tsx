@@ -88,9 +88,17 @@ export function PackCodePage() {
             regla se coloca ahí mismo. `column-width` deja al
             browser decidir cuántas columnas caben — 1 en mobile,
             2 en tablet, 4-5 en desktop wide. */}
+        {/* `columnCount` + `columnWidth` juntos: el browser toma el
+            MÁXIMO count donde cada col siga siendo ≥ columnWidth.
+            Así en un desktop 1920px llegamos a 6 columnas (había
+            aire perdido con column-width solo, que el browser
+            interpretaba como min pero no forzaba a llenar). En
+            mobile / tablet baja automático porque el ancho no
+            alcanza para tantas × 17rem. */}
         <div
           style={{
             columnWidth: "17rem",
+            columnCount: 6,
             columnGap: "0.85rem",
           }}
         >
