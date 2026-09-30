@@ -63,8 +63,8 @@ export function PackCodePage() {
         background: CREAM,
         color: NAVY,
         fontFamily: BODY_FONT,
-        paddingTop: "calc(env(safe-area-inset-top) + 1rem)",
-        paddingBottom: "calc(env(safe-area-inset-bottom) + 3rem)",
+        paddingTop: "calc(env(safe-area-inset-top) + 0.75rem)",
+        paddingBottom: "calc(env(safe-area-inset-bottom) + 2rem)",
         position: "relative",
         overflow: "hidden",
       }}
@@ -76,22 +76,24 @@ export function PackCodePage() {
 
       <div
         style={{
-          maxWidth: "80rem",
           margin: "0 auto",
-          padding: "0 1.25rem",
+          padding: "0 clamp(0.75rem, 2.5vw, 1.5rem)",
           position: "relative",
         }}
       >
         {/* Grilla tipo tríptico/brochure: los "paneles" del PDF se
-            reordenan según el viewport — 3 columnas en desktop
-            ancho, 2 en tablet, 1 en mobile. Con `auto-fit +
-            minmax(320px, 1fr)` la CSS decide sola cuántas caben. */}
+            reordenan según el viewport. Con auto-fit + minmax(300px)
+            crecemos hasta la cantidad de columnas que quepan en el
+            ancho disponible — 1 en mobile, 2 tablet, 3-6 en desktop
+            wide. `dense` rellena huecos con paneles cortos para
+            que Cover + Preamble no dejen aire debajo. */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-            gap: "1.25rem",
+            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+            gap: "1rem",
             alignItems: "start",
+            gridAutoFlow: "dense",
           }}
         >
           <Panel accent="cover">
@@ -308,10 +310,10 @@ function Panel({ accent = "default", children }: PanelProps) {
     <div
       style={{
         background: PAPER,
-        borderRadius: "1.5rem",
-        padding: isCover ? "2rem 1.5rem" : "1.5rem 1.35rem",
+        borderRadius: "1.25rem",
+        padding: isCover ? "1.5rem 1.25rem" : "1.15rem 1.05rem",
         border: `1px solid ${BORDER}`,
-        boxShadow: "0 6px 24px rgba(34, 45, 86, 0.06)",
+        boxShadow: "0 4px 16px rgba(34, 45, 86, 0.05)",
         position: "relative",
       }}
     >
@@ -347,7 +349,7 @@ function Cover() {
           fontFamily: FREDOKA,
           fontWeight: 500,
           color: NAVY,
-          fontSize: "clamp(2.25rem, 6vw, 3rem)",
+          fontSize: "clamp(1.85rem, 5vw, 2.5rem)",
           lineHeight: 1,
           margin: 0,
           fontStyle: "italic",
@@ -361,7 +363,7 @@ function Cover() {
           fontFamily: FREDOKA,
           fontWeight: 700,
           color: CORAL,
-          fontSize: "clamp(2.5rem, 7vw, 3.5rem)",
+          fontSize: "clamp(2rem, 5.5vw, 2.85rem)",
           lineHeight: 1,
           margin: "0.25rem 0 0",
           fontStyle: "italic",
@@ -421,8 +423,8 @@ function Preamble() {
       <p
         style={{
           margin: 0,
-          fontSize: "0.98rem",
-          lineHeight: 1.6,
+          fontSize: "0.88rem",
+          lineHeight: 1.55,
           color: NAVY,
         }}
       >
@@ -453,13 +455,13 @@ function Rule({ number, title, children }: RuleProps) {
           style={{
             display: "inline-flex",
             alignItems: "center",
-            padding: "0.4rem 1.1rem",
+            padding: "0.3rem 0.9rem",
             background: CORAL,
             color: "#ffffff",
             borderRadius: "9999px",
             fontFamily: FREDOKA,
             fontWeight: 600,
-            fontSize: "0.85rem",
+            fontSize: "0.78rem",
             letterSpacing: "0.06em",
             textTransform: "uppercase",
             transform: "rotate(-1.5deg)",
@@ -471,12 +473,12 @@ function Rule({ number, title, children }: RuleProps) {
 
         <h2
           style={{
-            marginTop: "0.75rem",
+            marginTop: "0.6rem",
             marginBottom: 0,
             fontFamily: FREDOKA,
             fontWeight: 600,
             fontStyle: "italic",
-            fontSize: "clamp(1.65rem, 5.5vw, 2.15rem)",
+            fontSize: "clamp(1.4rem, 3vw, 1.75rem)",
             lineHeight: 1.05,
             color: NAVY,
             letterSpacing: "-0.01em",
@@ -503,7 +505,7 @@ function Rule({ number, title, children }: RuleProps) {
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
         {children}
       </div>
     </section>
@@ -530,11 +532,11 @@ function Point({ n, label, title, tone, icon: Icon, children }: PointProps) {
     <div
       style={{
         display: "flex",
-        gap: "0.9rem",
-        padding: "1.1rem 1.1rem 1.1rem 1rem",
+        gap: "0.75rem",
+        padding: "0.85rem 0.9rem 0.85rem 0.8rem",
         background: bg,
         border: `1px solid ${BORDER}`,
-        borderRadius: "1.15rem",
+        borderRadius: "0.95rem",
         position: "relative",
       }}
     >
@@ -542,8 +544,8 @@ function Point({ n, label, title, tone, icon: Icon, children }: PointProps) {
         aria-hidden
         style={{
           flexShrink: 0,
-          width: "2.35rem",
-          height: "2.35rem",
+          width: "2rem",
+          height: "2rem",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -552,24 +554,24 @@ function Point({ n, label, title, tone, icon: Icon, children }: PointProps) {
           borderRadius: "9999px",
           fontFamily: FREDOKA,
           fontWeight: 600,
-          fontSize: "1.05rem",
-          boxShadow: `0 3px 8px ${badge}40`,
+          fontSize: "0.95rem",
+          boxShadow: `0 2px 6px ${badge}40`,
         }}
       >
         {n}
       </div>
 
-      <div style={{ minWidth: 0, flex: 1, paddingRight: "2.5rem" }}>
+      <div style={{ minWidth: 0, flex: 1, paddingRight: "2rem" }}>
         {label && (
           <div
             style={{
               fontFamily: FREDOKA,
-              fontSize: "0.7rem",
+              fontSize: "0.65rem",
               fontWeight: 500,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
               color: MUTED_INK,
-              marginBottom: "0.15rem",
+              marginBottom: "0.1rem",
             }}
           >
             {label}
@@ -579,17 +581,18 @@ function Point({ n, label, title, tone, icon: Icon, children }: PointProps) {
           style={{
             fontFamily: FREDOKA,
             fontWeight: 600,
-            fontSize: "1.05rem",
+            fontSize: "0.98rem",
             color: NAVY,
-            marginBottom: "0.35rem",
+            marginBottom: "0.25rem",
+            lineHeight: 1.2,
           }}
         >
           {title}
         </div>
         <div
           style={{
-            fontSize: "0.92rem",
-            lineHeight: 1.55,
+            fontSize: "0.85rem",
+            lineHeight: 1.5,
             color: MUTED_INK,
           }}
         >
@@ -602,13 +605,13 @@ function Point({ n, label, title, tone, icon: Icon, children }: PointProps) {
           matched al badge para no gritar. */}
       <Icon
         aria-hidden
-        size={38}
+        size={30}
         strokeWidth={1.5}
         color={badge}
         style={{
           position: "absolute",
-          top: "0.9rem",
-          right: "0.9rem",
+          top: "0.7rem",
+          right: "0.7rem",
           opacity: 0.28,
         }}
       />
@@ -630,12 +633,12 @@ function ProseCard({ tone, children }: ProseCardProps) {
   return (
     <div
       style={{
-        padding: "1.1rem 1.15rem",
+        padding: "0.9rem 1rem",
         background: bg,
         border: `1px solid ${BORDER}`,
-        borderRadius: "1.15rem",
-        fontSize: "0.95rem",
-        lineHeight: 1.6,
+        borderRadius: "0.95rem",
+        fontSize: "0.87rem",
+        lineHeight: 1.55,
         color: NAVY,
       }}
     >
