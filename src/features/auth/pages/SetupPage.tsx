@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,6 +23,18 @@ import {
 } from "@/api/hooks/use-pets";
 import { useAuthStore } from "@/stores/auth-store";
 import { cn } from "@/lib/utils";
+import {
+  PACK_CODE_SIGNATURE_KEY,
+  PACK_CODE_SIGNED_EVENT,
+  clearStoredSignature,
+  readStoredSignature,
+} from "@/features/legal/pack-code-signature";
+
+/** Mensaje que emite PackCodePage al cerrar por firma exitosa —
+ *  el tab padre (register/setup) lo escucha para marcar la
+ *  huellita como aceptada. Debe coincidir con el mismo string en
+ *  PackCodePage y RegisterPage. */
+const PACK_CODE_SIGNED_MESSAGE = "pack-code-signed";
 
 /**
  * F-F.3: página que consume el magic-link del email de walk-in.
@@ -240,7 +252,7 @@ function PasswordForm({ token, onComplete }: PasswordProps) {
   const navigate = useNavigate();
   const legalDocs = useLegalDocs();
   const {
-    register, control, handleSubmit, setError,
+    register, control, handleSubmit, setError, setValue, watch,
     formState: { errors, isSubmitting },
   } = useForm<PasswordValues>({
     resolver: zodResolver(passwordSchema),
@@ -265,6 +277,45 @@ function PasswordForm({ token, onComplete }: PasswordProps) {
   const packCodeUrl =
     legalDocs.data?.code_of_the_pack.url ?? "/legal/codigo-de-la-manada";
 
+  // Pack code se firma en pestaña aparte. Tres canales de detección
+  // (belt-and-suspenders para que el checkbox NUNCA quede stuck):
+  //  1) `message` (postMessage del tab que firmó)
+  //  2) `storage` (localStorage sync entre pestañas mismo origin)
+  //  3) `PACK_CODE_SIGNED_EVENT` (CustomEvent same-tab)
+  // Y en el mount, rehidratar del localStorage si ya firmó antes.
+  // Nota: en el setup no pre-llenamos datos vía query string porque
+  // no tenemos nombre/teléfono a mano (vienen del walk-in del staff).
+  const packCodeSigned = watch("pack_code_accepted");
+  useEffect(() => {
+    const markSigned = () =>
+      setValue("pack_code_accepted", true as unknown as true, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+
+    if (readStoredSignature()) markSigned();
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { type?: string } | undefined;
+      if (data?.type === PACK_CODE_SIGNED_MESSAGE) markSigned();
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== PACK_CODE_SIGNATURE_KEY) return;
+      if (event.newValue) markSigned();
+    };
+    const onCustom = () => markSigned();
+
+    window.addEventListener("message", onMessage);
+    window.addEventListener("storage", onStorage);
+    window.addEventListener(PACK_CODE_SIGNED_EVENT, onCustom);
+    return () => {
+      window.removeEventListener("message", onMessage);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(PACK_CODE_SIGNED_EVENT, onCustom);
+    };
+  }, [setValue]);
+
   async function onSubmit(data: PasswordValues) {
     try {
       const r = await setup.mutateAsync({
@@ -276,6 +327,9 @@ function PasswordForm({ token, onComplete }: PasswordProps) {
         disclaimer_accepted: data.disclaimer_accepted,
         pack_code_accepted: data.pack_code_accepted,
       });
+      // Backend ya creó el LegalAcceptance — el estado UI en
+      // localStorage ya no aporta.
+      clearStoredSignature();
       onComplete(r.access, r.refresh, r.user, r.pet_id);
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 400) {
@@ -410,31 +464,64 @@ function PasswordForm({ token, onComplete }: PasswordProps) {
             />
           )}
         />
-        <Controller
-          control={control}
-          name="pack_code_accepted"
-          render={({ field }) => (
-            <PawCheckbox
-              checked={Boolean(field.value)}
-              onChange={(e) => field.onChange(e.target.checked)}
-              error={errors.pack_code_accepted?.message}
-              label={
-                <>
-                  He leído y acepto el{" "}
-                  <a
-                    href={packCodeUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-medium text-primary hover:underline"
-                  >
-                    Código de la Manada
-                  </a>
-                  .
-                </>
-              }
-            />
-          )}
-        />
+        {/* F-G.4: el pack code no se marca directo — el usuario
+            firma en la pestaña nueva y el checkbox se auto-marca
+            vía postMessage (ver useEffect arriba). Wrapper con
+            tinte coral cuando no ha firmado para destacar sobre
+            los otros checkboxes. */}
+        <div
+          className={
+            packCodeSigned
+              ? "rounded-md bg-primary/10 px-2 py-1.5 ring-1 ring-primary/30 transition-colors"
+              : "rounded-md bg-accent/15 px-2 py-1.5 ring-1 ring-accent/50 ring-dashed transition-colors"
+          }
+        >
+          <Controller
+            control={control}
+            name="pack_code_accepted"
+            render={({ field }) => (
+              <PawCheckbox
+                checked={Boolean(field.value)}
+                disabled
+                readOnly
+                onChange={() => {
+                  /* no-op: solo se marca vía la firma en la pestaña
+                     nueva; ver useEffect al inicio del PasswordForm. */
+                }}
+                error={errors.pack_code_accepted?.message}
+                label={
+                  packCodeSigned ? (
+                    <span>
+                      <strong>Firmaste</strong> el{" "}
+                      <a
+                        href={packCodeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-primary hover:underline"
+                      >
+                        Código de la Manada
+                      </a>
+                      . ¡Bienvenido a la manada!
+                    </span>
+                  ) : (
+                    <span>
+                      Debes{" "}
+                      <a
+                        href={packCodeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-primary underline underline-offset-2"
+                      >
+                        firmar el Código de la Manada
+                      </a>
+                      . Se abre en otra pestaña.
+                    </span>
+                  )
+                }
+              />
+            )}
+          />
+        </div>
       </div>
 
       <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
