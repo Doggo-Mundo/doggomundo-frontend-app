@@ -1,4 +1,5 @@
 import "@fontsource-variable/fredoka";
+import { Fragment, useEffect, useState } from "react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 import {
   AlertTriangle,
@@ -81,27 +82,12 @@ export function PackCodePage() {
           position: "relative",
         }}
       >
-        {/* Layout tipo masonry/Pinterest usando CSS multi-column:
-            los paneles fluyen top-to-bottom llenando cada columna
-            antes de saltar a la siguiente, así los paneles cortos
-            (Cover, Preámbulo) NO dejan aire debajo — la siguiente
-            regla se coloca ahí mismo. `column-width` deja al
-            browser decidir cuántas columnas caben — 1 en mobile,
-            2 en tablet, 4-5 en desktop wide. */}
-        {/* `columnCount` + `columnWidth` juntos: el browser toma el
-            MÁXIMO count donde cada col siga siendo ≥ columnWidth.
-            Así en un desktop 1920px llegamos a 6 columnas (había
-            aire perdido con column-width solo, que el browser
-            interpretaba como min pero no forzaba a llenar). En
-            mobile / tablet baja automático porque el ancho no
-            alcanza para tantas × 17rem. */}
-        <div
-          style={{
-            columnWidth: "17rem",
-            columnCount: 6,
-            columnGap: "0.85rem",
-          }}
-        >
+        {/* Distribución JS: dividimos los 6 paneles en N columnas
+            respetando el orden de lectura y preservando pesos
+            aproximados. Los engines CSS (multi-column, grid) no
+            garantizan usar TODAS las N columnas cuando el contenido
+            es limitado — acá lo hacemos determinístico. */}
+        <MasonryColumns>
           <Panel accent="cover">
             <Cover />
           </Panel>
@@ -289,7 +275,7 @@ export function PackCodePage() {
           </Point>
         </Rule>
           </Panel>
-        </div>
+        </MasonryColumns>
 
         <Footer />
 
@@ -321,25 +307,112 @@ function Panel({ accent = "default", children }: PanelProps) {
         border: `1px solid ${BORDER}`,
         boxShadow: "0 4px 16px rgba(34, 45, 86, 0.05)",
         position: "relative",
-        // masonry: evitar que el navegador parta un panel entre
-        // columnas. `break-inside` cubre CSS multi-column moderna;
-        // `pageBreakInside` es fallback para engines viejos que
-        // aún respetan la vieja spec de impresión.
-        breakInside: "avoid",
-        pageBreakInside: "avoid",
-        // `column-gap` solo separa horizontal — el vertical entre
-        // paneles apilados en la misma columna se maneja aquí.
-        marginBottom: "0.85rem",
-        // `inline-block` obliga al panel a comportarse como una
-        // unidad indivisible dentro del flujo de columnas (algunos
-        // engines tratan `block` con break-inside como parseable).
-        display: "inline-block",
-        width: "100%",
       }}
     >
       {children}
     </div>
   );
+}
+
+// -----------------------------------------------------------------
+// MasonryColumns — distribución determinística por JS
+// -----------------------------------------------------------------
+
+interface MasonryProps {
+  children: ReactNode;
+}
+
+/** Reparte los paneles en N columnas verticales según el viewport
+ *  actual, preservando el orden de lectura. La idea: recorrer los
+ *  paneles en orden y arrancar una nueva columna cuando la altura
+ *  acumulada de la columna actual supera el target `total / N` —
+ *  así siempre llenamos las N columnas antes de sobrecargar una.
+ *  Con esto garantizamos que el ancho disponible se ocupe siempre,
+ *  cosa que CSS multi-column no aseguraba en desktop wide. */
+function MasonryColumns({ children }: MasonryProps) {
+  const cols = useColumnCount();
+  // Pesos empíricos por altura aproximada de cada panel — orden
+  // debe coincidir con el orden en que los hijos se declaran en la
+  // página (Cover, Preámbulo, Regla 1..4). Si mañana agregamos otro
+  // Rule hay que actualizar el arreglo.
+  const weights = [2, 1.5, 6, 5, 4, 6];
+  const items = Array.isArray(children) ? children : [children];
+  const columns = distributeInOrder(items, cols, weights);
+
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", gap: "0.85rem" }}>
+      {columns.map((col, i) => (
+        <div
+          key={i}
+          style={{
+            flex: "1 1 0",
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.85rem",
+          }}
+        >
+          {col.map((node, j) => (
+            <Fragment key={j}>{node}</Fragment>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Determina el número de columnas según el ancho del viewport.
+ *  Breakpoints elegidos para que cada columna tenga entre 260-360px
+ *  de ancho — suficiente para dos-tres líneas de texto por bullet
+ *  sin sacrificar densidad. En SSR arranca en 1 y sube al hidratar. */
+function useColumnCount() {
+  const compute = () => {
+    if (typeof window === "undefined") return 1;
+    const w = window.innerWidth;
+    if (w >= 1600) return 5;
+    if (w >= 1280) return 4;
+    if (w >= 960) return 3;
+    if (w >= 640) return 2;
+    return 1;
+  };
+  const [cols, setCols] = useState<number>(compute);
+  useEffect(() => {
+    const handler = () => setCols(compute());
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return cols;
+}
+
+/** Distribuye items en `cols` columnas manteniendo el orden. Corta
+ *  hacia la siguiente columna cuando el peso acumulado supera
+ *  `total / cols`, evitando que la última columna se quede vacía. */
+function distributeInOrder(
+  items: ReactNode[],
+  cols: number,
+  weights: number[],
+): ReactNode[][] {
+  if (cols <= 1) return [items];
+  const total = weights.reduce((s, w) => s + w, 0);
+  const target = total / cols;
+  const columns: ReactNode[][] = [[]];
+  let currentWeight = 0;
+  items.forEach((item, idx) => {
+    const w = weights[idx] ?? 1;
+    const isLastColumn = columns.length === cols;
+    const wouldOverflow = currentWeight > 0 && currentWeight + w > target;
+    if (!isLastColumn && wouldOverflow) {
+      columns.push([item]);
+      currentWeight = w;
+    } else {
+      columns[columns.length - 1].push(item);
+      currentWeight += w;
+    }
+  });
+  // Rellenar con columnas vacías si por alguna razón quedaron menos
+  // que cols (ej. muchos items pesados juntos al principio).
+  while (columns.length < cols) columns.push([]);
+  return columns;
 }
 
 // -----------------------------------------------------------------
