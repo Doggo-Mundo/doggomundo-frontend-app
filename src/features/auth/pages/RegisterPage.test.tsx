@@ -1,7 +1,11 @@
-import { describe, expect, it } from "vitest";
-import { screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it } from "vitest";
+import { act, screen } from "@testing-library/react";
 import { RegisterPage } from "./RegisterPage";
 import { renderWithProviders } from "@/test/test-utils";
+import {
+  PACK_CODE_SIGNATURE_KEY,
+  PACK_CODE_SIGNED_EVENT,
+} from "@/features/legal/pack-code-signature";
 
 /** Devuelve los 4 checkbox inputs por su posición en el DOM
  *  (`PawCheckbox` usa React.useId() para generar `paw-<hookId>`;
@@ -20,6 +24,17 @@ function legalCheckboxes() {
   };
 }
 
+/** Simula la firma del Código de la Manada. La huellita está
+ *  disabled — no se puede activar por click; solo con el
+ *  CustomEvent que emite PackCodePage al firmar. Aquí lo
+ *  disparamos manualmente para poder testear el flujo del
+ *  register sin tener que montar la página del código. */
+function signPackCode() {
+  act(() => {
+    window.dispatchEvent(new CustomEvent(PACK_CODE_SIGNED_EVENT));
+  });
+}
+
 async function fillValidBaseForm(
   user: ReturnType<typeof renderWithProviders>["user"],
 ) {
@@ -31,7 +46,19 @@ async function fillValidBaseForm(
   await user.type(screen.getByLabelText(/repite la contraseña/i), "abcd1234");
 }
 
-describe("RegisterPage — client validation", () => {
+// Cada caso de este archivo tipea 6 campos + hace varios clicks —
+// user.type() es intencionadamente lento (simula tipeo real). En
+// paralelo con otras suites es fácil pasar los 5s default. Subimos
+// el testTimeout del archivo para que no falle por CPU contention.
+describe("RegisterPage — client validation", { timeout: 15000 }, () => {
+  // localStorage persiste entre tests dentro del mismo archivo —
+  // si un test dejó firma pack code guardada, el siguiente lo
+  // encontraría en el mount y marcaría el checkbox sin que el
+  // test lo haya pedido. Limpiamos para aislar cada caso.
+  beforeEach(() => {
+    window.localStorage.removeItem(PACK_CODE_SIGNATURE_KEY);
+  });
+
   it("shows a 'contraseñas no coinciden' error when they mismatch", async () => {
     const { user } = renderWithProviders(<RegisterPage />);
     await user.type(screen.getByLabelText(/^nombre$/i), "Vale");
@@ -46,13 +73,14 @@ describe("RegisterPage — client validation", () => {
     // El `.refine()` de zod que dispara "las contraseñas no
     // coinciden" solo corre si primero pasa la validación de todo
     // el object. Con los 4 legal `z.literal(true)` en el schema,
-    // debemos marcarlos aquí para que la validación llegue al
-    // refine y expose el error de mismatch que queremos aserar.
-    const { terms, privacy, disclaimer, packCode } = legalCheckboxes();
+    // debemos marcar los 3 clickeables + simular la firma del
+    // pack code para que la validación llegue al refine y expose
+    // el error de mismatch que queremos aserar.
+    const { terms, privacy, disclaimer } = legalCheckboxes();
     await user.click(terms);
     await user.click(privacy);
     await user.click(disclaimer);
-    await user.click(packCode);
+    signPackCode();
     await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
 
     expect(
@@ -111,6 +139,9 @@ describe("RegisterPage — client validation", () => {
     expect(
       screen.getByRole("link", { name: /^disclaimer$/i }),
     ).toHaveAttribute("href", "/legal/disclaimer");
+    // El pack code URL puede llevar query params (?name=…&phone=…)
+    // si el user ya escribió esos campos — aquí el form está vacío,
+    // así que sin query.
     expect(
       screen.getByRole("link", { name: /código de la manada/i }),
     ).toHaveAttribute("href", "/legal/codigo-de-la-manada");
@@ -120,10 +151,10 @@ describe("RegisterPage — client validation", () => {
     const { user } = renderWithProviders(<RegisterPage />);
     await fillValidBaseForm(user);
     // Marcamos los otros 3 para aislar el error del que nos interesa.
-    const { privacy, disclaimer, packCode } = legalCheckboxes();
+    const { privacy, disclaimer } = legalCheckboxes();
     await user.click(privacy);
     await user.click(disclaimer);
-    await user.click(packCode);
+    signPackCode();
     await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
 
     expect(
@@ -134,10 +165,10 @@ describe("RegisterPage — client validation", () => {
   it("rejects submit when the privacy checkbox is not checked", async () => {
     const { user } = renderWithProviders(<RegisterPage />);
     await fillValidBaseForm(user);
-    const { terms, disclaimer, packCode } = legalCheckboxes();
+    const { terms, disclaimer } = legalCheckboxes();
     await user.click(terms);
     await user.click(disclaimer);
-    await user.click(packCode);
+    signPackCode();
     await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
 
     expect(
@@ -148,10 +179,10 @@ describe("RegisterPage — client validation", () => {
   it("rejects submit when the disclaimer checkbox is not checked", async () => {
     const { user } = renderWithProviders(<RegisterPage />);
     await fillValidBaseForm(user);
-    const { terms, privacy, packCode } = legalCheckboxes();
+    const { terms, privacy } = legalCheckboxes();
     await user.click(terms);
     await user.click(privacy);
-    await user.click(packCode);
+    signPackCode();
     await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
 
     expect(
@@ -159,9 +190,12 @@ describe("RegisterPage — client validation", () => {
     ).toBeInTheDocument();
   });
 
-  it("rejects submit when the pack code checkbox is not checked", async () => {
+  it("rejects submit when the pack code checkbox is not signed", async () => {
     const { user } = renderWithProviders(<RegisterPage />);
     await fillValidBaseForm(user);
+    // No firmamos el pack code — clickearlo directamente no
+    // debería marcarlo (está disabled). El submit debe rebotar
+    // con el error específico del pack code.
     const { terms, privacy, disclaimer } = legalCheckboxes();
     await user.click(terms);
     await user.click(privacy);

@@ -466,52 +466,62 @@ function PasswordForm({ token, onComplete }: PasswordProps) {
         />
         {/* F-G.4: el pack code no se marca directo — el usuario
             firma en la pestaña nueva y el checkbox se auto-marca
-            vía postMessage (ver useEffect arriba). */}
-        <Controller
-          control={control}
-          name="pack_code_accepted"
-          render={({ field }) => (
-            <PawCheckbox
-              checked={Boolean(field.value)}
-              disabled
-              readOnly
-              onChange={() => {
-                /* no-op: solo se marca vía la firma en la pestaña
-                   nueva; ver useEffect al inicio del PasswordForm. */
-              }}
-              error={errors.pack_code_accepted?.message}
-              label={
-                packCodeSigned ? (
-                  <span>
-                    <strong>Firmaste</strong> el{" "}
-                    <a
-                      href={packCodeUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium text-primary hover:underline"
-                    >
-                      Código de la Manada
-                    </a>
-                    . ¡Bienvenido a la manada!
-                  </span>
-                ) : (
-                  <span>
-                    Debes{" "}
-                    <a
-                      href={packCodeUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium text-primary underline"
-                    >
-                      firmar el Código de la Manada
-                    </a>
-                    . Se abre en otra pestaña.
-                  </span>
-                )
-              }
-            />
-          )}
-        />
+            vía postMessage (ver useEffect arriba). Wrapper con
+            tinte coral cuando no ha firmado para destacar sobre
+            los otros checkboxes. */}
+        <div
+          className={
+            packCodeSigned
+              ? "rounded-md bg-primary/10 px-2 py-1.5 ring-1 ring-primary/30 transition-colors"
+              : "rounded-md bg-destructive/5 px-2 py-1.5 ring-1 ring-destructive/25 ring-dashed transition-colors"
+          }
+        >
+          <Controller
+            control={control}
+            name="pack_code_accepted"
+            render={({ field }) => (
+              <PawCheckbox
+                checked={Boolean(field.value)}
+                disabled
+                readOnly
+                onChange={() => {
+                  /* no-op: solo se marca vía la firma en la pestaña
+                     nueva; ver useEffect al inicio del PasswordForm. */
+                }}
+                error={errors.pack_code_accepted?.message}
+                label={
+                  packCodeSigned ? (
+                    <span>
+                      <strong>Firmaste</strong> el{" "}
+                      <a
+                        href={packCodeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-primary hover:underline"
+                      >
+                        Código de la Manada
+                      </a>
+                      . ¡Bienvenido a la manada!
+                    </span>
+                  ) : (
+                    <span>
+                      Debes{" "}
+                      <a
+                        href={packCodeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-destructive underline underline-offset-2"
+                      >
+                        firmar el Código de la Manada
+                      </a>
+                      . Se abre en otra pestaña.
+                    </span>
+                  )
+                }
+              />
+            )}
+          />
+        </div>
       </div>
 
       <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
