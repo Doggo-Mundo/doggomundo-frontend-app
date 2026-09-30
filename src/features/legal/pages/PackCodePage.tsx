@@ -90,8 +90,8 @@ export function PackCodePage() {
             2 en tablet, 4-5 en desktop wide. */}
         <div
           style={{
-            columnWidth: "20rem",
-            columnGap: "1rem",
+            columnWidth: "17rem",
+            columnGap: "0.85rem",
           }}
         >
           <Panel accent="cover">
@@ -308,8 +308,8 @@ function Panel({ accent = "default", children }: PanelProps) {
     <div
       style={{
         background: PAPER,
-        borderRadius: "1.25rem",
-        padding: isCover ? "1.5rem 1.25rem" : "1.15rem 1.05rem",
+        borderRadius: "1.1rem",
+        padding: isCover ? "1.15rem 1rem" : "0.9rem 0.85rem",
         border: `1px solid ${BORDER}`,
         boxShadow: "0 4px 16px rgba(34, 45, 86, 0.05)",
         position: "relative",
@@ -321,7 +321,7 @@ function Panel({ accent = "default", children }: PanelProps) {
         pageBreakInside: "avoid",
         // `column-gap` solo separa horizontal — el vertical entre
         // paneles apilados en la misma columna se maneja aquí.
-        marginBottom: "1rem",
+        marginBottom: "0.85rem",
         // `inline-block` obliga al panel a comportarse como una
         // unidad indivisible dentro del flujo de columnas (algunos
         // engines tratan `block` con break-inside como parseable).
@@ -361,7 +361,7 @@ function Cover() {
           fontFamily: FREDOKA,
           fontWeight: 500,
           color: NAVY,
-          fontSize: "clamp(1.85rem, 5vw, 2.5rem)",
+          fontSize: "clamp(1.55rem, 3.5vw, 2.1rem)",
           lineHeight: 1,
           margin: 0,
           fontStyle: "italic",
@@ -375,9 +375,9 @@ function Cover() {
           fontFamily: FREDOKA,
           fontWeight: 700,
           color: CORAL,
-          fontSize: "clamp(2rem, 5.5vw, 2.85rem)",
+          fontSize: "clamp(1.7rem, 4vw, 2.4rem)",
           lineHeight: 1,
-          margin: "0.25rem 0 0",
+          margin: "0.2rem 0 0",
           fontStyle: "italic",
           letterSpacing: "-0.02em",
           transform: "rotate(-2deg)",
@@ -388,10 +388,10 @@ function Cover() {
       </h1>
       <p
         style={{
-          marginTop: "1.5rem",
+          marginTop: "0.9rem",
           fontFamily: FREDOKA,
           fontWeight: 500,
-          fontSize: "1.05rem",
+          fontSize: "0.9rem",
           color: NAVY,
         }}
       >
@@ -423,11 +423,11 @@ function Preamble() {
         style={{
           fontFamily: FREDOKA,
           fontWeight: 600,
-          fontSize: "0.75rem",
+          fontSize: "0.68rem",
           letterSpacing: "0.1em",
           textTransform: "uppercase",
           color: CORAL,
-          marginBottom: "0.75rem",
+          marginBottom: "0.5rem",
         }}
       >
         Antes de empezar
@@ -435,8 +435,8 @@ function Preamble() {
       <p
         style={{
           margin: 0,
-          fontSize: "0.88rem",
-          lineHeight: 1.55,
+          fontSize: "0.8rem",
+          lineHeight: 1.5,
           color: NAVY,
         }}
       >
@@ -462,22 +462,22 @@ interface RuleProps {
 function Rule({ number, title, children }: RuleProps) {
   return (
     <section>
-      <div style={{ position: "relative", marginBottom: "1.25rem" }}>
+      <div style={{ position: "relative", marginBottom: "0.85rem" }}>
         <span
           style={{
             display: "inline-flex",
             alignItems: "center",
-            padding: "0.3rem 0.9rem",
+            padding: "0.22rem 0.75rem",
             background: CORAL,
             color: "#ffffff",
             borderRadius: "9999px",
             fontFamily: FREDOKA,
             fontWeight: 600,
-            fontSize: "0.78rem",
+            fontSize: "0.7rem",
             letterSpacing: "0.06em",
             textTransform: "uppercase",
             transform: "rotate(-1.5deg)",
-            boxShadow: "0 4px 12px rgba(229, 109, 95, 0.25)",
+            boxShadow: "0 3px 10px rgba(229, 109, 95, 0.22)",
           }}
         >
           Regla {number}
@@ -485,12 +485,12 @@ function Rule({ number, title, children }: RuleProps) {
 
         <h2
           style={{
-            marginTop: "0.6rem",
+            marginTop: "0.4rem",
             marginBottom: 0,
             fontFamily: FREDOKA,
             fontWeight: 600,
             fontStyle: "italic",
-            fontSize: "clamp(1.4rem, 3vw, 1.75rem)",
+            fontSize: "clamp(1.15rem, 2vw, 1.4rem)",
             lineHeight: 1.05,
             color: NAVY,
             letterSpacing: "-0.01em",
@@ -517,7 +517,7 @@ function Rule({ number, title, children }: RuleProps) {
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
         {children}
       </div>
     </section>
@@ -544,11 +544,11 @@ function Point({ n, label, title, tone, icon: Icon, children }: PointProps) {
     <div
       style={{
         display: "flex",
-        gap: "0.75rem",
-        padding: "0.85rem 0.9rem 0.85rem 0.8rem",
+        gap: "0.6rem",
+        padding: "0.65rem 0.7rem 0.65rem 0.6rem",
         background: bg,
         border: `1px solid ${BORDER}`,
-        borderRadius: "0.95rem",
+        borderRadius: "0.75rem",
         position: "relative",
       }}
     >
@@ -556,8 +556,8 @@ function Point({ n, label, title, tone, icon: Icon, children }: PointProps) {
         aria-hidden
         style={{
           flexShrink: 0,
-          width: "2rem",
-          height: "2rem",
+          width: "1.7rem",
+          height: "1.7rem",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -566,24 +566,25 @@ function Point({ n, label, title, tone, icon: Icon, children }: PointProps) {
           borderRadius: "9999px",
           fontFamily: FREDOKA,
           fontWeight: 600,
-          fontSize: "0.95rem",
+          fontSize: "0.85rem",
           boxShadow: `0 2px 6px ${badge}40`,
         }}
       >
         {n}
       </div>
 
-      <div style={{ minWidth: 0, flex: 1, paddingRight: "2rem" }}>
+      <div style={{ minWidth: 0, flex: 1, paddingRight: "1.6rem" }}>
         {label && (
           <div
             style={{
               fontFamily: FREDOKA,
-              fontSize: "0.65rem",
+              fontSize: "0.6rem",
               fontWeight: 500,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
               color: MUTED_INK,
-              marginBottom: "0.1rem",
+              marginBottom: "0.05rem",
+              lineHeight: 1.1,
             }}
           >
             {label}
@@ -593,18 +594,18 @@ function Point({ n, label, title, tone, icon: Icon, children }: PointProps) {
           style={{
             fontFamily: FREDOKA,
             fontWeight: 600,
-            fontSize: "0.98rem",
+            fontSize: "0.9rem",
             color: NAVY,
-            marginBottom: "0.25rem",
-            lineHeight: 1.2,
+            marginBottom: "0.2rem",
+            lineHeight: 1.15,
           }}
         >
           {title}
         </div>
         <div
           style={{
-            fontSize: "0.85rem",
-            lineHeight: 1.5,
+            fontSize: "0.78rem",
+            lineHeight: 1.45,
             color: MUTED_INK,
           }}
         >
@@ -617,13 +618,13 @@ function Point({ n, label, title, tone, icon: Icon, children }: PointProps) {
           matched al badge para no gritar. */}
       <Icon
         aria-hidden
-        size={30}
+        size={24}
         strokeWidth={1.5}
         color={badge}
         style={{
           position: "absolute",
-          top: "0.7rem",
-          right: "0.7rem",
+          top: "0.55rem",
+          right: "0.55rem",
           opacity: 0.28,
         }}
       />
@@ -645,12 +646,12 @@ function ProseCard({ tone, children }: ProseCardProps) {
   return (
     <div
       style={{
-        padding: "0.9rem 1rem",
+        padding: "0.7rem 0.8rem",
         background: bg,
         border: `1px solid ${BORDER}`,
-        borderRadius: "0.95rem",
-        fontSize: "0.87rem",
-        lineHeight: 1.55,
+        borderRadius: "0.75rem",
+        fontSize: "0.8rem",
+        lineHeight: 1.5,
         color: NAVY,
       }}
     >
