@@ -141,6 +141,7 @@ export interface RegisterRequest {
   first_name: string;
   last_name: string;
   email: string;
+  phone_country_code: string;
   phone: string;
   password: string;
   password_confirm: string;
@@ -247,6 +248,7 @@ export function useMe(enabled = true) {
 export interface UpdateMePayload {
   first_name?: string;
   last_name?: string;
+  phone_country_code?: string;
   phone?: string;
 }
 
