@@ -244,7 +244,6 @@ export function RegisterPage() {
           phoneName="phone"
           countryCodeError={errors.phone_country_code?.message}
           phoneError={errors.phone?.message}
-          required
         />
 
         <div className="space-y-1.5">
