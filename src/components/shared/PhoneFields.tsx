@@ -66,8 +66,18 @@ export function PhoneFields<T extends FieldValues>({
           autoComplete="tel-national"
           inputMode="numeric"
           placeholder="5512345678"
+          maxLength={15}
           aria-invalid={Boolean(phoneError)}
-          {...register(phoneName)}
+          {...register(phoneName, {
+            // `type="tel"` e `inputMode="numeric"` son solo hints —
+            // no bloquean letras ni símbolos al teclear. Filtramos
+            // en vivo para que sea imposible escribir algo que no
+            // sean dígitos (el código de país va aparte, en el
+            // Select, así que tampoco aceptamos "+" aquí).
+            onChange: (e) => {
+              e.target.value = e.target.value.replace(/\D/g, "");
+            },
+          })}
         />
       </div>
       {countryCodeError && <p className="text-sm text-destructive">{countryCodeError}</p>}
