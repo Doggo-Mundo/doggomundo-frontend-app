@@ -845,6 +845,15 @@ function SignForm() {
 
   const dateText = todayLabel();
 
+  // El input nativo no bloquea letras/símbolos solo por tener
+  // inputMode="tel" — filtramos en vivo. Se preserva un "+" inicial
+  // (entrada directa sin prefill no tiene selector de país aparte).
+  function handlePhoneChange(value: string) {
+    const hasLeadingPlus = value.startsWith("+");
+    const digits = value.replace(/\D/g, "");
+    setPhone(hasLeadingPlus ? `+${digits}` : digits);
+  }
+
   function validate() {
     const next: { [k: string]: string } = {};
     if (!fullName.trim()) next.fullName = "Escribe tu nombre completo.";
@@ -983,7 +992,7 @@ function SignForm() {
               ? `${initial.phoneCountryCode} ${initial.phoneNumber}`
               : phone
           }
-          onChange={setPhone}
+          onChange={handlePhoneChange}
           readOnly={phoneIsPrefilled}
           error={submitted ? errors.phone : undefined}
           placeholder="+52 5512345678"
