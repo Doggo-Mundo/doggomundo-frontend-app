@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { AuthGuard } from "@/components/layout/AuthGuard";
+import { GuestGuard } from "@/components/layout/GuestGuard";
 import { DoggoLoader } from "@/components/shared/DoggoLoader";
 import { useAuthRestore } from "@/hooks/use-auth-restore";
 import { SHOP_ENABLED } from "@/lib/features";
@@ -268,9 +269,11 @@ export function AppRouter() {
   return (
     <Suspense fallback={<SuspendedFallback />}>
       <Routes>
-        {/* Public */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        {/* Public — solo para visitantes sin sesión */}
+        <Route element={<GuestGuard />}>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+        </Route>
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
