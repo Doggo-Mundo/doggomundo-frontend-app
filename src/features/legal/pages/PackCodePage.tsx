@@ -814,26 +814,45 @@ function todayLabel() {
 }
 
 function SignForm() {
-  // Prefill via query params — RegisterPage / SetupPage pueden
-  // pasar `?name=X&phone=Y` cuando abren el pack code en target
-  // _blank para no re-pedir datos que el usuario ya escribió.
+  // Prefill via query params — RegisterPage / SetupPage pueden pasar
+  // `?name=X&phone_country_code=Y&phone=Z` cuando abren el pack code
+  // en target _blank para no re-pedir datos que el usuario ya
+  // escribió. Si vienen prellenados, el dato ya se capturó (y
+  // validó) en el form de registro — aquí solo se muestra, no se
+  // vuelve a pedir editable (ver `nameIsPrefilled`/`phoneIsPrefilled`).
   const initial = (() => {
-    if (typeof window === "undefined") return { name: "", phone: "" };
+    if (typeof window === "undefined") {
+      return { name: "", phoneCountryCode: "", phoneNumber: "" };
+    }
     const p = new URLSearchParams(window.location.search);
     return {
       name: p.get("name") ?? "",
-      phone: p.get("phone") ?? "",
+      phoneCountryCode: p.get("phone_country_code") ?? "",
+      phoneNumber: p.get("phone") ?? "",
     };
   })();
+  const nameIsPrefilled = Boolean(initial.name);
+  const phoneIsPrefilled = Boolean(initial.phoneCountryCode && initial.phoneNumber);
 
   const [fullName, setFullName] = useState(initial.name);
-  const [phone, setPhone] = useState(initial.phone);
+  const [phone, setPhone] = useState(
+    phoneIsPrefilled ? `${initial.phoneCountryCode}${initial.phoneNumber}` : "",
+  );
   const [petNames, setPetNames] = useState("");
   const [errors, setErrors] = useState<{ [k: string]: string }>({});
   const [submitted, setSubmitted] = useState(false);
   const [orphanSigned, setOrphanSigned] = useState(false);
 
   const dateText = todayLabel();
+
+  // El input nativo no bloquea letras/símbolos solo por tener
+  // inputMode="tel" — filtramos en vivo. Se preserva un "+" inicial
+  // (entrada directa sin prefill no tiene selector de país aparte).
+  function handlePhoneChange(value: string) {
+    const hasLeadingPlus = value.startsWith("+");
+    const digits = value.replace(/\D/g, "");
+    setPhone(hasLeadingPlus ? `+${digits}` : digits);
+  }
 
   function validate() {
     const next: { [k: string]: string } = {};
@@ -954,6 +973,7 @@ function SignForm() {
           label="Nombre completo"
           value={fullName}
           onChange={setFullName}
+          readOnly={nameIsPrefilled}
           error={submitted ? errors.fullName : undefined}
           placeholder="Tu nombre y apellido"
           autoComplete="name"
@@ -967,10 +987,15 @@ function SignForm() {
         />
         <SignField
           label="Teléfono"
-          value={phone}
-          onChange={setPhone}
+          value={
+            phoneIsPrefilled
+              ? `${initial.phoneCountryCode} ${initial.phoneNumber}`
+              : phone
+          }
+          onChange={handlePhoneChange}
+          readOnly={phoneIsPrefilled}
           error={submitted ? errors.phone : undefined}
-          placeholder="+5215512345678"
+          placeholder="+52 5512345678"
           inputMode="tel"
           autoComplete="tel"
         />

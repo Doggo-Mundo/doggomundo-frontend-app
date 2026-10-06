@@ -64,7 +64,7 @@ describe("RegisterPage — client validation", { timeout: 15000 }, () => {
     await user.type(screen.getByLabelText(/^nombre$/i), "Vale");
     await user.type(screen.getByLabelText(/^apellido$/i), "Pérez");
     await user.type(screen.getByLabelText(/email/i), "v@example.com");
-    await user.type(screen.getByLabelText(/teléfono/i), "+525512345678");
+    await user.type(screen.getByLabelText(/teléfono/i), "5512345678");
     await user.type(screen.getByLabelText(/^contraseña$/i), "abcd1234");
     await user.type(
       screen.getByLabelText(/repite la contraseña/i),
@@ -108,7 +108,7 @@ describe("RegisterPage — client validation", { timeout: 15000 }, () => {
     await user.type(screen.getByLabelText(/^nombre$/i), "Vale");
     await user.type(screen.getByLabelText(/^apellido$/i), "Pérez");
     await user.type(screen.getByLabelText(/email/i), "v@example.com");
-    await user.type(screen.getByLabelText(/teléfono/i), "+525512345678");
+    await user.type(screen.getByLabelText(/teléfono/i), "5512345678");
     await user.type(screen.getByLabelText(/^contraseña$/i), "short");
     await user.type(screen.getByLabelText(/repite la contraseña/i), "short");
     await user.click(screen.getByRole("button", { name: /crear cuenta/i }));

@@ -7,6 +7,7 @@ export interface User {
   last_name: string;
   full_name: string;
   username: string;
+  phone_country_code: string;
   phone: string;
   photo: string | null;
   user_type: UserType;

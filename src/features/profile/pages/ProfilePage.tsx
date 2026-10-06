@@ -31,7 +31,9 @@ import {
 } from "@/components/ui/card";
 import { FormErrors } from "@/components/shared/FormErrors";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { PhoneFields } from "@/components/shared/PhoneFields";
 import { UserAvatar } from "@/components/shared/UserAvatar";
+import { DEFAULT_COUNTRY_CODE } from "@/data/country-codes";
 import { useMe, useUpdateMe, useUpdateMyPhoto } from "@/api/hooks/use-auth";
 import { useAuthStore } from "@/stores/auth-store";
 import { mapApiErrors } from "@/features/auth/lib/map-api-errors";
@@ -41,9 +43,10 @@ const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024;
 const schema = z.object({
   first_name: z.string().min(1, "El nombre es requerido"),
   last_name: z.string().min(1, "El apellido es requerido"),
+  phone_country_code: z.string().min(1, "Selecciona un país"),
   phone: z
     .string()
-    .regex(/^\+?\d{10,15}$/, "Teléfono inválido (10–15 dígitos)"),
+    .regex(/^\d{10,15}$/, "Teléfono inválido (10–15 dígitos)"),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -59,6 +62,7 @@ export function ProfilePage() {
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     setError,
@@ -68,6 +72,7 @@ export function ProfilePage() {
     defaultValues: {
       first_name: current?.first_name ?? "",
       last_name: current?.last_name ?? "",
+      phone_country_code: current?.phone_country_code ?? DEFAULT_COUNTRY_CODE,
       phone: current?.phone ?? "",
     },
   });
@@ -77,6 +82,7 @@ export function ProfilePage() {
       reset({
         first_name: user.first_name,
         last_name: user.last_name,
+        phone_country_code: user.phone_country_code || DEFAULT_COUNTRY_CODE,
         phone: user.phone,
       });
     }
@@ -203,21 +209,14 @@ export function ProfilePage() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="phone">Teléfono</Label>
-              <Input
-                id="phone"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder="+5215512345678"
-                aria-invalid={Boolean(errors.phone)}
-                {...register("phone")}
-              />
-              {errors.phone && (
-                <p className="text-sm text-destructive">{errors.phone.message}</p>
-              )}
-            </div>
+            <PhoneFields
+              control={control}
+              register={register}
+              countryCodeName="phone_country_code"
+              phoneName="phone"
+              countryCodeError={errors.phone_country_code?.message}
+              phoneError={errors.phone?.message}
+            />
 
             <Button type="submit" disabled={isSubmitting || !isDirty}>
               {isSubmitting ? "Guardando…" : "Guardar cambios"}
