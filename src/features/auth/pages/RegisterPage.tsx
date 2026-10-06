@@ -9,6 +9,8 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { PawCheckbox } from "@/components/ui/paw-checkbox";
 import { FormErrors } from "@/components/shared/FormErrors";
+import { PhoneFields } from "@/components/shared/PhoneFields";
+import { DEFAULT_COUNTRY_CODE } from "@/data/country-codes";
 import { AuthLayout } from "@/features/auth/components/AuthLayout";
 import { mapApiErrors } from "@/features/auth/lib/map-api-errors";
 import { useLegalDocs, useRegister } from "@/api/hooks/use-auth";
@@ -29,9 +31,10 @@ const registerSchema = z
     first_name: z.string().min(1, "El nombre es requerido"),
     last_name: z.string().min(1, "El apellido es requerido"),
     email: z.string().email("Email inválido"),
+    phone_country_code: z.string().min(1, "Selecciona un país"),
     phone: z
       .string()
-      .regex(/^\+?\d{10,15}$/, "Teléfono inválido (10–15 dígitos)"),
+      .regex(/^\d{10,15}$/, "Teléfono inválido (10–15 dígitos)"),
     password: z.string().min(8, "Mínimo 8 caracteres"),
     password_confirm: z.string(),
     // F-G.2 + F-G.4: 4 consentimientos required. Zod `literal(true)`
@@ -86,6 +89,7 @@ export function RegisterPage() {
       first_name: "",
       last_name: "",
       email: "",
+      phone_country_code: DEFAULT_COUNTRY_CODE,
       phone: "",
       password: "",
       password_confirm: "",
@@ -149,12 +153,13 @@ export function RegisterPage() {
   // teléfono en la pestaña de firma.
   const firstName = watch("first_name");
   const lastName = watch("last_name");
+  const phoneCountryCode = watch("phone_country_code");
   const phone = watch("phone");
   const packCodeUrl = (() => {
     const params = new URLSearchParams();
     const name = [firstName, lastName].filter(Boolean).join(" ").trim();
     if (name) params.set("name", name);
-    if (phone) params.set("phone", phone);
+    if (phone) params.set("phone", `${phoneCountryCode}${phone}`);
     const query = params.toString();
     return query ? `${packCodeBaseUrl}?${query}` : packCodeBaseUrl;
   })();
@@ -232,21 +237,15 @@ export function RegisterPage() {
           )}
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="phone">Teléfono</Label>
-          <Input
-            id="phone"
-            type="tel"
-            autoComplete="tel"
-            inputMode="tel"
-            placeholder="+5215512345678"
-            aria-invalid={Boolean(errors.phone)}
-            {...register("phone")}
-          />
-          {errors.phone && (
-            <p className="text-sm text-destructive">{errors.phone.message}</p>
-          )}
-        </div>
+        <PhoneFields
+          control={control}
+          register={register}
+          countryCodeName="phone_country_code"
+          phoneName="phone"
+          countryCodeError={errors.phone_country_code?.message}
+          phoneError={errors.phone?.message}
+          required
+        />
 
         <div className="space-y-1.5">
           <Label htmlFor="password">Contraseña</Label>
