@@ -159,7 +159,10 @@ export function RegisterPage() {
     const params = new URLSearchParams();
     const name = [firstName, lastName].filter(Boolean).join(" ").trim();
     if (name) params.set("name", name);
-    if (phone) params.set("phone", `${phoneCountryCode}${phone}`);
+    if (phone) {
+      params.set("phone_country_code", phoneCountryCode);
+      params.set("phone", phone);
+    }
     const query = params.toString();
     return query ? `${packCodeBaseUrl}?${query}` : packCodeBaseUrl;
   })();
