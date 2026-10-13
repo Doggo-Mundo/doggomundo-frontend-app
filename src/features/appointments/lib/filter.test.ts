@@ -35,6 +35,9 @@ describe("isTerminal", () => {
     expect(isTerminal("cancelled")).toBe(true);
     expect(isTerminal("no_show")).toBe(true);
   });
+  it("matches pending_review — awaiting admin closure, not actionable", () => {
+    expect(isTerminal("pending_review")).toBe(true);
+  });
   it("does not match live states", () => {
     expect(isTerminal("scheduled")).toBe(false);
     expect(isTerminal("checked_in")).toBe(false);
