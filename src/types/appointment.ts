@@ -10,7 +10,11 @@ export type AppointmentStatus =
   // confirming a late cancel; the two no-show variants are admin-only.
   | "penalty_cancel"
   | "penalty_no_show"
-  | "graced_no_show";
+  | "graced_no_show"
+  // Set by the nightly cronjob when an appointment's scheduled_end passes
+  // without a final transition. Admin resolves it — the customer only sees
+  // it as "awaiting closure", never as an actionable state.
+  | "pending_review";
 
 export const APPOINTMENT_STATUS_LABEL: Record<AppointmentStatus, string> = {
   scheduled: "Programada",
@@ -21,6 +25,7 @@ export const APPOINTMENT_STATUS_LABEL: Record<AppointmentStatus, string> = {
   penalty_cancel: "Cancelada con cargo",
   penalty_no_show: "No asistió (con cargo)",
   graced_no_show: "No asistió (sin cargo)",
+  pending_review: "Pendiente de cierre",
 };
 
 export type AppointmentChannel = "walkin" | "phone" | "whatsapp" | "web";
