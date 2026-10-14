@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,6 +10,12 @@ import { OtpInput } from "@/components/ui/otp-input";
 import { FormErrors } from "@/components/shared/FormErrors";
 import { AuthLayout } from "@/features/auth/components/AuthLayout";
 import { mapApiErrors } from "@/features/auth/lib/map-api-errors";
+import {
+  DEFAULT_RESEND_COOLDOWN_SECONDS,
+  formatCountdown,
+  getRetryAfterSeconds,
+} from "@/features/auth/lib/resend-cooldown";
+import { useCountdown } from "@/hooks/use-countdown";
 import {
   markFirstPetPending,
   markSegmentationPending,
@@ -30,6 +37,7 @@ export function VerifyEmailPage() {
   const email = params.get("email") ?? "";
   const verify = useVerifyEmail();
   const resend = useResendVerificationOtp();
+  const { remaining, start } = useCountdown();
 
   const {
     control,
@@ -40,6 +48,13 @@ export function VerifyEmailPage() {
     resolver: zodResolver(verifySchema),
     defaultValues: { otp: "" },
   });
+
+  // El registro ya mandó el primer código justo antes de llegar acá —
+  // arranca el cooldown de una vez para que "Reenviar" no quede
+  // disponible de inmediato.
+  useEffect(() => {
+    if (email) start(DEFAULT_RESEND_COOLDOWN_SECONDS);
+  }, [email, start]);
 
   if (!email) {
     return <Navigate to="/register" replace />;
@@ -64,11 +79,19 @@ export function VerifyEmailPage() {
   }
 
   async function handleResend() {
+    if (remaining > 0 || resend.isPending) return;
     try {
       await resend.mutateAsync(email);
       toast.success("Te enviamos un nuevo código.");
-    } catch {
-      toast.error("No pudimos reenviar el código. Intenta de nuevo.");
+      start(DEFAULT_RESEND_COOLDOWN_SECONDS);
+    } catch (err) {
+      const retryAfter = getRetryAfterSeconds(err);
+      if (retryAfter !== null) {
+        start(retryAfter);
+        toast.error("Demasiados intentos. Espera antes de volver a pedir un código.");
+      } else {
+        toast.error("No pudimos reenviar el código. Intenta de nuevo.");
+      }
     }
   }
 
@@ -80,10 +103,14 @@ export function VerifyEmailPage() {
         <button
           type="button"
           onClick={handleResend}
-          disabled={resend.isPending}
-          className="font-medium text-primary hover:underline disabled:opacity-60"
+          disabled={resend.isPending || remaining > 0}
+          className="font-medium text-primary hover:underline disabled:opacity-60 disabled:no-underline"
         >
-          {resend.isPending ? "Reenviando…" : "Reenviar código"}
+          {resend.isPending
+            ? "Reenviando…"
+            : remaining > 0
+              ? `Reenviar código (${formatCountdown(remaining)})`
+              : "Reenviar código"}
         </button>
       }
     >
