@@ -31,14 +31,15 @@ import {
   useFoodBrands,
   useFoodTypes,
 } from "@/api/hooks/use-pets";
-import { GENDER_LABEL, SIZE_LABEL } from "@/types/pet";
-import type { CreatePetPayload, Gender, PetSize } from "@/types/pet";
+import { COAT_TYPE_LABEL, GENDER_LABEL, SIZE_LABEL } from "@/types/pet";
+import type { CoatType, CreatePetPayload, Gender, PetSize } from "@/types/pet";
 import {
   birthDateSchema,
   todayInMxTz,
 } from "@/features/pets/lib/birth-date";
 
 const SIZE_VALUES = ["SMALL", "MEDIUM", "LARGE", "X_LARGE"] as const;
+const COAT_TYPE_VALUES = ["SHORT", "LONG"] as const;
 
 const schema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
@@ -52,6 +53,9 @@ const schema = z.object({
   birth_date: birthDateSchema,
   food_type: z.string().optional(),
   food_brand: z.string().optional(),
+  // F-G.4: opcional — solo hace falta para reservar grooming, no
+  // para dar de alta a un Doggo.
+  coat_type: z.enum(COAT_TYPE_VALUES).optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -91,6 +95,7 @@ export function PetCreatePage() {
         ...(data.birth_date ? { birth_date: data.birth_date } : {}),
         ...(data.food_type ? { food_type: data.food_type } : {}),
         ...(data.food_brand ? { food_brand: data.food_brand } : {}),
+        ...(data.coat_type ? { coat_type: data.coat_type as CoatType } : {}),
       };
       const pet = await create.mutateAsync(payload);
       toast.success(`${pet.name} quedó registrado. Ahora completa su perfil.`);
@@ -184,6 +189,33 @@ export function PetCreatePage() {
                   {errors.size.message}
                 </p>
               )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="coat_type">Tipo de pelo</Label>
+              <Controller
+                control={control}
+                name="coat_type"
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger id="coat_type" className="w-full">
+                      <SelectValue placeholder="Opcional — para grooming" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(COAT_TYPE_LABEL) as CoatType[]).map(
+                        (c) => (
+                          <SelectItem key={c} value={c}>
+                            {COAT_TYPE_LABEL[c]}
+                          </SelectItem>
+                        ),
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
 
             <div className="space-y-1.5">

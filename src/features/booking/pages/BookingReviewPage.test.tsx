@@ -29,6 +29,7 @@ function seedFlow() {
       price: "450.00",
       durationMinutes: 60,
       requiresPet: true,
+      pricingMode: "FLAT",
     },
     slot: {
       slotId: "slot-1",

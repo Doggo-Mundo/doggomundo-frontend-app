@@ -30,8 +30,9 @@ export function ServicePickerPage() {
       price: service.base_price,
       durationMinutes: service.base_duration_minutes,
       requiresPet: service.requires_pet,
+      pricingMode: service.pricing_mode,
     });
-    navigate("/book/slot");
+    navigate("/book/pet");
   }
 
   return (

@@ -1,6 +1,9 @@
 export type Species = "DOG" | "CAT";
 export type Gender = "MALE" | "FEMALE" | "UNKNOWN";
 export type PetSize = "SMALL" | "MEDIUM" | "LARGE" | "X_LARGE";
+/** F-G.4: usado por la calculadora de grooming (tamaño × pelo) —
+ *  distinto de `PetSize`, que es el enum legacy de 4 niveles. */
+export type CoatType = "SHORT" | "LONG";
 
 /** Shape returned by /pets/breeds/, /pets/food-types/, /pets/food-brands/. */
 export interface LookupOption {
@@ -21,6 +24,9 @@ export interface Pet {
   /** Legacy — kept in DB but not surfaced in the customer form. */
   size: PetSize | null;
   weight: string | null;
+  /** F-G.4: opcional — solo se pide al editar el perfil completo,
+   *  necesario para cotizar servicios de grooming por tamaño/pelo. */
+  coat_type: CoatType | null;
   microchip_id: string | null;
   photo: string | null;
   health_notes: string;
@@ -63,6 +69,9 @@ export interface CreatePetPayload {
   food_type?: string;
   food_brand?: string;
   birth_date?: string;
+  /** F-G.4: opcional — a diferencia de weight, el endpoint de create
+   *  (PetBasicSerializer) sí lo acepta desde el alta. */
+  coat_type?: CoatType;
 }
 
 export interface UpdatePetBasicPayload {
@@ -81,6 +90,11 @@ export interface UpdatePetCompletePayload {
   photo?: string;
   health_notes?: string;
   allergies?: string;
+  /** F-G.4: ambos opcionales — necesarios para cotizar grooming por
+   *  tamaño/pelo, pero nadie debería tener que llenarlos si nunca
+   *  reserva ese servicio. */
+  weight?: string;
+  coat_type?: CoatType;
 }
 
 export type OnboardingLevel = "MINIMAL" | "BASIC" | "COMPLETE";
@@ -280,4 +294,9 @@ export const SIZE_LABEL: Record<PetSize, string> = {
   MEDIUM: "Mediano",
   LARGE: "Grande",
   X_LARGE: "Muy grande",
+};
+
+export const COAT_TYPE_LABEL: Record<CoatType, string> = {
+  SHORT: "Corto",
+  LONG: "Largo",
 };

@@ -5,12 +5,16 @@ export interface BookingStep {
   label: string;
 }
 
+// F-G.4: "pet" va antes de "slot" — para cuando se muestran/generan
+// horarios ya se conoce la duración real (servicios con calculadora
+// de tamaño/pelo dependen de la mascota elegida). Ver
+// docs/GROOMING_PRICING_CALCULATOR_PLAN.md §4.2, opción 1.
 export const BOOKING_STEPS: BookingStep[] = [
   { key: "business-unit", index: 1, path: "/book/business-unit", label: "Tipo de servicio" },
   { key: "location", index: 2, path: "/book/location", label: "Sucursal" },
   { key: "service", index: 3, path: "/book/service", label: "Servicio" },
-  { key: "slot", index: 4, path: "/book/slot", label: "Fecha y hora" },
-  { key: "pet", index: 5, path: "/book/pet", label: "Doggo" },
+  { key: "pet", index: 4, path: "/book/pet", label: "Doggo" },
+  { key: "slot", index: 5, path: "/book/slot", label: "Fecha y hora" },
   // F4-D optional cross-sell step. The page itself auto-forwards to
   // /book/review when the location has zero add-on offerings, so
   // customers of sucursales without retail never see extra friction.
