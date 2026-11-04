@@ -310,8 +310,8 @@ export function BookingReviewPage() {
 
   if (!state.location) return <Navigate to="/book/location" replace />;
   if (!state.service) return <Navigate to="/book/service" replace />;
-  if (!state.slot) return <Navigate to="/book/slot" replace />;
   if (!state.pet) return <Navigate to="/book/pet" replace />;
+  if (!state.slot) return <Navigate to="/book/slot" replace />;
 
   const price = Number(state.service.price);
   const priceLabel =

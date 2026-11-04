@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { BusinessUnitCode } from "@/types/business-unit";
+import type { PricingMode } from "@/types/service";
 
 /**
  * Snapshot of the Location selected in step 2.
@@ -25,6 +26,11 @@ export interface BookingServiceSnapshot {
   price: string;
   durationMinutes: number;
   requiresPet: boolean;
+  /** F-G.4: "size_coat_matrix" significa price/durationMinutes de
+   *  arriba son solo el default del servicio — el paso de mascota
+   *  los sobrescribe con la cotización real vía
+   *  updateServicePricing() antes de avanzar. */
+  pricingMode: PricingMode;
 }
 
 export interface BookingSlotSnapshot {
@@ -66,6 +72,12 @@ interface BookingFlowState {
   setBusinessUnit: (code: BusinessUnitCode) => void;
   setLocation: (location: BookingLocationSnapshot) => void;
   setService: (service: BookingServiceSnapshot) => void;
+  /** F-G.4: sobrescribe price/durationMinutes del servicio ya
+   *  elegido con el resultado de la cotización — llamado desde el
+   *  paso de mascota cuando pricingMode=size_coat_matrix, antes de
+   *  avanzar a slot. No-op si todavía no hay servicio (no debería
+   *  pasar en el flujo normal). */
+  updateServicePricing: (price: string, durationMinutes: number) => void;
   setSlot: (slot: BookingSlotSnapshot) => void;
   setPet: (pet: BookingPetSnapshot) => void;
   setAddonQuantity: (
@@ -119,6 +131,13 @@ export const useBookingFlowStore = create<BookingFlowState>()(
           service,
           slot: null,
         }),
+
+      updateServicePricing: (price, durationMinutes) =>
+        set((state) =>
+          state.service
+            ? { service: { ...state.service, price, durationMinutes } }
+            : {},
+        ),
 
       setSlot: (slot) => set({ slot }),
 
