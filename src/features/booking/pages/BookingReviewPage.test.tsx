@@ -117,6 +117,66 @@ describe("BookingReviewPage", () => {
     expect(screen.queryByTestId("bu-page")).not.toBeInTheDocument();
   });
 
+  it("displays pre-selected grooming extras and forwards their ids in the payload", async () => {
+    seedFlow();
+    useBookingFlowStore.setState({
+      groomingExtras: [
+        {
+          id: "extra-1",
+          name: "Perfume",
+          priceMin: "80.00",
+          priceMax: "80.00",
+          isFixedPrice: true,
+        },
+        {
+          id: "extra-2",
+          name: "Desenredado",
+          priceMin: "100.00",
+          priceMax: "300.00",
+          isFixedPrice: false,
+        },
+      ],
+    });
+    let capturedPayload: unknown = null;
+    server.use(
+      http.post(`${API}/appointments/`, async ({ request }) => {
+        capturedPayload = await request.json();
+        return HttpResponse.json(
+          {
+            id: "appt-1",
+            business_unit: "bu-1",
+            business_unit_name: "Grooming Polanco",
+            pet: "pet-1",
+            scheduled_start: "2030-01-15T16:00:00Z",
+            scheduled_end: "2030-01-15T17:00:00Z",
+            status: "scheduled",
+            status_display: "Programada",
+            channel: "web",
+            notes: "",
+            items: [],
+            created_at: "2030-01-01T00:00:00Z",
+            updated_at: "2030-01-01T00:00:00Z",
+          },
+          { status: 201 },
+        );
+      }),
+    );
+
+    const user = userEvent.setup();
+    renderReview();
+
+    expect(screen.getByText("Opciones de grooming")).toBeInTheDocument();
+    expect(screen.getByText("Perfume")).toBeInTheDocument();
+    expect(screen.getByText("Desenredado")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /confirmar reserva/i }));
+    expect(await screen.findByText(/¡listo!/i)).toBeInTheDocument();
+
+    expect(capturedPayload).toMatchObject({
+      items: [{ service: "srv-1", extras: ["extra-1", "extra-2"] }],
+    });
+  });
+
   it("shows the backend error message when create returns 400", async () => {
     seedFlow();
     server.use(
