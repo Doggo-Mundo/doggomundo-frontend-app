@@ -9,6 +9,7 @@ import {
   PawPrint,
   Pencil,
   Sparkles,
+  Wand2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -373,6 +374,12 @@ export function BookingReviewPage() {
             ...(coverageAvailable
               ? { use_entitlement: useEntitlement }
               : {}),
+            // F-G extras-at-check-in: GroomingExtra ids pre-
+            // seleccionados en el paso opcional de opciones de
+            // grooming. Vacío cuando el paso se auto-adelantó o el
+            // cliente no eligió nada — el backend acepta [] tal
+            // cual los add-ons.
+            extras: state.groomingExtras.map((e) => e.id),
           },
         ],
         // F4-D: add-ons picked in the optional wizard step. Empty
@@ -514,6 +521,47 @@ export function BookingReviewPage() {
                     </span>
                     {" · "}
                     Se cobra junto con la cita al completarla.
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+
+          {state.groomingExtras.length > 0 && (
+            <>
+              <hr className="border-border" />
+              <div className="flex items-start gap-3">
+                <Wand2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium">Opciones de grooming</p>
+                    <Link
+                      to="/book/grooming-extras"
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      Editar
+                    </Link>
+                  </div>
+                  <ul className="space-y-1.5">
+                    {state.groomingExtras.map((e) => (
+                      <li
+                        key={e.id}
+                        className="flex items-center justify-between gap-2 text-xs"
+                      >
+                        <span className="min-w-0 flex-1 truncate">{e.name}</span>
+                        <span className="shrink-0 tabular-nums text-muted-foreground">
+                          {e.isFixedPrice
+                            ? `$${e.priceMin}`
+                            : `$${e.priceMin}–$${e.priceMax}`}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="pt-0.5 text-xs text-muted-foreground">
+                    Los de precio variable se confirman con el tamaño real
+                    en recepción. Se cobran junto con la cita al
+                    completarla.
                   </p>
                 </div>
               </div>

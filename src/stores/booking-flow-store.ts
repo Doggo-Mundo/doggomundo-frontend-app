@@ -60,6 +60,24 @@ export interface BookingAddonSnapshot {
   quantity: number;
 }
 
+/**
+ * F-G extras-at-check-in: snapshot of a GroomingExtra pre-selected
+ * in the optional "Opciones de grooming" step — distinct from
+ * `BookingAddonSnapshot` (retail products, quantity-based). An
+ * extra is a toggle, not a quantity — the customer either wants it
+ * or doesn't. `priceMin`/`priceMax`/`isFixedPrice` are kept for the
+ * review screen's price display; the backend resolves the actual
+ * `price_charged` (immediately for fixed-price, at check-in for a
+ * range one).
+ */
+export interface BookingGroomingExtraSnapshot {
+  id: string;
+  name: string;
+  priceMin: string;
+  priceMax: string;
+  isFixedPrice: boolean;
+}
+
 interface BookingFlowState {
   businessUnitCode: BusinessUnitCode | null;
   location: BookingLocationSnapshot | null;
@@ -67,6 +85,7 @@ interface BookingFlowState {
   slot: BookingSlotSnapshot | null;
   pet: BookingPetSnapshot | null;
   addons: BookingAddonSnapshot[];
+  groomingExtras: BookingGroomingExtraSnapshot[];
   notes: string;
 
   setBusinessUnit: (code: BusinessUnitCode) => void;
@@ -86,6 +105,8 @@ interface BookingFlowState {
   ) => void;
   removeAddon: (productId: string) => void;
   clearAddons: () => void;
+  toggleGroomingExtra: (extra: BookingGroomingExtraSnapshot) => void;
+  clearGroomingExtras: () => void;
   setNotes: (notes: string) => void;
   reset: () => void;
 }
@@ -97,6 +118,7 @@ const initialState = {
   slot: null,
   pet: null,
   addons: [] as BookingAddonSnapshot[],
+  groomingExtras: [] as BookingGroomingExtraSnapshot[],
   notes: "",
 };
 
@@ -116,6 +138,7 @@ export const useBookingFlowStore = create<BookingFlowState>()(
           service: null,
           slot: null,
           addons: [],
+          groomingExtras: [],
         }),
 
       setLocation: (location) =>
@@ -124,6 +147,7 @@ export const useBookingFlowStore = create<BookingFlowState>()(
           service: null,
           slot: null,
           addons: [],
+          groomingExtras: [],
         }),
 
       setService: (service) =>
@@ -175,6 +199,18 @@ export const useBookingFlowStore = create<BookingFlowState>()(
         })),
 
       clearAddons: () => set({ addons: [] }),
+
+      toggleGroomingExtra: (extra) =>
+        set((state) => {
+          const exists = state.groomingExtras.some((e) => e.id === extra.id);
+          return {
+            groomingExtras: exists
+              ? state.groomingExtras.filter((e) => e.id !== extra.id)
+              : [...state.groomingExtras, extra],
+          };
+        }),
+
+      clearGroomingExtras: () => set({ groomingExtras: [] }),
 
       setNotes: (notes) => set({ notes }),
 

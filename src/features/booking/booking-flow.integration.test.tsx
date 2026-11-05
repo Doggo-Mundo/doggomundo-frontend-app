@@ -45,6 +45,11 @@ const PetPickerPage = lazy(() =>
     default: m.PetPickerPage,
   })),
 );
+const GroomingExtrasPickerPage = lazy(() =>
+  import("./pages/GroomingExtrasPickerPage").then((m) => ({
+    default: m.GroomingExtrasPickerPage,
+  })),
+);
 const AddOnsPickerPage = lazy(() =>
   import("./pages/AddOnsPickerPage").then((m) => ({
     default: m.AddOnsPickerPage,
@@ -76,6 +81,10 @@ function renderWizard(initial = "/book") {
             <Route path="/book/service" element={<ServicePickerPage />} />
             <Route path="/book/slot" element={<SlotPickerPage />} />
             <Route path="/book/pet" element={<PetPickerPage />} />
+            <Route
+              path="/book/grooming-extras"
+              element={<GroomingExtrasPickerPage />}
+            />
             <Route path="/book/addons" element={<AddOnsPickerPage />} />
             <Route path="/book/review" element={<BookingReviewPage />} />
             <Route
@@ -264,6 +273,166 @@ describe("Booking wizard — happy path", () => {
       scheduled_end: "2030-06-01T17:00:00Z",
       channel: "web",
       items: [{ service: "srv-corte", resource: "res-1" }],
+    });
+  });
+
+  it("walks a matrix-priced service through the grooming-extras step and forwards selected ids", { timeout: 20000 }, async () => {
+    let postedPayload: Record<string, unknown> | null = null;
+
+    server.use(
+      http.get(`${API}/locations/`, () =>
+        HttpResponse.json(
+          paginated([
+            {
+              id: "loc-1",
+              name: "Sucursal Polanco",
+              address: "Av. Polanco 1",
+              email: "polanco@doggo.mx",
+              phone: "+5215512345678",
+              maps_url: "",
+              business_units: [
+                {
+                  id: "bu-grooming",
+                  name: "Grooming Polanco",
+                  code: "GROOMING",
+                  code_display: "Grooming",
+                },
+              ],
+            },
+          ]),
+        ),
+      ),
+      http.get(`${API}/services/catalog/`, () =>
+        HttpResponse.json(
+          paginated([
+            {
+              id: "srv-matrix",
+              name: "Baño y corte",
+              description: "",
+              business_unit: "bu-grooming",
+              business_unit_name: "Grooming Polanco",
+              business_unit_code: "GROOMING",
+              base_duration_minutes: 60,
+              base_price: "400.00",
+              requires_pet: true,
+              capacity_type: "staff_based",
+              capacity_type_display: "Por staff",
+              pricing_mode: "SIZE_COAT_MATRIX",
+              pricing_mode_display: "Matriz tamaño/pelo",
+              sort_order: 0,
+            },
+          ]),
+        ),
+      ),
+      http.get(`${API}/pets/`, () =>
+        HttpResponse.json(
+          paginated([
+            makePetListItem({
+              id: "pet-1",
+              name: "Nala",
+              onboarding_completion_percentage: 100,
+            }),
+          ]),
+        ),
+      ),
+      http.get(`${API}/services/grooming/quote/`, ({ request }) => {
+        const url = new URL(request.url);
+        expect(url.searchParams.get("service")).toBe("srv-matrix");
+        expect(url.searchParams.get("pet")).toBe("pet-1");
+        return HttpResponse.json({
+          service: "srv-matrix",
+          size_tier: { id: "tier-1", name: "Chico" },
+          coat_type: "SHORT",
+          coat_type_display: "Corto",
+          price: "350.00",
+          duration_minutes: 45,
+          deluxe_price: null,
+          total: "350.00",
+          extras: [
+            {
+              id: "extra-1",
+              name: "Perfume",
+              price_min: "80.00",
+              price_max: "80.00",
+              is_fixed_price: true,
+            },
+          ],
+        });
+      }),
+      http.get(`${API}/appointments/slots/`, () =>
+        HttpResponse.json(
+          paginated([
+            {
+              id: "slot-1",
+              business_unit: "bu-grooming",
+              service: "srv-matrix",
+              service_name: "Baño y corte",
+              staff_user: null,
+              resource: "res-1",
+              start: "2030-06-01T16:00:00Z",
+              end: "2030-06-01T17:00:00Z",
+              is_available: true,
+            },
+          ]),
+        ),
+      ),
+      http.get(`${API}/retail/products/`, () => HttpResponse.json([])),
+      http.post(`${API}/appointments/`, async ({ request }) => {
+        postedPayload = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          {
+            id: "appt-new-2",
+            business_unit: "bu-grooming",
+            business_unit_name: "Grooming Polanco",
+            pet: "pet-1",
+            scheduled_start: "2030-06-01T16:00:00Z",
+            scheduled_end: "2030-06-01T17:00:00Z",
+            status: "scheduled",
+            status_display: "Programada",
+            channel: "web",
+            notes: "",
+            items: [],
+            created_at: "2030-06-01T10:00:00Z",
+            updated_at: "2030-06-01T10:00:00Z",
+          },
+          { status: 201 },
+        );
+      }),
+    );
+
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWizard("/book/business-unit");
+
+    await user.click(
+      await screen.findByRole("button", { name: /grooming profesional/i }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /baño y corte/i }),
+    );
+    await user.click(await screen.findByRole("button", { name: /nala/i }));
+
+    // Lands on the grooming-extras step — select the one extra offered.
+    await user.click(await screen.findByRole("button", { name: /perfume/i }));
+    await user.click(
+      await screen.findByRole("button", { name: /continuar con 1 opción/i }),
+    );
+
+    // Slot step — the matrix quote resolved to 45 min, start 16:00 UTC = 10:00 MX.
+    await user.click(await screen.findByRole("button", { name: /10:00/ }));
+
+    await user.click(
+      await screen.findByRole("button", { name: /confirmar reserva/i }),
+    );
+
+    await waitFor(
+      () => expect(screen.getByTestId("appointments")).toBeInTheDocument(),
+      { timeout: 5000 },
+    );
+
+    expect(postedPayload).toMatchObject({
+      business_unit: "bu-grooming",
+      pet: "pet-1",
+      items: [{ service: "srv-matrix", extras: ["extra-1"] }],
     });
   });
 

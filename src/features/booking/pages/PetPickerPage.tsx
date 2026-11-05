@@ -50,7 +50,10 @@ export function PetPickerPage() {
     if (!pendingPet) return;
     setPet({ id: pendingPetId, name: pendingPet.name });
     updateServicePricing(quote.price, quote.duration_minutes);
-    navigate("/book/slot");
+    // F-G extras-at-check-in: la página de opciones de grooming
+    // decide por sí misma si se adelanta a /book/slot (catálogo
+    // vacío para esta unidad) — mismo patrón que el paso de addons.
+    navigate("/book/grooming-extras");
   }, [quote, pendingPetId, data, setPet, updateServicePricing, navigate]);
 
   if (!service) return <Navigate to="/book/service" replace />;

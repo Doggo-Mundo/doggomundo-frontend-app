@@ -92,6 +92,13 @@ export interface CreateAppointmentItemPayload {
    * false after the customer interacts with the coverage card.
    */
   use_entitlement?: boolean;
+  /** F-G extras-at-check-in: GroomingExtra ids pre-seleccionados en
+   *  el paso de extras del wizard (solo aplica a servicios con
+   *  calculadora de tamaño/pelo — ver GroomingExtrasPickerPage).
+   *  Uno de precio fijo se cobra junto con el servicio al completar
+   *  la cita; uno de rango queda pendiente hasta que staff confirma
+   *  el precio final en check-in. */
+  extras?: string[];
 }
 
 /** F4-D add-on line — a retail product purchased through the wizard
