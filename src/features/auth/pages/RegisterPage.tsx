@@ -196,23 +196,20 @@ export function RegisterPage() {
         </span>
       }
     >
-      {/* Pantallas grandes, para que quepa sin scroll:
-          - lg: dos columnas (todos los datos | consentimientos + botón)
-          - xl: tres columnas (datos personales | contraseñas |
-            consentimientos + botón)
-          En móvil y tablet es una sola columna, como antes. */}
+      {/* Desde lg, dos columnas: todos los datos (contraseñas al final)
+          | consentimientos + botón. En móvil y tablet, una sola columna. */}
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-x-10 lg:space-y-0 xl:grid-cols-3"
+        className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-x-10 lg:space-y-0"
         noValidate
       >
         <div className="empty:hidden lg:col-span-full lg:mb-5">
           <FormErrors message={errors.root?.message} />
         </div>
 
-        {/* Datos + contraseñas: apilados hasta lg, dos columnas en xl. */}
-        <div className="space-y-4 lg:space-y-5 xl:col-span-2 xl:grid xl:grid-cols-2 xl:gap-x-10 xl:space-y-0">
-          <div className="space-y-4 lg:space-y-5">
+        {/* Columna izquierda: datos personales y, debajo, contraseñas. */}
+        <div className="space-y-4">
+          <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3 lg:gap-4">
               <div className="space-y-1.5 lg:space-y-2">
                 <Label htmlFor="first_name">Nombre</Label>
@@ -265,7 +262,7 @@ export function RegisterPage() {
             />
           </div>
 
-          <div className="space-y-4 lg:space-y-5">
+          <div className="space-y-4">
             <div className="space-y-1.5 lg:space-y-2">
               <Label htmlFor="password">Contraseña</Label>
               <PasswordInput
