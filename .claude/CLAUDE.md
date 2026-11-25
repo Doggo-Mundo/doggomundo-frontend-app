@@ -42,7 +42,18 @@ Colores primarios (ya tokenizados en `src/index.css`):
 - Red `#E21818` — destructivo / alertas
 - Light Blue `#DFEEFB` — superficies suaves / fondos de sección
 
-Fuentes: **Montserrat** (headings) · **Geist** (body). Importadas vía `@fontsource-variable`.
+Fuentes: **Fredoka** (títulos `h1`–`h3`, botones, `CardTitle`; utilidad `font-display`) · **Montserrat** (cuerpo) · **Geist** (fallback). Importadas vía `@fontsource-variable`.
+
+### Diseño V2 (alineado con la landing, 2026-11-25)
+
+La app comparte el lenguaje visual de la landing V2 ("planeta Doggo"): contorno grueso, sombra dura sin blur, colores planos, Hachi como mascota. Tokens y piezas compartidas — **mantener en sincronía con `../landing/src/index.css`**:
+
+- `--sun` `#FFC83D` (acento del CTA principal), `--ink` `#1A2243` (contornos), `--ink-deep` `#0F1632` (sombra dura), `--navy-soft` `#2C3A6E` (superficies sobre navy) y la paleta secundaria `brand-*`
+- `Button variant="brand"`: píldora amarilla con sombra dura. **Una por pantalla**, solo para la acción principal (Entrar, Crear cuenta, Confirmar reserva…)
+- `Card`: `rounded-3xl`, contorno `border-ink`, sombra dura. Inputs/selects con contorno de 2px
+- `TopBar` navy, `BottomNav` con la pestaña activa en píldora amarilla, `AuthLayout` sobre navy
+- `components/brand/`: `SpriteDefs` (montado una vez en `App`), `Mascot` (Hachi) y `PawMark`/`StarMark`
+- Animaciones `dm-*` en `index.css`; todas se apagan con `prefers-reduced-motion`
 
 ---
 

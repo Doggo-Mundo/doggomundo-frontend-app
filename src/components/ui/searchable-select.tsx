@@ -122,7 +122,7 @@ export function SearchableSelect<T extends SearchableSelectOption>({
           id={id}
           disabled={disabled || isLoading}
           className={cn(
-            "flex h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none transition-colors",
+            "flex h-10 w-full items-center justify-between gap-2 rounded-xl border-2 border-ink/70 bg-background px-3.5 py-2 text-sm shadow-xs outline-none transition-colors",
             "hover:bg-accent/40",
             "focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:border-ring",
             "disabled:cursor-not-allowed disabled:opacity-50",

@@ -15,18 +15,11 @@ export function NextAppointmentHero({ appointment, pet }: Props) {
   return (
     <Link
       to={`/my/appointments/${appointment.id}`}
-      className="group block"
+      className="group block rounded-3xl outline-none focus-visible:ring-3 focus-visible:ring-ring"
     >
-      <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-primary via-primary to-primary/85 text-primary-foreground shadow-sm transition-all group-hover:shadow-lg">
-        {/* Soft glow circles — same as before, kept for depth. */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary-foreground/5"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-16 -left-8 h-40 w-40 rounded-full bg-primary-foreground/5"
-        />
+      {/* V2: navy plano con contorno y sombra dura amarilla, como los
+          bloques de la landing (sin degradados). */}
+      <Card className="relative overflow-hidden border-[3px] border-ink-deep bg-primary text-primary-foreground shadow-[6px_6px_0_var(--sun)] transition-transform group-hover:-translate-x-0.5 group-hover:-translate-y-0.5">
         {/* Decorative paw-print pattern — subtle brand warmth that prevents
             the card from reading as a plain marketing gradient. */}
         <PawPrint
@@ -43,7 +36,7 @@ export function NextAppointmentHero({ appointment, pet }: Props) {
               <p className="text-[11px] font-medium uppercase tracking-wider opacity-80">
                 Tu próxima cita
               </p>
-              <p className="text-3xl font-semibold capitalize leading-tight">
+              <p className="font-display text-3xl font-bold capitalize leading-tight">
                 {formatRelativeAppointment(appointment.scheduled_start)}
               </p>
               <div className="space-y-1 text-sm opacity-90">

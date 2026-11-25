@@ -618,6 +618,7 @@ export function BookingReviewPage() {
       <FormErrors message={error ?? undefined} />
 
       <Button
+        variant="brand"
         size="lg"
         className="w-full"
         onClick={handleConfirm}

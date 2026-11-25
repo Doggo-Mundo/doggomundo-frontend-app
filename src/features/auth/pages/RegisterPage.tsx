@@ -420,7 +420,7 @@ export function RegisterPage() {
           </div>
         </div>
 
-        <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" variant="brand" size="lg" className="w-full" disabled={isSubmitting}>
           {isSubmitting ? "Creando cuenta…" : "Crear cuenta"}
         </Button>
       </form>

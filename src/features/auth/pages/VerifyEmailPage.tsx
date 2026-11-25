@@ -140,7 +140,7 @@ export function VerifyEmailPage() {
           </p>
         </div>
 
-        <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" variant="brand" size="lg" className="w-full" disabled={isSubmitting}>
           {isSubmitting ? "Verificando…" : "Verificar"}
         </Button>
 
