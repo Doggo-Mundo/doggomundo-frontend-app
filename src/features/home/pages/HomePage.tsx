@@ -12,6 +12,7 @@ import {
 import { findNextUpcoming } from "@/features/appointments/lib/filter";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Card, CardContent } from "@/components/ui/card";
+import { Mascot } from "@/components/brand/Mascot";
 import { TIMEZONE } from "@/lib/format-date";
 import { DAYCARE_ENABLED, SHOP_ENABLED } from "@/lib/features";
 import { usePets } from "@/api/hooks/use-pets";
@@ -172,9 +173,12 @@ export function HomePage() {
           pet={nextPet}
         />
       ) : (
-        <Card>
-          <CardContent className="py-5 text-center text-sm text-muted-foreground">
-            Aún no tienes citas próximas. Reserva una y te la mostramos aquí.
+        <Card className="bg-surface-soft">
+          <CardContent className="flex items-center gap-4 py-2">
+            <Mascot className="dm-tilt h-20 w-16 shrink-0" />
+            <p className="text-sm text-muted-foreground">
+              Aún no tienes citas próximas. Reserva una y te la mostramos aquí.
+            </p>
           </CardContent>
         </Card>
       )}
