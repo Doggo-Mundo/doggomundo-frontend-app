@@ -12,6 +12,7 @@ import {
 import { findNextUpcoming } from "@/features/appointments/lib/filter";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Card, CardContent } from "@/components/ui/card";
+import { Mascot } from "@/components/brand/Mascot";
 import { TIMEZONE } from "@/lib/format-date";
 import { DAYCARE_ENABLED, SHOP_ENABLED } from "@/lib/features";
 import { usePets } from "@/api/hooks/use-pets";
@@ -143,7 +144,7 @@ export function HomePage() {
           />
         )}
         <div className="min-w-0 flex-1 space-y-0.5">
-          <h1 className="truncate text-2xl font-semibold">
+          <h1 className="truncate text-3xl font-bold text-primary">
             {greeting}
             {user ? `, ${user.first_name}` : ""}
           </h1>
@@ -172,9 +173,12 @@ export function HomePage() {
           pet={nextPet}
         />
       ) : (
-        <Card>
-          <CardContent className="py-5 text-center text-sm text-muted-foreground">
-            Aún no tienes citas próximas. Reserva una y te la mostramos aquí.
+        <Card className="bg-surface-soft">
+          <CardContent className="flex items-center gap-4 py-2">
+            <Mascot className="dm-tilt h-20 w-16 shrink-0" />
+            <p className="text-sm text-muted-foreground">
+              Aún no tienes citas próximas. Reserva una y te la mostramos aquí.
+            </p>
           </CardContent>
         </Card>
       )}
@@ -204,7 +208,7 @@ export function HomePage() {
       ) : null}
 
       <section className="space-y-2">
-        <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <h2 className="font-sans text-xs font-bold uppercase tracking-[2px] text-brand-indigo-1">
           Accesos rápidos
         </h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

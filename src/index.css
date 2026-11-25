@@ -3,6 +3,7 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/montserrat";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/fredoka";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -41,6 +42,27 @@
     /* Soft surface: light blue brand tone */
     --surface-soft: oklch(0.95 0.02 245); /* Light Blue #DFEEFB */
     --surface-soft-foreground: oklch(0.25 0.06 265);
+
+    /* Diseño V2 "planeta Doggo" — mismos tokens que la landing
+       (frontend/landing/src/index.css). Contorno grueso, sombra dura
+       sin blur y acento amarillo en el CTA principal. Mantener en
+       sincronía con la landing. */
+    --sun: #FFC83D;        /* acento del CTA principal (fuera de la paleta del brandbook, ver landing README) */
+    --ink: #1A2243;        /* contorno de tarjetas y campos */
+    --ink-deep: #0F1632;   /* sombra dura */
+    --navy-soft: #2C3A6E;  /* superficies sobre navy */
+
+    /* Paleta secundaria del brandbook (igual que la landing). */
+    --brand-blue-1: #0285CF;
+    --brand-blue-2: #41A9F0;
+    --brand-blue-3: #83C3F4;
+    --brand-blue-4: #A2D1F6;
+    --brand-blue-5: #C0E0F9;
+    --brand-indigo-1: #2C47A1;
+    --brand-red-1: #E21818;
+    --brand-red-5: #FF3127;
+    --brand-warm-1: #F2DFC9;
+    --brand-warm-2: #F9F1E8;
 }
 
 .dark {
@@ -73,6 +95,23 @@
 
 @theme inline {
     --font-sans: 'Montserrat Variable', 'Geist Variable', sans-serif;
+    /* Títulos, botones y cifras: Fredoka, igual que la landing V2
+       (fallback redondeado de Gotham Rounded, sin licencia web). */
+    --font-display: 'Fredoka Variable', 'Montserrat Variable', sans-serif;
+    --color-sun: var(--sun);
+    --color-ink: var(--ink);
+    --color-ink-deep: var(--ink-deep);
+    --color-navy-soft: var(--navy-soft);
+    --color-brand-blue-1: var(--brand-blue-1);
+    --color-brand-blue-2: var(--brand-blue-2);
+    --color-brand-blue-3: var(--brand-blue-3);
+    --color-brand-blue-4: var(--brand-blue-4);
+    --color-brand-blue-5: var(--brand-blue-5);
+    --color-brand-indigo-1: var(--brand-indigo-1);
+    --color-brand-red-1: var(--brand-red-1);
+    --color-brand-red-5: var(--brand-red-5);
+    --color-brand-warm-1: var(--brand-warm-1);
+    --color-brand-warm-2: var(--brand-warm-2);
     --color-chart-5: var(--chart-5);
     --color-chart-4: var(--chart-4);
     --color-chart-3: var(--chart-3);
@@ -117,7 +156,22 @@
   html {
     @apply font-sans;
   }
+  /* V2: títulos en Fredoka, como la landing. */
+  h1, h2, h3 {
+    @apply font-display;
+  }
 }
+
+/* Animaciones de la mascota (mismas que la landing V2). */
+.dm-tilt { animation: dm-tilt 3.2s ease-in-out infinite; transform-origin: 50% 100%; }
+.dm-float { animation: dm-float 5s ease-in-out infinite; }
+.dm-twinkle { animation: dm-twinkle 2.6s ease-in-out infinite; }
+.dm-twinkle2 { animation: dm-twinkle 3.4s ease-in-out -1.2s infinite; }
+.dm-spin-rev { animation: dm-spin 90s linear infinite reverse; }
+@keyframes dm-tilt { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+@keyframes dm-float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-16px) rotate(4deg); } }
+@keyframes dm-twinkle { 0%, 100% { opacity: 0.25; transform: scale(0.7); } 50% { opacity: 1; transform: scale(1.15); } }
+@keyframes dm-spin { to { transform: rotate(360deg); } }
 
 /* Booking success animations */
 @keyframes check-draw {
@@ -180,5 +234,12 @@
   }
   .animate-check-draw {
     stroke-dashoffset: 0;
+  }
+  .dm-tilt, .dm-float, .dm-twinkle, .dm-twinkle2, .dm-spin-rev {
+    animation: none !important;
+  }
+  [data-slot="button"][data-variant="brand"]:hover,
+  [data-slot="button"][data-variant="sky"]:hover {
+    transform: none;
   }
 }

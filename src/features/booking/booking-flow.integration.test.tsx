@@ -45,6 +45,11 @@ const PetPickerPage = lazy(() =>
     default: m.PetPickerPage,
   })),
 );
+const GroomingExtrasPickerPage = lazy(() =>
+  import("./pages/GroomingExtrasPickerPage").then((m) => ({
+    default: m.GroomingExtrasPickerPage,
+  })),
+);
 const AddOnsPickerPage = lazy(() =>
   import("./pages/AddOnsPickerPage").then((m) => ({
     default: m.AddOnsPickerPage,
@@ -76,6 +81,10 @@ function renderWizard(initial = "/book") {
             <Route path="/book/service" element={<ServicePickerPage />} />
             <Route path="/book/slot" element={<SlotPickerPage />} />
             <Route path="/book/pet" element={<PetPickerPage />} />
+            <Route
+              path="/book/grooming-extras"
+              element={<GroomingExtrasPickerPage />}
+            />
             <Route path="/book/addons" element={<AddOnsPickerPage />} />
             <Route path="/book/review" element={<BookingReviewPage />} />
             <Route
@@ -108,7 +117,7 @@ describe("Booking wizard — happy path", () => {
     useBookingFlowStore.getState().reset();
   });
 
-  it("walks through BU → (auto-skip Location) → Service → Slot → Pet → Review and POSTs the nested payload", { timeout: 20000 }, async () => {
+  it("walks through BU → (auto-skip Location) → Service → Pet → Slot → Review and POSTs the nested payload", { timeout: 20000 }, async () => {
     let postedPayload: Record<string, unknown> | null = null;
 
     server.use(
@@ -153,6 +162,8 @@ describe("Booking wizard — happy path", () => {
               requires_pet: true,
               capacity_type: "staff_based",
               capacity_type_display: "Por staff",
+              pricing_mode: "FLAT",
+              pricing_mode_display: "Plano",
               sort_order: 0,
             },
           ]),
@@ -235,13 +246,14 @@ describe("Booking wizard — happy path", () => {
       await screen.findByRole("button", { name: /corte completo/i }),
     );
 
-    // Step 4: slot — the slot's start is UTC 16:00 which renders as MX local
+    // Step 4: pet — F-G.4 moved this before slot, so the real
+    // duration/price are known before horarios are shown.
+    await user.click(await screen.findByRole("button", { name: /nala/i }));
+
+    // Step 5: slot — the slot's start is UTC 16:00 which renders as MX local
     // 10:00. The button's accessible name also includes the duration label
     // ("10:00 30 min"), so match on the time substring.
     await user.click(await screen.findByRole("button", { name: /10:00/ }));
-
-    // Step 5: pet
-    await user.click(await screen.findByRole("button", { name: /nala/i }));
 
     // Step 6: review → confirm
     await user.click(
@@ -264,20 +276,175 @@ describe("Booking wizard — happy path", () => {
     });
   });
 
-  it("redirects the user to /pets/new if they have no pets when reaching the slot step", async () => {
+  it("walks a matrix-priced service through the grooming-extras step and forwards selected ids", { timeout: 20000 }, async () => {
+    let postedPayload: Record<string, unknown> | null = null;
+
     server.use(
-      http.get(`${API}/locations/`, () => HttpResponse.json(paginated([]))),
+      http.get(`${API}/locations/`, () =>
+        HttpResponse.json(
+          paginated([
+            {
+              id: "loc-1",
+              name: "Sucursal Polanco",
+              address: "Av. Polanco 1",
+              email: "polanco@doggo.mx",
+              phone: "+5215512345678",
+              maps_url: "",
+              business_units: [
+                {
+                  id: "bu-grooming",
+                  name: "Grooming Polanco",
+                  code: "GROOMING",
+                  code_display: "Grooming",
+                },
+              ],
+            },
+          ]),
+        ),
+      ),
       http.get(`${API}/services/catalog/`, () =>
-        HttpResponse.json(paginated([])),
+        HttpResponse.json(
+          paginated([
+            {
+              id: "srv-matrix",
+              name: "Baño y corte",
+              description: "",
+              business_unit: "bu-grooming",
+              business_unit_name: "Grooming Polanco",
+              business_unit_code: "GROOMING",
+              base_duration_minutes: 60,
+              base_price: "400.00",
+              requires_pet: true,
+              capacity_type: "staff_based",
+              capacity_type_display: "Por staff",
+              pricing_mode: "SIZE_COAT_MATRIX",
+              pricing_mode_display: "Matriz tamaño/pelo",
+              sort_order: 0,
+            },
+          ]),
+        ),
       ),
-      http.get(`${API}/pets/`, () => HttpResponse.json(paginated([]))),
+      http.get(`${API}/pets/`, () =>
+        HttpResponse.json(
+          paginated([
+            makePetListItem({
+              id: "pet-1",
+              name: "Nala",
+              onboarding_completion_percentage: 100,
+            }),
+          ]),
+        ),
+      ),
+      http.get(`${API}/services/grooming/quote/`, ({ request }) => {
+        const url = new URL(request.url);
+        expect(url.searchParams.get("service")).toBe("srv-matrix");
+        expect(url.searchParams.get("pet")).toBe("pet-1");
+        return HttpResponse.json({
+          service: "srv-matrix",
+          size_tier: { id: "tier-1", name: "Chico" },
+          coat_type: "SHORT",
+          coat_type_display: "Corto",
+          price: "350.00",
+          duration_minutes: 45,
+          deluxe_price: null,
+          total: "350.00",
+          extras: [
+            {
+              id: "extra-1",
+              name: "Perfume",
+              price_min: "80.00",
+              price_max: "80.00",
+              is_fixed_price: true,
+            },
+          ],
+        });
+      }),
       http.get(`${API}/appointments/slots/`, () =>
-        HttpResponse.json(paginated([])),
+        HttpResponse.json(
+          paginated([
+            {
+              id: "slot-1",
+              business_unit: "bu-grooming",
+              service: "srv-matrix",
+              service_name: "Baño y corte",
+              staff_user: null,
+              resource: "res-1",
+              start: "2030-06-01T16:00:00Z",
+              end: "2030-06-01T17:00:00Z",
+              is_available: true,
+            },
+          ]),
+        ),
       ),
+      http.get(`${API}/retail/products/`, () => HttpResponse.json([])),
+      http.post(`${API}/appointments/`, async ({ request }) => {
+        postedPayload = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          {
+            id: "appt-new-2",
+            business_unit: "bu-grooming",
+            business_unit_name: "Grooming Polanco",
+            pet: "pet-1",
+            scheduled_start: "2030-06-01T16:00:00Z",
+            scheduled_end: "2030-06-01T17:00:00Z",
+            status: "scheduled",
+            status_display: "Programada",
+            channel: "web",
+            notes: "",
+            items: [],
+            created_at: "2030-06-01T10:00:00Z",
+            updated_at: "2030-06-01T10:00:00Z",
+          },
+          { status: 201 },
+        );
+      }),
     );
 
-    // Seed the store through slot + location + service directly so we hit
-    // the SlotPickerPage guard that checks for pets.
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWizard("/book/business-unit");
+
+    await user.click(
+      await screen.findByRole("button", { name: /grooming profesional/i }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /baño y corte/i }),
+    );
+    await user.click(await screen.findByRole("button", { name: /nala/i }));
+
+    // Lands on the grooming-extras step — select the one extra offered.
+    await user.click(await screen.findByRole("button", { name: /perfume/i }));
+    await user.click(
+      await screen.findByRole("button", { name: /continuar con 1 opción/i }),
+    );
+
+    // Slot step — the matrix quote resolved to 45 min, start 16:00 UTC = 10:00 MX.
+    await user.click(await screen.findByRole("button", { name: /10:00/ }));
+
+    await user.click(
+      await screen.findByRole("button", { name: /confirmar reserva/i }),
+    );
+
+    await waitFor(
+      () => expect(screen.getByTestId("appointments")).toBeInTheDocument(),
+      { timeout: 5000 },
+    );
+
+    expect(postedPayload).toMatchObject({
+      business_unit: "bu-grooming",
+      pet: "pet-1",
+      items: [{ service: "srv-matrix", extras: ["extra-1"] }],
+    });
+  });
+
+  it("shows the empty-pets state on the pet step instead of a dead end", async () => {
+    // F-G.4: pet now comes before slot, so a customer with zero pets
+    // hits this directly on the pet step — PetPickerPage's own
+    // EmptyState (with an "Agregar Doggo" CTA) handles it; there's
+    // no more auto-redirect buried in the slot step.
+    server.use(
+      http.get(`${API}/pets/`, () => HttpResponse.json(paginated([]))),
+    );
+
     useBookingFlowStore.setState({
       businessUnitCode: "GROOMING",
       location: {
@@ -293,16 +460,56 @@ describe("Booking wizard — happy path", () => {
         price: "450.00",
         durationMinutes: 60,
         requiresPet: true,
+        pricingMode: "FLAT",
       },
       slot: null,
       pet: null,
       notes: "",
     });
 
+    renderWizard("/book/pet");
+
+    expect(
+      await screen.findByText(/primero necesitas registrar un doggo/i),
+    ).toBeInTheDocument();
+  });
+
+  it("redirects back to the pet step if slot is reached without a pet chosen", async () => {
+    // Guards against deep-linking or a stale/edited store state — the
+    // new order requires pet before slot, so slot must bounce back
+    // instead of rendering with an undefined pet.
+    useBookingFlowStore.setState({
+      businessUnitCode: "GROOMING",
+      location: {
+        id: "loc-1",
+        name: "Sucursal Polanco",
+        address: "Polanco",
+        businessUnitId: "bu-grooming",
+        businessUnitName: "Grooming Polanco",
+      },
+      service: {
+        id: "srv-1",
+        name: "Corte",
+        price: "450.00",
+        durationMinutes: 60,
+        requiresPet: true,
+        pricingMode: "FLAT",
+      },
+      slot: null,
+      pet: null,
+      notes: "",
+    });
+
+    server.use(
+      http.get(`${API}/pets/`, () =>
+        HttpResponse.json(paginated([makePetListItem({ id: "pet-1", name: "Nala" })])),
+      ),
+    );
+
     renderWizard("/book/slot");
 
     expect(
-      await screen.findByTestId("pets-new"),
+      await screen.findByRole("heading", { name: /para cuál de tus doggos/i }),
     ).toBeInTheDocument();
   });
 });

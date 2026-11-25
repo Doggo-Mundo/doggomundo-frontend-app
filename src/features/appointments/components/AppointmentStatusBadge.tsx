@@ -13,6 +13,7 @@ const VARIANT: Record<AppointmentStatus, string> = {
   penalty_cancel: "bg-destructive/10 text-destructive",
   penalty_no_show: "bg-destructive/10 text-destructive",
   graced_no_show: "bg-muted text-muted-foreground",
+  pending_review: "bg-muted text-muted-foreground",
 };
 
 interface Props {

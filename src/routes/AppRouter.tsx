@@ -139,6 +139,11 @@ const PetPickerPage = lazy(() =>
     default: m.PetPickerPage,
   })),
 );
+const GroomingExtrasPickerPage = lazy(() =>
+  import("@/features/booking/pages/GroomingExtrasPickerPage").then((m) => ({
+    default: m.GroomingExtrasPickerPage,
+  })),
+);
 const AddOnsPickerPage = lazy(() =>
   import("@/features/booking/pages/AddOnsPickerPage").then((m) => ({
     default: m.AddOnsPickerPage,
@@ -311,6 +316,7 @@ export function AppRouter() {
               <Route path="/book/location" element={<LocationPickerPage />} />
               <Route path="/book/slot" element={<SlotPickerPage />} />
               <Route path="/book/pet" element={<PetPickerPage />} />
+              <Route path="/book/grooming-extras" element={<GroomingExtrasPickerPage />} />
               <Route path="/book/addons" element={<AddOnsPickerPage />} />
               <Route path="/book/review" element={<BookingReviewPage />} />
 

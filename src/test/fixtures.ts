@@ -17,6 +17,7 @@ export function makePet(overrides: Partial<Pet> = {}): Pet {
     food_brand: null,
     size: null,
     weight: null,
+    coat_type: null,
     microchip_id: null,
     photo: null,
     health_notes: "",

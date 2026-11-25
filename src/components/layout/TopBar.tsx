@@ -61,13 +61,16 @@ export function TopBar() {
 
   return (
     <header
-      className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80"
+      // V2: navy sólido, igual que el navbar de la landing.
+      className="sticky top-0 z-30 border-b-2 border-ink-deep bg-primary text-white"
       style={{ paddingTop: "env(safe-area-inset-top)" }}
     >
-      <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
-        <Link to="/" className="flex items-center gap-2 font-semibold">
-          <img src="/doggo-logo.png" alt="" className="h-7 w-auto" />
-          <span className="text-base">Doggo Mundo</span>
+      <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
+        <Link
+          to="/"
+          className="flex shrink-0 items-center rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring"
+        >
+          <img src="/doggo-logo.png" alt="Doggo Mundo, inicio" className="h-11 w-auto" />
         </Link>
 
         <nav className="ml-6 hidden items-center gap-1 lg:flex" aria-label="Navegación">
@@ -78,10 +81,10 @@ export function TopBar() {
               end={item.end}
               className={({ isActive }) =>
                 cn(
-                  "rounded-md px-3 py-1.5 text-sm transition-colors",
+                  "rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring",
                   isActive
-                    ? "bg-secondary text-secondary-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                    ? "bg-navy-soft text-brand-blue-3"
+                    : "text-white hover:bg-navy-soft hover:text-brand-blue-4",
                 )
               }
             >
@@ -94,7 +97,7 @@ export function TopBar() {
           <Link
             to="/pets"
             aria-label="Mis Doggos"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white hover:bg-navy-soft hover:text-brand-blue-4 outline-none focus-visible:ring-3 focus-visible:ring-ring"
           >
             <PawPrint className="h-4 w-4" />
           </Link>
@@ -107,12 +110,12 @@ export function TopBar() {
                   ? `Carrito con ${cartCount} producto${cartCount === 1 ? "" : "s"}`
                   : "Carrito"
               }
-              className="relative inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-white hover:bg-navy-soft hover:text-brand-blue-4 outline-none focus-visible:ring-3 focus-visible:ring-ring"
             >
               <ShoppingCart className="h-4 w-4" />
               {cartCount > 0 && (
                 <span
-                  className="absolute -right-1 -top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground"
+                  className="absolute right-0.5 top-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-sun px-1 text-[10px] font-semibold text-primary"
                   aria-hidden="true"
                 >
                   {cartCount > 9 ? "9+" : cartCount}
@@ -126,7 +129,7 @@ export function TopBar() {
               to="/profile"
               className={cn(
                 "group inline-flex items-center gap-2 rounded-full py-1 pl-1 pr-2 sm:pr-3 text-sm transition-colors",
-                "hover:bg-muted",
+                "hover:bg-navy-soft outline-none focus-visible:ring-3 focus-visible:ring-ring",
               )}
               aria-label="Ir a mi perfil"
             >
@@ -135,14 +138,15 @@ export function TopBar() {
                 photo={user.photo}
                 size="xs"
               />
-              <span className="hidden text-muted-foreground group-hover:text-foreground sm:inline">
+              <span className="hidden font-semibold text-white group-hover:text-brand-blue-4 sm:inline">
                 {user.first_name}
               </span>
             </Link>
           )}
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="icon"
+            className="size-10 text-white hover:bg-navy-soft hover:text-brand-blue-4"
             onClick={handleLogout}
             disabled={logoutMutation.isPending}
             aria-label="Cerrar sesión"

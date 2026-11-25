@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { BookingStepHeader } from "@/features/booking/components/BookingStepHeader";
 import { WeekStrip } from "@/features/booking/components/WeekStrip";
@@ -8,7 +8,6 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { EmptyCalendarIllustration } from "@/components/shared/illustrations/EmptyCalendarIllustration";
 import { useBookingFlowStore } from "@/stores/booking-flow-store";
 import { useAvailableSlots } from "@/api/hooks/use-appointments";
-import { usePets } from "@/api/hooks/use-pets";
 import { localDayBoundsUTC, toLocalDateISO } from "@/lib/format-date";
 import { filterBookableSlots } from "@/features/booking/lib/filter-slots";
 import type { AvailableSlot } from "@/types/appointment";
@@ -17,9 +16,9 @@ export function SlotPickerPage() {
   const navigate = useNavigate();
   const location = useBookingFlowStore((s) => s.location);
   const service = useBookingFlowStore((s) => s.service);
+  const pet = useBookingFlowStore((s) => s.pet);
   const slot = useBookingFlowStore((s) => s.slot);
   const setSlot = useBookingFlowStore((s) => s.setSlot);
-  const { data: petsData, isLoading: petsLoading } = usePets();
 
   const [date, setDate] = useState<string>(() => toLocalDateISO(new Date()));
 
@@ -41,17 +40,16 @@ export function SlotPickerPage() {
     [data],
   );
 
-  useEffect(() => {
-    if (!petsLoading && petsData && petsData.results.length === 0) {
-      navigate("/pets/new", {
-        replace: true,
-        state: { from: "/book/slot" },
-      });
-    }
-  }, [petsLoading, petsData, navigate]);
-
   if (!location) return <Navigate to="/book/location" replace />;
   if (!service) return <Navigate to="/book/service" replace />;
+  // F-G.4: pet ahora se elige ANTES que horario — para cuando se
+  // llega acá ya debe haber una mascota (y, si el servicio usa la
+  // calculadora, el precio/duración del store ya está actualizado
+  // con la cotización real). Sin esto no hay forma de llegar a esta
+  // página con pets.length === 0 — PetPickerPage ya resuelve ese
+  // caso con su propio EmptyState, así que no hace falta duplicar
+  // ese chequeo aquí.
+  if (!pet) return <Navigate to="/book/pet" replace />;
 
   function handleSelect(picked: AvailableSlot) {
     setSlot({
@@ -60,14 +58,15 @@ export function SlotPickerPage() {
       end: picked.end,
       resource: picked.resource,
     });
-    navigate("/book/pet");
+    // F4-D: el siguiente paso es el opcional de add-ons.
+    navigate("/book/addons");
   }
 
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
       <BookingStepHeader
         stepKey="slot"
-        backTo="/book/service"
+        backTo="/book/pet"
         title="¿Cuándo?"
         description={`${service.name} · ${location.name}`}
       />

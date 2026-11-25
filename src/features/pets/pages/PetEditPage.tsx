@@ -46,10 +46,11 @@ import {
   useUpdatePetPhoto,
 } from "@/api/hooks/use-pets";
 import { cn } from "@/lib/utils";
-import { GENDER_LABEL, SIZE_LABEL } from "@/types/pet";
-import type { Pet, Gender } from "@/types/pet";
+import { COAT_TYPE_LABEL, GENDER_LABEL, SIZE_LABEL } from "@/types/pet";
+import type { Pet, Gender, CoatType } from "@/types/pet";
 
 const SIZE_VALUES = ["SMALL", "MEDIUM", "LARGE", "X_LARGE"] as const;
+const COAT_TYPE_VALUES = ["SHORT", "LONG"] as const;
 
 const schema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
@@ -65,6 +66,17 @@ const schema = z.object({
   food_brand: z.string().optional(),
   health_notes: z.string().optional(),
   allergies: z.string().optional(),
+  // F-G.4: ambos opcionales — solo hacen falta para reservar
+  // servicios de grooming con calculadora de tamaño/pelo, no para
+  // tener un perfil "completo".
+  weight: z
+    .string()
+    .optional()
+    .refine(
+      (v) => !v || (/^\d+(\.\d{1,2})?$/.test(v) && Number(v) > 0),
+      "Ingresa un peso válido en kg (ej. 12.5)",
+    ),
+  coat_type: z.enum(COAT_TYPE_VALUES).optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -82,6 +94,8 @@ const COMPLETE_KEYS = [
   "food_brand",
   "health_notes",
   "allergies",
+  "weight",
+  "coat_type",
 ] as const satisfies readonly (keyof FormValues)[];
 
 const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024;
@@ -149,6 +163,8 @@ function PetEditForm({ pet }: FormProps) {
       food_brand: pet.food_brand?.id ?? "",
       health_notes: pet.health_notes ?? "",
       allergies: pet.allergies ?? "",
+      weight: pet.weight ?? "",
+      coat_type: pet.coat_type ?? undefined,
     },
   });
 
@@ -492,6 +508,64 @@ function PetEditForm({ pet }: FormProps) {
                     searchPlaceholder="Buscar marca…"
                     isLoading={foodBrandsLoading}
                   />
+                )}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Grooming</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Solo hace falta si vas a reservar un corte — el precio y la
+              duración dependen del tamaño y pelo de tu Doggo.
+            </p>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="weight">Peso (kg)</Label>
+              <Input
+                id="weight"
+                type="number"
+                step="0.1"
+                min="0"
+                inputMode="decimal"
+                placeholder="Ej. 12.5"
+                aria-invalid={Boolean(errors.weight)}
+                {...register("weight")}
+              />
+              {errors.weight && (
+                <p className="text-sm text-destructive">
+                  {errors.weight.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="coat_type">Tipo de pelo</Label>
+              <Controller
+                control={control}
+                name="coat_type"
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger id="coat_type" className="w-full">
+                      <SelectValue placeholder="Opcional" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(COAT_TYPE_LABEL) as CoatType[]).map(
+                        (c) => (
+                          <SelectItem key={c} value={c}>
+                            {COAT_TYPE_LABEL[c]}
+                          </SelectItem>
+                        ),
+                      )}
+                    </SelectContent>
+                  </Select>
                 )}
               />
             </div>

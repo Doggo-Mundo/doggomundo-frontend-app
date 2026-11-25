@@ -524,7 +524,7 @@ function PasswordForm({ token, onComplete }: PasswordProps) {
         </div>
       </div>
 
-      <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+      <Button type="submit" variant="sky" size="lg" className="w-full" disabled={isSubmitting}>
         {isSubmitting ? "Configurando…" : "Continuar"}
       </Button>
     </form>

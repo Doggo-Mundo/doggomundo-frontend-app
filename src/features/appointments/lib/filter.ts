@@ -7,6 +7,7 @@ const TERMINAL: AppointmentStatus[] = [
   "penalty_cancel",
   "penalty_no_show",
   "graced_no_show",
+  "pending_review",
 ];
 
 export function isTerminal(status: AppointmentStatus): boolean {
