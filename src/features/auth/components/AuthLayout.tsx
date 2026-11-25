@@ -28,7 +28,7 @@ export function AuthLayout({ title, description, footer, children, wide = false 
         "pt-[calc(env(safe-area-inset-top)+2rem)] pb-[calc(env(safe-area-inset-bottom)+2rem)]",
         // Pantallas grandes: menos aire vertical fuera de la tarjeta
         // para que el registro quepa completo.
-        wide && "xl:gap-4 xl:pt-[calc(env(safe-area-inset-top)+1rem)] xl:pb-[calc(env(safe-area-inset-bottom)+1rem)]",
+        wide && "lg:gap-3 lg:pt-[calc(env(safe-area-inset-top)+0.75rem)] lg:pb-[calc(env(safe-area-inset-bottom)+0.75rem)]",
       )}
     >
       <PawMark className="dm-spin-rev pointer-events-none absolute -bottom-24 -left-28 h-[340px] w-[340px] text-navy-soft opacity-70" />
@@ -43,17 +43,17 @@ export function AuthLayout({ title, description, footer, children, wide = false 
         <img
           src="/doggo-logo.png"
           alt="Doggo Mundo"
-          className={cn("h-28 w-auto sm:h-32", wide && "xl:h-28")}
+          className={cn("h-28 w-auto sm:h-32", wide && "lg:h-28")}
         />
       </Link>
 
       <Card
         className={cn(
           "relative w-full max-w-sm border-[3px] shadow-[8px_8px_0_var(--accent)]",
-          wide && "lg:max-w-[48rem] xl:max-w-6xl",
+          wide && "lg:max-w-[56rem]",
         )}
       >
-        <CardHeader className={cn("text-center", wide && "lg:px-8 lg:pt-2")}>
+        <CardHeader className={cn("text-center", wide && "lg:px-8")}>
           <CardTitle className="text-2xl font-bold text-primary">{title}</CardTitle>
           {description && <CardDescription>{description}</CardDescription>}
         </CardHeader>
