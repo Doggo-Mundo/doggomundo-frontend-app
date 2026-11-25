@@ -71,7 +71,7 @@ export function ForgotPasswordPage() {
           )}
         </div>
 
-        <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" variant="brand" size="lg" className="w-full" disabled={isSubmitting}>
           {isSubmitting ? "Enviando…" : "Enviar código"}
         </Button>
       </form>

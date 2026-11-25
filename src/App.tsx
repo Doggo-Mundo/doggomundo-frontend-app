@@ -4,10 +4,12 @@ import { Toaster } from "sonner";
 import { AppRouter } from "@/routes/AppRouter";
 import { StripeProvider } from "@/features/payments/StripeProvider";
 import { queryClient } from "@/lib/query-client";
+import { SpriteDefs } from "@/components/brand/SpriteDefs";
 
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <SpriteDefs />
       <StripeProvider>
         <BrowserRouter>
           <AppRouter />

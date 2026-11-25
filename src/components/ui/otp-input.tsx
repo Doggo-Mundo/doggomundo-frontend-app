@@ -114,7 +114,7 @@ export function OtpInput({
           aria-invalid={invalid || undefined}
           aria-label={`Dígito ${index + 1}`}
           className={cn(
-            "h-12 w-10 rounded-lg border border-input bg-background text-center text-xl font-semibold tabular-nums shadow-xs outline-none transition-colors",
+            "h-12 w-10 rounded-xl border-2 border-ink/70 bg-background font-display text-center text-xl font-semibold tabular-nums shadow-xs outline-none transition-colors",
             "focus:border-ring focus:ring-3 focus:ring-ring/40",
             "disabled:cursor-not-allowed disabled:opacity-50",
             invalid && "border-destructive ring-3 ring-destructive/20",

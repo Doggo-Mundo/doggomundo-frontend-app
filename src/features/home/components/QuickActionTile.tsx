@@ -16,21 +16,13 @@ interface Props {
 
 // Per-variant icon container colors. Keeps the rest of the card neutral so
 // the accent reads as a brand highlight, not a marketing block.
+// V2: bloques de color plano de la paleta de la landing.
 const VARIANT_ICON: Record<QuickActionVariant, string> = {
-  primary: "bg-primary text-primary-foreground",
-  sun: "bg-amber-100 text-amber-700",
-  amber: "bg-orange-100 text-orange-700",
-  gold: "bg-yellow-100 text-yellow-700",
-  neutral: "bg-primary/10 text-primary",
-};
-
-// Soft hover tint so each tile feels distinct on focus, not uniformly gray.
-const VARIANT_HOVER: Record<QuickActionVariant, string> = {
-  primary: "group-hover:border-primary/50",
-  sun: "group-hover:border-amber-300",
-  amber: "group-hover:border-orange-300",
-  gold: "group-hover:border-yellow-300",
-  neutral: "group-hover:border-primary/40",
+  primary: "bg-sun text-primary",
+  sun: "bg-surface-soft text-primary",
+  amber: "bg-brand-warm-1 text-primary",
+  gold: "bg-brand-blue-5 text-primary",
+  neutral: "bg-brand-warm-2 text-primary",
 };
 
 export function QuickActionTile({
@@ -43,19 +35,16 @@ export function QuickActionTile({
   return (
     <Link
       to={to}
-      className="group block h-full rounded-xl active:scale-[0.98] transition-transform outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="group block h-full rounded-3xl active:scale-[0.98] transition-transform outline-none focus-visible:ring-3 focus-visible:ring-ring"
     >
       <Card
-        className={cn(
-          "h-full border transition-all group-hover:-translate-y-1 group-hover:shadow-lg",
-          VARIANT_HOVER[variant],
-        )}
+        className="h-full transition-transform group-hover:-translate-y-1 group-hover:-rotate-1"
       >
         <CardContent className="flex h-full flex-col gap-2 py-4">
           <div className="flex items-center justify-between">
             <div
               className={cn(
-                "flex h-11 w-11 items-center justify-center rounded-full transition-transform group-hover:scale-110",
+                "flex h-11 w-11 items-center justify-center rounded-full border-2 border-ink transition-transform group-hover:scale-110",
                 VARIANT_ICON[variant],
               )}
             >
@@ -64,7 +53,7 @@ export function QuickActionTile({
             <ChevronRight className="h-4 w-4 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5" />
           </div>
           <div className="space-y-0.5">
-            <p className="text-sm font-semibold">{label}</p>
+            <p className="font-display text-base font-semibold">{label}</p>
             <p className="text-xs text-muted-foreground">{description}</p>
           </div>
         </CardContent>

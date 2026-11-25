@@ -33,7 +33,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-ink bg-background lg:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       aria-label="Navegación principal"
     >
@@ -56,18 +56,21 @@ export function BottomNav() {
                 end={tab.end}
                 className={({ isActive }) =>
                   cn(
-                    "flex flex-col items-center justify-center gap-0.5 py-2 text-xs transition-colors",
+                    // V2: la pestaña activa lleva el ícono en una
+                    // píldora amarilla, como el estado activo de la
+                    // landing.
+                    "group/tab flex flex-col items-center justify-center gap-0.5 py-1.5 text-xs font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring",
                     isActive
                       ? "text-primary"
                       : "text-muted-foreground hover:text-foreground",
                   )
                 }
               >
-                <span className="relative">
+                <span className="relative flex h-7 w-12 items-center justify-center rounded-full border-2 border-transparent transition-colors group-aria-[current=page]/tab:border-ink group-aria-[current=page]/tab:bg-sun">
                   <tab.icon className="h-5 w-5" aria-hidden="true" />
                   {showBadge && (
                     <span
-                      className="absolute -right-2 -top-1.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground"
+                      className="absolute -right-1 -top-1.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground"
                       aria-label={`${cartCount} en el carrito`}
                     >
                       {cartCount > 9 ? "9+" : cartCount}

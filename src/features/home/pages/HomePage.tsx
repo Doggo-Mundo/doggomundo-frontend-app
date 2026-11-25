@@ -143,7 +143,7 @@ export function HomePage() {
           />
         )}
         <div className="min-w-0 flex-1 space-y-0.5">
-          <h1 className="truncate text-2xl font-semibold">
+          <h1 className="truncate text-3xl font-bold text-primary">
             {greeting}
             {user ? `, ${user.first_name}` : ""}
           </h1>
@@ -204,7 +204,7 @@ export function HomePage() {
       ) : null}
 
       <section className="space-y-2">
-        <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <h2 className="font-sans text-xs font-bold uppercase tracking-[2px] text-brand-indigo-1">
           Accesos rápidos
         </h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
