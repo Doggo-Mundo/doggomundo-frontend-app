@@ -8,9 +8,10 @@ interface Props {
   description?: string;
   footer?: React.ReactNode;
   children: React.ReactNode;
-  /** Formularios largos (registro): desde `lg` la tarjeta se ensancha
-   *  y el logo pasa a la izquierda, para que todo quepa sin scroll en
-   *  pantallas grandes. En móvil se ve igual que el resto. */
+  /** Formularios largos (registro): la tarjeta se ensancha en
+   *  pantallas grandes para repartir el formulario en columnas y que
+   *  quepa sin scroll. El logo sigue arriba. En móvil se ve igual que
+   *  el resto. */
   wide?: boolean;
 }
 
@@ -23,13 +24,12 @@ export function AuthLayout({ title, description, footer, children, wide = false 
   return (
     <div
       className={cn(
-        "relative flex min-h-dvh flex-col items-center justify-center gap-6 overflow-hidden bg-primary px-4 py-8",
-        wide && "lg:flex-row lg:gap-12",
+        "relative flex min-h-dvh flex-col items-center justify-center gap-6 overflow-hidden bg-primary px-4",
+        "pt-[calc(env(safe-area-inset-top)+2rem)] pb-[calc(env(safe-area-inset-bottom)+2rem)]",
+        // Pantallas grandes: menos aire vertical fuera de la tarjeta
+        // para que el registro quepa completo.
+        wide && "xl:gap-4 xl:pt-[calc(env(safe-area-inset-top)+1rem)] xl:pb-[calc(env(safe-area-inset-bottom)+1rem)]",
       )}
-      style={{
-        paddingTop: "calc(env(safe-area-inset-top) + 2rem)",
-        paddingBottom: "calc(env(safe-area-inset-bottom) + 2rem)",
-      }}
     >
       <PawMark className="dm-spin-rev pointer-events-none absolute -bottom-24 -left-28 h-[340px] w-[340px] text-navy-soft opacity-70" />
       <PawMark className="dm-float pointer-events-none absolute top-16 right-[8%] hidden h-20 w-20 text-navy-soft sm:block" />
@@ -43,21 +43,21 @@ export function AuthLayout({ title, description, footer, children, wide = false 
         <img
           src="/doggo-logo.png"
           alt="Doggo Mundo"
-          className={cn("h-28 w-auto sm:h-32", wide && "lg:h-44")}
+          className={cn("h-28 w-auto sm:h-32", wide && "xl:h-28")}
         />
       </Link>
 
       <Card
         className={cn(
           "relative w-full max-w-sm border-[3px] shadow-[8px_8px_0_var(--accent)]",
-          wide && "lg:max-w-[46rem]",
+          wide && "lg:max-w-[48rem] xl:max-w-6xl",
         )}
       >
-        <CardHeader className="text-center">
+        <CardHeader className={cn("text-center", wide && "lg:px-8 lg:pt-2")}>
           <CardTitle className="text-2xl font-bold text-primary">{title}</CardTitle>
           {description && <CardDescription>{description}</CardDescription>}
         </CardHeader>
-        <CardContent className={cn("space-y-4", wide && "lg:px-6")}>
+        <CardContent className={cn("space-y-4", wide && "lg:space-y-5 lg:px-8 lg:pb-2")}>
           {children}
           {footer && (
             <div className="pt-2 text-center text-sm text-muted-foreground">

@@ -196,72 +196,77 @@ export function RegisterPage() {
         </span>
       }
     >
-      {/* Desde lg, dos columnas (datos | consentimientos + botón) para
-          que el formulario quepa completo sin scroll en pantallas
-          grandes. En móvil es una sola columna, como antes. */}
+      {/* Pantallas grandes, para que quepa sin scroll:
+          - lg: dos columnas (todos los datos | consentimientos + botón)
+          - xl: tres columnas (datos personales | contraseñas |
+            consentimientos + botón)
+          En móvil y tablet es una sola columna, como antes. */}
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-x-8 lg:space-y-0"
+        className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-x-10 lg:space-y-0 xl:grid-cols-3"
         noValidate
       >
-        <div className="empty:hidden lg:col-span-2 lg:mb-4">
+        <div className="empty:hidden lg:col-span-full lg:mb-5">
           <FormErrors message={errors.root?.message} />
         </div>
 
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="first_name">Nombre</Label>
-              <Input
-                id="first_name"
-                autoComplete="given-name"
-                aria-invalid={Boolean(errors.first_name)}
-                {...register("first_name")}
-              />
-              {errors.first_name && (
-                <p className="text-sm text-destructive">{errors.first_name.message}</p>
-              )}
+        {/* Datos + contraseñas: apilados hasta lg, dos columnas en xl. */}
+        <div className="space-y-4 lg:space-y-5 xl:col-span-2 xl:grid xl:grid-cols-2 xl:gap-x-10 xl:space-y-0">
+          <div className="space-y-4 lg:space-y-5">
+            <div className="grid grid-cols-2 gap-3 lg:gap-4">
+              <div className="space-y-1.5 lg:space-y-2">
+                <Label htmlFor="first_name">Nombre</Label>
+                <Input
+                  id="first_name"
+                  autoComplete="given-name"
+                  aria-invalid={Boolean(errors.first_name)}
+                  {...register("first_name")}
+                />
+                {errors.first_name && (
+                  <p className="text-sm text-destructive">{errors.first_name.message}</p>
+                )}
+              </div>
+              <div className="space-y-1.5 lg:space-y-2">
+                <Label htmlFor="last_name">Apellido</Label>
+                <Input
+                  id="last_name"
+                  autoComplete="family-name"
+                  aria-invalid={Boolean(errors.last_name)}
+                  {...register("last_name")}
+                />
+                {errors.last_name && (
+                  <p className="text-sm text-destructive">{errors.last_name.message}</p>
+                )}
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="last_name">Apellido</Label>
-              <Input
-                id="last_name"
-                autoComplete="family-name"
-                aria-invalid={Boolean(errors.last_name)}
-                {...register("last_name")}
-              />
-              {errors.last_name && (
-                <p className="text-sm text-destructive">{errors.last_name.message}</p>
-              )}
-            </div>
-          </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              placeholder="tu@email.com"
-              aria-invalid={Boolean(errors.email)}
-              {...register("email")}
+            <div className="space-y-1.5 lg:space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                placeholder="tu@email.com"
+                aria-invalid={Boolean(errors.email)}
+                {...register("email")}
+              />
+              {errors.email && (
+                <p className="text-sm text-destructive">{errors.email.message}</p>
+              )}
+            </div>
+
+            <PhoneFields
+              control={control}
+              register={register}
+              countryCodeName="phone_country_code"
+              phoneName="phone"
+              countryCodeError={errors.phone_country_code?.message}
+              phoneError={errors.phone?.message}
             />
-            {errors.email && (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
-            )}
           </div>
 
-          <PhoneFields
-            control={control}
-            register={register}
-            countryCodeName="phone_country_code"
-            phoneName="phone"
-            countryCodeError={errors.phone_country_code?.message}
-            phoneError={errors.phone?.message}
-          />
-
-          <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
-            <div className="space-y-1.5">
+          <div className="space-y-4 lg:space-y-5">
+            <div className="space-y-1.5 lg:space-y-2">
               <Label htmlFor="password">Contraseña</Label>
               <PasswordInput
                 id="password"
@@ -274,7 +279,7 @@ export function RegisterPage() {
               )}
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 lg:space-y-2">
               <Label htmlFor="password_confirm">Repite la contraseña</Label>
               <PasswordInput
                 id="password_confirm"
@@ -291,11 +296,11 @@ export function RegisterPage() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 lg:gap-5">
           {/* F-G.2: consentimientos legales. El email de verificación
               que sigue funciona como firma del consentimiento (usuario
               demuestra que controla el buzón que aceptó). */}
-          <div className="space-y-2 rounded-md border bg-muted/30 p-3">
+          <div className="space-y-2 rounded-2xl border bg-muted/30 p-3 lg:space-y-3 lg:p-4">
             <Controller
               control={control}
               name="terms_accepted"
