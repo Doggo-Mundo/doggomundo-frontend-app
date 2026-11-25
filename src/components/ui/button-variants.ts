@@ -13,6 +13,12 @@ export const buttonVariants = cva(
         // contorno y sombra dura. Uno por pantalla.
         brand:
           "border-[3px] border-ink-deep bg-sun text-primary shadow-[4px_4px_0_var(--ink-deep)] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[6px_6px_0_var(--ink-deep)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_var(--ink-deep)] focus-visible:border-ink-deep focus-visible:ring-4 focus-visible:ring-ring",
+        // Misma forma que "brand" en azul Doggo (color insignia del
+        // brandbook). Para las pantallas de cuenta (login, registro,
+        // recuperar contraseña), donde el amarillo sobre navy resaltaba
+        // demasiado.
+        sky:
+          "border-[3px] border-ink-deep bg-accent text-primary shadow-[4px_4px_0_var(--ink-deep)] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:bg-brand-blue-3 hover:shadow-[6px_6px_0_var(--ink-deep)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_var(--ink-deep)] focus-visible:border-ink-deep focus-visible:ring-4 focus-visible:ring-white",
         outline:
           "border-2 border-ink/80 bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:

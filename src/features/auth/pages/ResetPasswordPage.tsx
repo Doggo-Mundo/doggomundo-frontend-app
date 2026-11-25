@@ -176,7 +176,7 @@ export function ResetPasswordPage() {
           )}
         </div>
 
-        <Button type="submit" variant="brand" size="lg" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" variant="sky" size="lg" className="w-full" disabled={isSubmitting}>
           {isSubmitting ? "Guardando…" : "Actualizar contraseña"}
         </Button>
 

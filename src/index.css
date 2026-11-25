@@ -238,7 +238,8 @@
   .dm-tilt, .dm-float, .dm-twinkle, .dm-twinkle2, .dm-spin-rev {
     animation: none !important;
   }
-  [data-slot="button"][data-variant="brand"]:hover {
+  [data-slot="button"][data-variant="brand"]:hover,
+  [data-slot="button"][data-variant="sky"]:hover {
     transform: none;
   }
 }

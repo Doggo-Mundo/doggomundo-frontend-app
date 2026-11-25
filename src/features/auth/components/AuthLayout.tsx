@@ -10,9 +10,10 @@ interface Props {
 }
 
 // V2: mismo lenguaje que la landing — fondo navy con huellas y
-// estrellas, logo oficial arriba, tarjeta blanca con contorno y
-// sombra dura amarilla. Es la primera pantalla que ve quien llega
-// desde los CTAs de la landing.
+// estrellas, logo oficial arriba, tarjeta blanca con contorno y sombra
+// dura. Aquí el acento es el azul Doggo, no el amarillo: sobre navy el
+// amarillo resaltaba demasiado. Es la primera pantalla que ve quien
+// llega desde los CTAs de la landing.
 export function AuthLayout({ title, description, footer, children }: Props) {
   return (
     <div
@@ -34,7 +35,7 @@ export function AuthLayout({ title, description, footer, children }: Props) {
         <img src="/doggo-logo.png" alt="Doggo Mundo" className="h-20 w-auto" />
       </Link>
 
-      <Card className="relative w-full max-w-sm border-[3px] shadow-[8px_8px_0_var(--sun)]">
+      <Card className="relative w-full max-w-sm border-[3px] shadow-[8px_8px_0_var(--accent)]">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-primary">{title}</CardTitle>
           {description && <CardDescription>{description}</CardDescription>}
