@@ -51,7 +51,8 @@ La app comparte el lenguaje visual de la landing V2 ("planeta Doggo"): contorno 
 - `--sun` `#FFC83D` (acento del CTA principal), `--ink` `#1A2243` (contornos), `--ink-deep` `#0F1632` (sombra dura), `--navy-soft` `#2C3A6E` (superficies sobre navy) y la paleta secundaria `brand-*`
 - `Button variant="brand"`: píldora amarilla con sombra dura. **Una por pantalla**, solo para la acción principal (Entrar, Crear cuenta, Confirmar reserva…)
 - `Card`: `rounded-3xl`, contorno `border-ink`, sombra dura. Inputs/selects con contorno de 2px
-- `TopBar` navy, `BottomNav` con la pestaña activa en píldora amarilla, `AuthLayout` sobre navy
+- `Button variant="sky"`: misma forma que `brand`, en azul Doggo. Se usa en las pantallas de cuenta (login, registro, recuperar contraseña…), donde el amarillo sobre navy resaltaba demasiado
+- `TopBar` navy, `BottomNav` con la pestaña activa en píldora amarilla, `AuthLayout` sobre navy con acento azul Doggo
 - `components/brand/`: `SpriteDefs` (montado una vez en `App`), `Mascot` (Hachi) y `PawMark`/`StarMark`
 - Animaciones `dm-*` en `index.css`; todas se apagan con `prefers-reduced-motion`
 
