@@ -1,12 +1,17 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { PawMark, StarMark } from "@/components/brand/BrandIcon";
+import { cn } from "@/lib/utils";
 
 interface Props {
   title: string;
   description?: string;
   footer?: React.ReactNode;
   children: React.ReactNode;
+  /** Formularios largos (registro): desde `lg` la tarjeta se ensancha
+   *  y el logo pasa a la izquierda, para que todo quepa sin scroll en
+   *  pantallas grandes. En móvil se ve igual que el resto. */
+  wide?: boolean;
 }
 
 // V2: mismo lenguaje que la landing — fondo navy con huellas y
@@ -14,10 +19,13 @@ interface Props {
 // dura. Aquí el acento es el azul Doggo, no el amarillo: sobre navy el
 // amarillo resaltaba demasiado. Es la primera pantalla que ve quien
 // llega desde los CTAs de la landing.
-export function AuthLayout({ title, description, footer, children }: Props) {
+export function AuthLayout({ title, description, footer, children, wide = false }: Props) {
   return (
     <div
-      className="relative flex min-h-dvh flex-col items-center justify-center gap-6 overflow-hidden bg-primary px-4 py-8"
+      className={cn(
+        "relative flex min-h-dvh flex-col items-center justify-center gap-6 overflow-hidden bg-primary px-4 py-8",
+        wide && "lg:flex-row lg:gap-12",
+      )}
       style={{
         paddingTop: "calc(env(safe-area-inset-top) + 2rem)",
         paddingBottom: "calc(env(safe-area-inset-bottom) + 2rem)",
@@ -32,15 +40,24 @@ export function AuthLayout({ title, description, footer, children }: Props) {
         to="/login"
         className="relative rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring"
       >
-        <img src="/doggo-logo.png" alt="Doggo Mundo" className="h-20 w-auto" />
+        <img
+          src="/doggo-logo.png"
+          alt="Doggo Mundo"
+          className={cn("h-28 w-auto sm:h-32", wide && "lg:h-44")}
+        />
       </Link>
 
-      <Card className="relative w-full max-w-sm border-[3px] shadow-[8px_8px_0_var(--accent)]">
+      <Card
+        className={cn(
+          "relative w-full max-w-sm border-[3px] shadow-[8px_8px_0_var(--accent)]",
+          wide && "lg:max-w-[46rem]",
+        )}
+      >
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-primary">{title}</CardTitle>
           {description && <CardDescription>{description}</CardDescription>}
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className={cn("space-y-4", wide && "lg:px-6")}>
           {children}
           {footer && (
             <div className="pt-2 text-center text-sm text-muted-foreground">
