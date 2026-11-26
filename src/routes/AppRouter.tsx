@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { ChunkErrorBoundary } from "@/components/shared/ChunkErrorBoundary";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { AuthGuard } from "@/components/layout/AuthGuard";
@@ -271,7 +272,10 @@ export function AppRouter() {
     return <SuspendedFallback />;
   }
 
+  // Tras un deploy, una pestaña vieja pide chunks que ya no existen:
+  // ChunkErrorBoundary recarga una vez para traer el build vigente.
   return (
+    <ChunkErrorBoundary>
     <Suspense fallback={<SuspendedFallback />}>
       <Routes>
         {/* Public — solo para visitantes sin sesión */}
@@ -373,5 +377,6 @@ export function AppRouter() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
+    </ChunkErrorBoundary>
   );
 }
