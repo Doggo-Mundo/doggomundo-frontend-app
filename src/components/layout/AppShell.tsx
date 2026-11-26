@@ -2,12 +2,14 @@ import { Outlet, useLocation } from "react-router-dom";
 import { TopBar } from "./TopBar";
 import { BottomNav } from "./BottomNav";
 import { SegmentationReminderBanner } from "@/features/segmentation/components/SegmentationReminderBanner";
+import { useResetBookingOnLeave } from "@/features/booking/hooks/use-reset-booking-on-leave";
 
 export function AppShell() {
   // Reminder banner is noisy on the survey page itself. Hide it
   // there (and on the profile page, where the user has an explicit
   // "actualizar mis preferencias" section anyway).
   const location = useLocation();
+  useResetBookingOnLeave();
   const suppressBanner =
     location.pathname.startsWith("/onboarding/preferences")
     || location.pathname.startsWith("/profile");

@@ -7,6 +7,7 @@ import type {
   ServiceListParams,
 } from "@/types/service";
 import type { GroomingQuote, GroomingQuoteParams } from "@/types/grooming-quote";
+import type { GroomingMenu } from "@/types/grooming-menu";
 
 export const serviceKeys = {
   all: ["services"] as const,
@@ -60,5 +61,25 @@ export function useGroomingQuote(params: GroomingQuoteParams | null) {
         .then((r) => r.data),
     enabled: !!params?.service && !!params?.pet,
     retry: false,
+  });
+}
+
+/**
+ * Menú público de grooming de una unidad de negocio: qué incluye cada
+ * paquete, rangos de precio/duración por tamaño y pelo, Deluxe y
+ * extras. `businessUnitId` null deja la query deshabilitada (ej. la
+ * unidad no tiene servicios de calculadora).
+ */
+export function useGroomingMenu(businessUnitId: string | null) {
+  return useQuery({
+    queryKey: ["grooming-menu", businessUnitId],
+    queryFn: () =>
+      api
+        .get<GroomingMenu>("/services/grooming/menu/", {
+          params: { business_unit: businessUnitId },
+        })
+        .then((r) => r.data),
+    enabled: !!businessUnitId,
+    staleTime: 5 * 60 * 1000,
   });
 }

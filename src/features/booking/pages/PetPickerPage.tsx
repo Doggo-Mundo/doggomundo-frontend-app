@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,14 +10,27 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { EmptyPawsIllustration } from "@/components/shared/illustrations/EmptyPawsIllustration";
 import { BookingStepHeader } from "@/features/booking/components/BookingStepHeader";
 import { PetAvatar } from "@/features/pets/components/PetAvatar";
+import {
+  PetGroomingDataForm,
+  type GroomingDataField,
+} from "@/features/booking/components/PetGroomingDataForm";
 import { useBookingFlowStore } from "@/stores/booking-flow-store";
-import { usePets } from "@/api/hooks/use-pets";
+import { usePet, usePets } from "@/api/hooks/use-pets";
 import { useGroomingQuote } from "@/api/hooks/use-services";
 import { cn } from "@/lib/utils";
 import type { PetListItem } from "@/types/pet";
 
+/** State opcional al navegar a /book/pet — el paso de horario lo manda
+ *  cuando availability responde `pet_missing_data`, para reabrir la
+ *  captura inline de peso/pelo de esa mascota sin otro click. */
+export interface PetPickerLocationState {
+  needsGroomingDataFor?: string;
+}
+
 export function PetPickerPage() {
   const navigate = useNavigate();
+  const routerLocation = useLocation();
+  const queryClient = useQueryClient();
   const service = useBookingFlowStore((s) => s.service);
   const selected = useBookingFlowStore((s) => s.pet);
   const setPet = useBookingFlowStore((s) => s.setPet);
@@ -30,7 +44,11 @@ export function PetPickerPage() {
   // horario (que ya debe mostrar/generar según la duración real).
   // `pendingPetId` marca "esperando la cotización de esta mascota";
   // null = nada en vuelo, listo para elegir.
-  const [pendingPetId, setPendingPetId] = useState<string | null>(null);
+  const [pendingPetId, setPendingPetId] = useState<string | null>(
+    () =>
+      (routerLocation.state as PetPickerLocationState | null)
+        ?.needsGroomingDataFor ?? null,
+  );
   const isMatrix = service?.pricingMode === "SIZE_COAT_MATRIX";
 
   const quoteParams =
@@ -41,8 +59,22 @@ export function PetPickerPage() {
     data: quote,
     isLoading: quoting,
     isError: quoteFailed,
+    isFetching: quoteFetching,
     error: quoteError,
   } = useGroomingQuote(quoteParams);
+
+  // La lista de mascotas no trae peso/pelo — cuando la cotización
+  // falla, el detalle dice qué falta para pedir SOLO eso inline.
+  const { data: pendingPetDetail, isLoading: loadingDetail } = usePet(
+    quoteFailed && pendingPetId ? pendingPetId : "",
+  );
+  const missingFields: GroomingDataField[] =
+    quoteFailed && pendingPetDetail && pendingPetDetail.id === pendingPetId
+      ? [
+          ...(!pendingPetDetail.weight ? (["weight"] as const) : []),
+          ...(!pendingPetDetail.coat_type ? (["coat_type"] as const) : []),
+        ]
+      : [];
 
   useEffect(() => {
     if (!pendingPetId || !quote) return;
@@ -67,10 +99,25 @@ export function PetPickerPage() {
     setPendingPetId(pet.id);
   }
 
+  // Mientras se re-cotiza (tras guardar peso/pelo) o se carga el
+  // detalle, no mostramos ni el error viejo ni el formulario.
+  const settled = quoteFailed && !quoteFetching && !loadingDetail;
+  const showDataForm = settled && missingFields.length > 0;
   const quoteErrorMessage =
-    quoteFailed && axios.isAxiosError(quoteError)
-      ? (quoteError.response?.data as { error?: string } | undefined)?.error
+    settled && !showDataForm
+      ? ((axios.isAxiosError(quoteError)
+          ? (quoteError.response?.data as { error?: string } | undefined)?.error
+          : null) ?? "No pudimos cotizar el servicio para este Doggo.")
       : null;
+  const pendingPetName =
+    data?.results.find((p) => p.id === pendingPetId)?.name ?? "tu Doggo";
+
+  function handleGroomingDataSaved() {
+    // useUpdatePetComplete ya invalida las queries de mascotas; acá
+    // re-disparamos la cotización — al resolver, el efecto de arriba
+    // fija la mascota y avanza a opciones de grooming.
+    queryClient.invalidateQueries({ queryKey: ["grooming-quote"] });
+  }
 
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
@@ -80,18 +127,20 @@ export function PetPickerPage() {
         title="¿Para cuál de tus Doggos?"
       />
 
+      {showDataForm && pendingPetId && (
+        <PetGroomingDataForm
+          key={pendingPetId}
+          petId={pendingPetId}
+          petName={pendingPetName}
+          missing={missingFields}
+          onSaved={handleGroomingDataSaved}
+          onCancel={() => setPendingPetId(null)}
+        />
+      )}
+
       {quoteErrorMessage && (
         <Card size="sm" className="border-destructive/40 bg-destructive/5">
-          <div className="space-y-2 px-3">
-            <p className="text-sm text-destructive">{quoteErrorMessage}</p>
-            {pendingPetId && (
-              <Button asChild variant="outline" size="sm">
-                <Link to={`/pets/${pendingPetId}/edit`}>
-                  Completar perfil
-                </Link>
-              </Button>
-            )}
-          </div>
+          <p className="px-3 text-sm text-destructive">{quoteErrorMessage}</p>
         </Card>
       )}
 

@@ -2,10 +2,11 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { Camera, PackageSearch } from "lucide-react";
 import { BookingStepHeader } from "@/features/booking/components/BookingStepHeader";
 import { ServiceCard } from "@/features/booking/components/ServiceCard";
+import { GroomingPackageCard } from "@/features/booking/components/GroomingPackageCard";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useBookingFlowStore } from "@/stores/booking-flow-store";
-import { useServices } from "@/api/hooks/use-services";
+import { useGroomingMenu, useServices } from "@/api/hooks/use-services";
 import type { ServiceCatalogItem } from "@/types/service";
 
 export function ServicePickerPage() {
@@ -20,6 +21,20 @@ export function ServicePickerPage() {
   const { data, isLoading, isError } = useServices(
     location ? { business_unit: location.businessUnitId } : {},
   );
+
+  // Solo pedimos el menú de grooming cuando la unidad tiene algún
+  // servicio de calculadora — es lo que trae qué incluye cada paquete.
+  const hasMatrix = !!data?.results.some(
+    (s) => s.pricing_mode === "SIZE_COAT_MATRIX",
+  );
+  const { data: menu, isLoading: menuLoading } = useGroomingMenu(
+    hasMatrix && location ? location.businessUnitId : null,
+  );
+  const packagesById = new Map(
+    (menu?.packages ?? []).map((pkg) => [pkg.id, pkg]),
+  );
+  const matrixCount =
+    data?.results.filter((s) => packagesById.has(s.id)).length ?? 0;
 
   if (!location) return <Navigate to="/book/location" replace />;
 
@@ -56,7 +71,9 @@ export function ServicePickerPage() {
         </div>
       )}
 
-      {isLoading ? (
+      {/* Esperamos el menú para no cambiar la tarjeta simple por la
+          detallada bajo el dedo; si falla, quedan las simples. */}
+      {isLoading || (hasMatrix && menuLoading) ? (
         <LoadingState rows={3} />
       ) : isError ? (
         <EmptyState title="No pudimos cargar los servicios" />
@@ -68,16 +85,44 @@ export function ServicePickerPage() {
         />
       ) : (
         <ul className="space-y-2">
-          {data.results.map((service) => (
-            <li key={service.id}>
-              <ServiceCard
-                service={service}
-                selected={selected?.id === service.id}
-                onSelect={() => handleSelect(service)}
-              />
-            </li>
-          ))}
+          {data.results.map((service) => {
+            const pkg =
+              service.pricing_mode === "SIZE_COAT_MATRIX"
+                ? packagesById.get(service.id)
+                : undefined;
+            return (
+              <li key={service.id}>
+                {pkg ? (
+                  <GroomingPackageCard
+                    pkg={pkg}
+                    includedPackage={
+                      pkg.includes_service
+                        ? (packagesById.get(pkg.includes_service.id) ?? null)
+                        : null
+                    }
+                    selected={selected?.id === service.id}
+                    defaultExpanded={matrixCount <= 2}
+                    onSelect={() => handleSelect(service)}
+                  />
+                ) : (
+                  <ServiceCard
+                    service={service}
+                    selected={selected?.id === service.id}
+                    onSelect={() => handleSelect(service)}
+                  />
+                )}
+              </li>
+            );
+          })}
         </ul>
+      )}
+
+      {matrixCount > 0 && (
+        <p className="text-xs text-muted-foreground">
+          El precio final depende del tamaño y pelo de tu Doggo — lo
+          calculamos en el siguiente paso. Deluxe y extras se pueden
+          agregar después.
+        </p>
       )}
     </div>
   );
