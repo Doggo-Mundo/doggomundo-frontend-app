@@ -63,15 +63,17 @@ describe("tryReloadOnce", () => {
 });
 
 describe("installPreloadErrorHandler", () => {
-  it("recarga ante vite:preloadError y cancela el error", () => {
+  it("recarga ante vite:preloadError sin tragarse el error", () => {
+    // Si se cancelara, Vite resolvería el import() con undefined y la
+    // ruta lazy reventaría con un TypeError que no parece de chunk.
     installPreloadErrorHandler();
     const event = new Event("vite:preloadError", { cancelable: true });
     window.dispatchEvent(event);
     expect(reload).toHaveBeenCalledTimes(1);
-    expect(event.defaultPrevented).toBe(true);
+    expect(event.defaultPrevented).toBe(false);
   });
 
-  it("si ya recargó dentro del cooldown, deja que el error se propague", () => {
+  it("si ya recargó dentro del cooldown, no vuelve a recargar", () => {
     installPreloadErrorHandler();
     window.dispatchEvent(new Event("vite:preloadError", { cancelable: true }));
     _resetForTests();

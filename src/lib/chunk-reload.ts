@@ -59,10 +59,17 @@ export function tryReloadOnce(now: number = Date.now()): boolean {
 /**
  * Vite emite `vite:preloadError` cuando falla el import dinámico o el
  * preload de CSS/JS. Cubre casos que el error boundary no ve.
+ *
+ * NO se llama `event.preventDefault()`: con eso Vite se traga el error y
+ * el `import()` RESUELVE con `undefined`, así que `.then((m) => m.X)`
+ * revienta con "Cannot read properties of undefined (reading 'X')" — un
+ * TypeError que no parece error de chunk (Sentry, admin). Dejando que el
+ * error siga, el ChunkErrorBoundary lo reconoce y muestra el loader
+ * mientras la recarga ya disparada aquí se completa.
  */
 export function installPreloadErrorHandler(): void {
-  window.addEventListener("vite:preloadError", (event) => {
-    if (tryReloadOnce()) event.preventDefault();
+  window.addEventListener("vite:preloadError", () => {
+    tryReloadOnce();
   });
 }
 

@@ -7,6 +7,10 @@ export type BusinessUnitCode =
   | "RETAIL"
   | "EXPERIENCIA";
 
+// Textos por default: la app usa primero el nombre/descripción para
+// clientes que se capturan en la unidad (admin) — ver
+// features/booking/lib/business-unit-text.ts. Estos solo aplican si la
+// unidad no tiene uno.
 // AUTOLAVADO como TIPO de negocio agrupa las lavadoras — tanto las
 // asistidas por staff ("Doggo Bath", bookable) como las pay-as-you-go
 // del estacionamiento (no bookable). Para el cliente que reserva,
@@ -44,12 +48,13 @@ export const ALL_BUSINESS_UNITS: BusinessUnitCode[] = [
 
 /**
  * Business units a customer can actually book through the wizard. CAFE and
- * RETAIL are walk-in / in-store only; EXPERIENCIA runs as events with its own
- * flow, not standard slot-based reservations.
+ * RETAIL are walk-in / in-store only. EXPERIENCIA se reserva igual que las
+ * demás (ventana de disponibilidad del espacio, una sesión por horario).
  */
 export const BOOKABLE_BUSINESS_UNITS: BusinessUnitCode[] = [
   "AUTOLAVADO",
   "GROOMING",
   "FOTO",
   "VET",
+  "EXPERIENCIA",
 ];
