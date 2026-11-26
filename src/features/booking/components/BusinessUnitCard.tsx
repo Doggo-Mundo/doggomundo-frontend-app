@@ -1,19 +1,15 @@
 import { ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import {
-  BUSINESS_UNIT_LABEL,
-  BUSINESS_UNIT_DESCRIPTION,
-} from "@/types/business-unit";
-import type { BusinessUnitCode } from "@/types/business-unit";
 
 interface Props {
-  code: BusinessUnitCode;
+  label: string;
+  description: string;
   selected: boolean;
   onSelect: () => void;
 }
 
-export function BusinessUnitCard({ code, selected, onSelect }: Props) {
+export function BusinessUnitCard({ label, description, selected, onSelect }: Props) {
   return (
     <button
       type="button"
@@ -32,10 +28,8 @@ export function BusinessUnitCard({ code, selected, onSelect }: Props) {
       >
         <div className="flex items-center gap-3 px-3">
           <div className="min-w-0 flex-1">
-            <p className="font-medium">{BUSINESS_UNIT_LABEL[code]}</p>
-            <p className="text-xs text-muted-foreground">
-              {BUSINESS_UNIT_DESCRIPTION[code]}
-            </p>
+            <p className="font-medium">{label}</p>
+            <p className="text-xs text-muted-foreground">{description}</p>
           </div>
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         </div>

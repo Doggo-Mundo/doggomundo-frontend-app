@@ -5,6 +5,10 @@ export interface LocationBusinessUnit {
   name: string;
   code: BusinessUnitCode;
   code_display: string;
+  /** Nombre/descripción para clientes, editables en el admin. Vacíos =
+   *  textos por default del tipo (BUSINESS_UNIT_LABEL/DESCRIPTION). */
+  public_name?: string;
+  public_description?: string;
 }
 
 export interface Location {
