@@ -7,7 +7,7 @@ import { LoadingState } from "@/components/shared/LoadingState";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useBookingFlowStore } from "@/stores/booking-flow-store";
 import { useLocations } from "@/api/hooks/use-locations";
-import { BUSINESS_UNIT_LABEL } from "@/types/business-unit";
+import { businessUnitText } from "@/features/booking/lib/business-unit-text";
 import type { BusinessUnitCode } from "@/types/business-unit";
 import type { LocationListItem, LocationBusinessUnit } from "@/types/location";
 
@@ -57,6 +57,7 @@ export function LocationPickerPage() {
   }, [shouldAutoSkip, matchingLocations, businessUnitCode, setLocation, navigate]);
 
   if (!businessUnitCode) return <Navigate to="/book/business-unit" replace />;
+  const unitLabel = businessUnitText(businessUnitCode, data?.results).label;
 
   function handleSelect(location: LocationListItem) {
     if (!businessUnitCode) return;
@@ -78,7 +79,7 @@ export function LocationPickerPage() {
         stepKey="location"
         backTo="/book/business-unit"
         title="¿En qué sucursal?"
-        description={BUSINESS_UNIT_LABEL[businessUnitCode]}
+        description={unitLabel}
       />
 
       {isLoading || shouldAutoSkip ? (
@@ -88,7 +89,7 @@ export function LocationPickerPage() {
       ) : matchingLocations.length === 0 ? (
         <EmptyState
           icon={<MapPin className="h-12 w-12" />}
-          title={`Ninguna sucursal ofrece ${BUSINESS_UNIT_LABEL[businessUnitCode]}`}
+          title={`Ninguna sucursal ofrece ${unitLabel}`}
           description="Prueba con otro tipo de servicio."
         />
       ) : (
