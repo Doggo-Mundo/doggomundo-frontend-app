@@ -6,6 +6,7 @@ import { useLocations } from "@/api/hooks/use-locations";
 import { useServices } from "@/api/hooks/use-services";
 import { useBookingFlowStore } from "@/stores/booking-flow-store";
 import { BOOKABLE_BUSINESS_UNITS } from "@/types/business-unit";
+import { businessUnitText } from "@/features/booking/lib/business-unit-text";
 import type { BusinessUnitCode } from "@/types/business-unit";
 
 export function BusinessUnitPickerPage() {
@@ -83,7 +84,7 @@ export function BusinessUnitPickerPage() {
         {visibleUnits.map((code) => (
           <li key={code}>
             <BusinessUnitCard
-              code={code}
+              {...businessUnitText(code, locationsData?.results)}
               selected={current === code}
               onSelect={() => handleSelect(code)}
             />
