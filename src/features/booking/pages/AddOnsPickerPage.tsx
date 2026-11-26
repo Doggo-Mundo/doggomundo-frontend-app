@@ -69,7 +69,7 @@ export function AddOnsPickerPage() {
     <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
       <BookingStepHeader
         stepKey="addons"
-        backTo="/book/pet"
+        backTo="/book/slot"
         title="¿Le agregas algo especial?"
         description="Opcional. Un shampoo, un juguete o un premio para tu Doggo."
       />

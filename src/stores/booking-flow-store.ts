@@ -116,6 +116,10 @@ interface BookingFlowState {
   toggleGroomingExtra: (extra: BookingGroomingExtraSnapshot) => void;
   clearGroomingExtras: () => void;
   setNotes: (notes: string) => void;
+  /** "Atrás" en el wizard: limpia lo elegido en `stepKey` y en todos
+   *  los pasos posteriores — regresar es para volver a elegir, no para
+   *  ver lo que ya se había elegido marcado. */
+  clearFromStep: (stepKey: string) => void;
   reset: () => void;
 }
 
@@ -129,6 +133,18 @@ const initialState = {
   groomingExtras: [] as BookingGroomingExtraSnapshot[],
   notes: "",
 };
+
+/** Qué guarda cada paso del wizard, en el orden de BOOKING_STEPS. */
+const STEP_FIELDS: [string, Partial<typeof initialState>][] = [
+  ["business-unit", { businessUnitCode: null }],
+  ["location", { location: null }],
+  ["service", { service: null }],
+  ["pet", { pet: null }],
+  ["grooming-extras", { groomingExtras: [] }],
+  ["slot", { slot: null }],
+  ["addons", { addons: [] }],
+  ["review", { notes: "" }],
+];
 
 // Add-on inventory is scoped per location. Whenever the customer
 // picks a different location the previously-picked add-ons might
@@ -226,6 +242,12 @@ export const useBookingFlowStore = create<BookingFlowState>()(
       clearGroomingExtras: () => set({ groomingExtras: [] }),
 
       setNotes: (notes) => set({ notes }),
+
+      clearFromStep: (stepKey) => {
+        const from = STEP_FIELDS.findIndex(([key]) => key === stepKey);
+        if (from === -1) return;
+        set(Object.assign({}, ...STEP_FIELDS.slice(from).map(([, fields]) => fields)));
+      },
 
       reset: () => set(initialState),
     }),
