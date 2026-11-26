@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SuccessCheckmark } from "@/components/shared/SuccessCheckmark";
@@ -164,7 +164,9 @@ function PaidScreen({
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold">¡Pedido confirmado!</h1>
         <p className="text-sm text-muted-foreground">
-          Te enviamos el recibo por correo. Pásalo a recoger cuando te avisemos.
+          {order.location_name
+            ? `Te enviamos el recibo por correo. Te avisamos por correo cuando tu pedido esté listo para recoger en ${order.location_name}.`
+            : "Te enviamos el recibo por correo. Te avisamos por correo cuando tu pedido esté listo para recoger."}
         </p>
       </div>
 
@@ -174,6 +176,22 @@ function PaidScreen({
             <span>Folio</span>
             <span className="font-mono">{shortRef}</span>
           </div>
+
+          {order.location_name && (
+            <div className="flex items-start gap-2 text-sm">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="min-w-0">
+                <p className="font-medium">
+                  Recoger en {order.location_name}
+                </p>
+                {order.location_address && (
+                  <p className="text-xs text-muted-foreground">
+                    {order.location_address}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           <hr className="border-border" />
 

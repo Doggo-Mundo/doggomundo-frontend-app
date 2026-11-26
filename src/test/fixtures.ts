@@ -2,6 +2,7 @@ import type { Pet, PetListItem } from "@/types/pet";
 import type { Appointment, AppointmentListItem } from "@/types/appointment";
 import type { OrderListItem } from "@/types/order";
 import type { MembershipPlan } from "@/types/membership";
+import type { Product } from "@/types/retail";
 
 const DALMATA = { id: "breed-dalmata", name: "Dálmata", slug: "dalmata" };
 
@@ -121,6 +122,12 @@ export function makeOrderListItem(
     effective_payment_method: "card",
     paid_at: "2026-01-05T16:30:00Z",
     created_at: "2026-01-05T16:00:00Z",
+    // Default = orden de cita (no es de recoger en sucursal).
+    pickup_status: "",
+    pickup_status_display: "",
+    location_name: "",
+    ready_at: null,
+    picked_up_at: null,
     ...overrides,
   };
 }
@@ -145,6 +152,25 @@ export function makePlan(
     ],
     requires_payment_method: false,
     retail_discount_percentage: "0.00",
+    ...overrides,
+  };
+}
+
+export function makeProduct(overrides: Partial<Product> = {}): Product {
+  return {
+    id: "prod-1",
+    name: "Kong Classic",
+    brand: "Kong",
+    category: "cat-1",
+    category_name: "Juguetes",
+    description: "",
+    price: "250.00",
+    photo: null,
+    fulfillment_type: "stocked",
+    fulfillment_type_display: "Stock propio",
+    is_addon_offering: false,
+    in_stock: true,
+    max_available: 5,
     ...overrides,
   };
 }

@@ -1,3 +1,5 @@
+import type { PickupStatus } from "@/types/retail";
+
 export type OrderStatus = "draft" | "paid" | "void";
 
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
@@ -72,6 +74,14 @@ export interface OrderListItem {
   effective_payment_method: EffectivePaymentMethod | null;
   paid_at: string | null;
   created_at: string;
+  /** Pedidos de la tienda para recoger en sucursal. "" = no es de
+   *  recoger (órdenes de citas, membresías). */
+  pickup_status: PickupStatus;
+  /** "Por preparar" | "Listo para recoger" | "Entregado" | "". */
+  pickup_status_display: string;
+  location_name: string;
+  ready_at: string | null;
+  picked_up_at: string | null;
 }
 
 export interface Order extends OrderListItem {
