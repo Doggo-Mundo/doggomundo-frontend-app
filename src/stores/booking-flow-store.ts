@@ -33,6 +33,9 @@ export interface BookingServiceSnapshot {
   pricingMode: PricingMode;
 }
 
+/** Inicio elegido en el paso de horario (GET /appointments/availability/).
+ *  `end` = start + duración real; solo se usa para mostrar — al crear la
+ *  cita el backend recalcula el fin. */
 export interface BookingSlotSnapshot {
   slotId: string;
   start: string;
@@ -98,6 +101,11 @@ interface BookingFlowState {
    *  pasar en el flujo normal). */
   updateServicePricing: (price: string, durationMinutes: number) => void;
   setSlot: (slot: BookingSlotSnapshot) => void;
+  /** Limpia el horario elegido — p. ej. cuando el backend responde
+   *  que ya no está disponible al confirmar. */
+  clearSlot: () => void;
+  /** Cambiar de mascota limpia el horario: la duración (y por tanto
+   *  los inicios disponibles) depende de la mascota. */
   setPet: (pet: BookingPetSnapshot) => void;
   setAddonQuantity: (
     product: Omit<BookingAddonSnapshot, "quantity">,
@@ -108,6 +116,10 @@ interface BookingFlowState {
   toggleGroomingExtra: (extra: BookingGroomingExtraSnapshot) => void;
   clearGroomingExtras: () => void;
   setNotes: (notes: string) => void;
+  /** "Atrás" en el wizard: limpia lo elegido en `stepKey` y en todos
+   *  los pasos posteriores — regresar es para volver a elegir, no para
+   *  ver lo que ya se había elegido marcado. */
+  clearFromStep: (stepKey: string) => void;
   reset: () => void;
 }
 
@@ -121,6 +133,18 @@ const initialState = {
   groomingExtras: [] as BookingGroomingExtraSnapshot[],
   notes: "",
 };
+
+/** Qué guarda cada paso del wizard, en el orden de BOOKING_STEPS. */
+const STEP_FIELDS: [string, Partial<typeof initialState>][] = [
+  ["business-unit", { businessUnitCode: null }],
+  ["location", { location: null }],
+  ["service", { service: null }],
+  ["pet", { pet: null }],
+  ["grooming-extras", { groomingExtras: [] }],
+  ["slot", { slot: null }],
+  ["addons", { addons: [] }],
+  ["review", { notes: "" }],
+];
 
 // Add-on inventory is scoped per location. Whenever the customer
 // picks a different location the previously-picked add-ons might
@@ -165,7 +189,12 @@ export const useBookingFlowStore = create<BookingFlowState>()(
 
       setSlot: (slot) => set({ slot }),
 
-      setPet: (pet) => set({ pet }),
+      clearSlot: () => set({ slot: null }),
+
+      setPet: (pet) =>
+        set((state) =>
+          state.pet?.id === pet.id ? { pet } : { pet, slot: null },
+        ),
 
       setAddonQuantity: (product, quantity) =>
         set((state) => {
@@ -213,6 +242,12 @@ export const useBookingFlowStore = create<BookingFlowState>()(
       clearGroomingExtras: () => set({ groomingExtras: [] }),
 
       setNotes: (notes) => set({ notes }),
+
+      clearFromStep: (stepKey) => {
+        const from = STEP_FIELDS.findIndex(([key]) => key === stepKey);
+        if (from === -1) return;
+        set(Object.assign({}, ...STEP_FIELDS.slice(from).map(([, fields]) => fields)));
+      },
 
       reset: () => set(initialState),
     }),

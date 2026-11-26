@@ -114,7 +114,10 @@ export interface CreateAppointmentPayload {
   business_unit: string;
   pet: string | null;
   scheduled_start: string;
-  scheduled_end: string;
+  /** Opcional: si se omite, el backend calcula start + duración real
+   *  (incluida la de la calculadora de tamaño/pelo). El wizard ya no
+   *  lo manda — ver GET /appointments/availability/. */
+  scheduled_end?: string;
   channel: AppointmentChannel;
   notes?: string;
   items: CreateAppointmentItemPayload[];
@@ -133,25 +136,38 @@ export interface RescheduleAppointmentPayload {
   notes?: string;
 }
 
-export interface AvailableSlot {
-  id: string;
-  business_unit: string;
-  service: string | null;
-  service_name: string | null;
-  staff_user: string | null;
-  resource: string | null;
+/** Un inicio reservable devuelto por GET /appointments/availability/.
+ *  Ya viene filtrado (libre y en el futuro); `end` = start + la
+ *  duración real del servicio para la mascota elegida. */
+export interface AvailabilityStart {
   start: string;
   end: string;
-  is_available: boolean;
+  slot_id: string;
+  resource: string | null;
+  staff_user: string | null;
 }
 
-export interface AvailableSlotsParams {
-  business_unit?: string;
-  service?: string;
-  staff_user?: string;
-  resource?: string;
-  start_after?: string;
-  start_before?: string;
+export interface AvailabilityResponse {
+  service: string;
+  /** Día local America/Mexico_City (YYYY-MM-DD). */
+  date: string;
+  duration_minutes: number;
+  starts: AvailabilityStart[];
+}
+
+export interface AvailabilityParams {
+  service: string;
+  /** Día local America/Mexico_City (YYYY-MM-DD). */
+  date: string;
+  /** Obligatorio para servicios SIZE_COAT_MATRIX; opcional en FLAT. */
+  pet?: string;
+}
+
+/** 400 de availability cuando la mascota no tiene peso/tipo de pelo. */
+export interface AvailabilityErrorBody {
+  error?: string;
+  code?: "pet_missing_data" | "no_pricing" | string;
+  missing?: ("weight" | "coat_type")[];
 }
 
 export type { BusinessUnitCode };

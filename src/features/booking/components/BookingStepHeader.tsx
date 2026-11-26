@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import { useEffectiveBookingSteps } from "@/features/booking/hooks/use-effective-booking-steps";
+import { BOOKING_STEPS } from "@/features/booking/lib/steps";
+import { useBookingFlowStore } from "@/stores/booking-flow-store";
 import { Progress } from "@/components/ui/progress";
 
 interface Props {
@@ -27,11 +29,22 @@ export function BookingStepHeader({ stepKey, backTo, title, description }: Props
     ? steps[step.index - 2]?.path ?? steps[0].path
     : steps[0].path;
   const resolvedBackTo = backTo ?? prevPath;
+  const clearFromStep = useBookingFlowStore((s) => s.clearFromStep);
+  const reset = useBookingFlowStore((s) => s.reset);
+
+  // Regresar limpia lo elegido en el paso destino y los siguientes;
+  // salir del wizard (ej. "Atrás" en el primer paso) lo limpia todo.
+  function handleBack() {
+    const target = BOOKING_STEPS.find((s) => s.path === resolvedBackTo);
+    if (target) clearFromStep(target.key);
+    else reset();
+  }
 
   return (
     <header className="space-y-3">
       <Link
         to={resolvedBackTo}
+        onClick={handleBack}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ChevronLeft className="h-4 w-4" />
