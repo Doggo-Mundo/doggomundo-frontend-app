@@ -7,7 +7,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { Toaster } from "sonner";
 import { server } from "@/test/msw-server";
-import { makePetListItem } from "@/test/fixtures";
+import { makePet, makePetListItem } from "@/test/fixtures";
 import { useBookingFlowStore } from "@/stores/booking-flow-store";
 import { makeTestQueryClient } from "@/test/test-utils";
 
@@ -65,6 +65,129 @@ function paginated<T>(results: T[]) {
   return { count: results.length, next: null, previous: null, results };
 }
 
+// Grooming menu for bu-grooming: "Baño y corte" (= srv-matrix) includes
+// the whole "Baño" package plus its own features.
+const GROOMING_MENU = {
+  business_unit: { id: "bu-grooming", name: "Grooming Polanco" },
+  size_tiers: [],
+  packages: [
+    {
+      id: "srv-bano",
+      name: "Baño",
+      description: "",
+      sort_order: 0,
+      tagline: "Limpio y perfumado",
+      includes_service: null,
+      features: [
+        { id: "f-1", title: "Baño con shampoo", description: "", on_request: false, sort_order: 0 },
+        { id: "f-2", title: "Secado", description: "", on_request: false, sort_order: 1 },
+      ],
+      prices: [
+        { id: "p-1", size_tier: "t-1", coat_type: "SHORT", price: "280.00", duration_minutes: 45 },
+      ],
+    },
+    {
+      id: "srv-matrix",
+      name: "Baño y corte",
+      description: "",
+      sort_order: 1,
+      tagline: "El look completo",
+      includes_service: { id: "srv-bano", name: "Baño" },
+      features: [
+        { id: "f-3", title: "Corte de raza", description: "", on_request: false, sort_order: 0 },
+        { id: "f-4", title: "Corte de uñas", description: "", on_request: true, sort_order: 1 },
+      ],
+      prices: [
+        { id: "p-2", size_tier: "t-1", coat_type: "SHORT", price: "350.00", duration_minutes: 45 },
+        { id: "p-3", size_tier: "t-2", coat_type: "LONG", price: "780.50", duration_minutes: 180 },
+      ],
+    },
+  ],
+  deluxe: { price_from: "50.00", features: [], prices: [] },
+  extras: [],
+};
+
+const POLANCO_LOCATIONS = paginated([
+  {
+    id: "loc-1",
+    name: "Sucursal Polanco",
+    address: "Av. Polanco 1",
+    email: "polanco@doggo.mx",
+    phone: "+5215512345678",
+    maps_url: "",
+    business_units: [
+      {
+        id: "bu-grooming",
+        name: "Grooming Polanco",
+        code: "GROOMING",
+        code_display: "Grooming",
+      },
+    ],
+  },
+]);
+
+const MATRIX_SERVICE = {
+  id: "srv-matrix",
+  name: "Baño y corte",
+  description: "",
+  business_unit: "bu-grooming",
+  business_unit_name: "Grooming Polanco",
+  business_unit_code: "GROOMING",
+  base_duration_minutes: 60,
+  base_price: "400.00",
+  requires_pet: true,
+  capacity_type: "staff_based",
+  capacity_type_display: "Por staff",
+  pricing_mode: "SIZE_COAT_MATRIX",
+  pricing_mode_display: "Matriz tamaño/pelo",
+  sort_order: 0,
+};
+
+const QUOTE_OK = {
+  service: "srv-matrix",
+  size_tier: { id: "tier-1", name: "Chico" },
+  coat_type: "SHORT",
+  coat_type_display: "Corto",
+  price: "350.00",
+  duration_minutes: 45,
+  deluxe_price: null,
+  total: "350.00",
+  extras: [
+    {
+      id: "extra-1",
+      name: "Perfume",
+      price_min: "80.00",
+      price_max: "80.00",
+      is_fixed_price: true,
+    },
+  ],
+};
+
+function seedMatrixFlow(overrides: Partial<ReturnType<typeof useBookingFlowStore.getState>> = {}) {
+  useBookingFlowStore.setState({
+    businessUnitCode: "GROOMING",
+    location: {
+      id: "loc-1",
+      name: "Sucursal Polanco",
+      address: "Polanco",
+      businessUnitId: "bu-grooming",
+      businessUnitName: "Grooming Polanco",
+    },
+    service: {
+      id: "srv-matrix",
+      name: "Baño y corte",
+      price: "400.00",
+      durationMinutes: 60,
+      requiresPet: true,
+      pricingMode: "SIZE_COAT_MATRIX",
+    },
+    slot: null,
+    pet: null,
+    notes: "",
+    ...overrides,
+  });
+}
+
 function renderWizard(initial = "/book") {
   const queryClient = makeTestQueryClient();
   return render(
@@ -119,6 +242,7 @@ describe("Booking wizard — happy path", () => {
 
   it("walks through BU → (auto-skip Location) → Service → Pet → Slot → Review and POSTs the nested payload", { timeout: 20000 }, async () => {
     let postedPayload: Record<string, unknown> | null = null;
+    let availabilityParams: Record<string, string> | null = null;
 
     server.use(
       // Location picker
@@ -169,26 +293,24 @@ describe("Booking wizard — happy path", () => {
           ]),
         );
       }),
-      // Slot picker — query needs start_after/start_before + business_unit + service
-      http.get(`${API}/appointments/slots/`, ({ request }) => {
+      // Slot picker — availability by local CDMX day + service + pet
+      http.get(`${API}/appointments/availability/`, ({ request }) => {
         const url = new URL(request.url);
-        expect(url.searchParams.get("business_unit")).toBe("bu-grooming");
-        expect(url.searchParams.get("service")).toBe("srv-corte");
-        return HttpResponse.json(
-          paginated([
+        availabilityParams = Object.fromEntries(url.searchParams);
+        return HttpResponse.json({
+          service: "srv-corte",
+          date: "2030-06-01",
+          duration_minutes: 60,
+          starts: [
             {
-              id: "slot-1",
-              business_unit: "bu-grooming",
-              service: "srv-corte",
-              service_name: "Corte completo",
-              staff_user: null,
-              resource: "res-1",
               start: "2030-06-01T16:00:00Z",
               end: "2030-06-01T17:00:00Z",
-              is_available: true,
+              slot_id: "slot-1",
+              resource: "res-1",
+              staff_user: null,
             },
-          ]),
-        );
+          ],
+        });
       }),
       // Pet picker
       http.get(`${API}/pets/`, () =>
@@ -250,10 +372,23 @@ describe("Booking wizard — happy path", () => {
     // duration/price are known before horarios are shown.
     await user.click(await screen.findByRole("button", { name: /nala/i }));
 
-    // Step 5: slot — the slot's start is UTC 16:00 which renders as MX local
-    // 10:00. The button's accessible name also includes the duration label
-    // ("10:00 30 min"), so match on the time substring.
-    await user.click(await screen.findByRole("button", { name: /10:00/ }));
+    // Step 5: slot — the start is UTC 16:00 which renders as MX local
+    // 10:00. The chip also shows the approximate end ("termina 11:00").
+    expect(await screen.findByText(/duración aprox\. 60 min/i)).toBeInTheDocument();
+    await user.click(
+      await screen.findByRole("button", { name: /10:00\s*termina 11:00/ }),
+    );
+    expect(availabilityParams).toEqual({
+      service: "srv-corte",
+      date: "2030-06-01",
+      pet: "pet-1",
+    });
+    expect(useBookingFlowStore.getState().slot).toEqual({
+      slotId: "slot-1",
+      start: "2030-06-01T16:00:00Z",
+      end: "2030-06-01T17:00:00Z",
+      resource: "res-1",
+    });
 
     // Step 6: review → confirm
     await user.click(
@@ -270,10 +405,11 @@ describe("Booking wizard — happy path", () => {
       business_unit: "bu-grooming",
       pet: "pet-1",
       scheduled_start: "2030-06-01T16:00:00Z",
-      scheduled_end: "2030-06-01T17:00:00Z",
       channel: "web",
-      items: [{ service: "srv-corte", resource: "res-1" }],
+      items: [{ service: "srv-corte", resource: "res-1", slot_id: "slot-1" }],
     });
+    // The server computes the end from the real duration.
+    expect(postedPayload).not.toHaveProperty("scheduled_end");
   });
 
   it("walks a matrix-priced service through the grooming-extras step and forwards selected ids", { timeout: 20000 }, async () => {
@@ -359,23 +495,28 @@ describe("Booking wizard — happy path", () => {
           ],
         });
       }),
-      http.get(`${API}/appointments/slots/`, () =>
-        HttpResponse.json(
-          paginated([
-            {
-              id: "slot-1",
-              business_unit: "bu-grooming",
-              service: "srv-matrix",
-              service_name: "Baño y corte",
-              staff_user: null,
-              resource: "res-1",
-              start: "2030-06-01T16:00:00Z",
-              end: "2030-06-01T17:00:00Z",
-              is_available: true,
-            },
-          ]),
-        ),
+      http.get(`${API}/services/grooming/menu/`, () =>
+        HttpResponse.json(GROOMING_MENU),
       ),
+      http.get(`${API}/appointments/availability/`, ({ request }) => {
+        const url = new URL(request.url);
+        expect(url.searchParams.get("service")).toBe("srv-matrix");
+        expect(url.searchParams.get("pet")).toBe("pet-1");
+        return HttpResponse.json({
+          service: "srv-matrix",
+          date: "2030-06-01",
+          duration_minutes: 45,
+          starts: [
+            {
+              start: "2030-06-01T16:00:00Z",
+              end: "2030-06-01T16:45:00Z",
+              slot_id: "slot-1",
+              resource: "res-1",
+              staff_user: null,
+            },
+          ],
+        });
+      }),
       http.get(`${API}/retail/products/`, () => HttpResponse.json([])),
       http.post(`${API}/appointments/`, async ({ request }) => {
         postedPayload = (await request.json()) as Record<string, unknown>;
@@ -432,8 +573,17 @@ describe("Booking wizard — happy path", () => {
     expect(postedPayload).toMatchObject({
       business_unit: "bu-grooming",
       pet: "pet-1",
-      items: [{ service: "srv-matrix", extras: ["extra-1"] }],
+      scheduled_start: "2030-06-01T16:00:00Z",
+      items: [
+        {
+          service: "srv-matrix",
+          slot_id: "slot-1",
+          resource: "res-1",
+          extras: ["extra-1"],
+        },
+      ],
     });
+    expect(postedPayload).not.toHaveProperty("scheduled_end");
   });
 
   it("shows the empty-pets state on the pet step instead of a dead end", async () => {
@@ -511,5 +661,328 @@ describe("Booking wizard — happy path", () => {
     expect(
       await screen.findByRole("heading", { name: /para cuál de tus doggos/i }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("Booking wizard — grooming windows", () => {
+  beforeEach(() => {
+    useBookingFlowStore.getState().reset();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2030-06-01T10:00:00Z"));
+    server.use(
+      http.get(`${API}/locations/`, () => HttpResponse.json(POLANCO_LOCATIONS)),
+    );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    useBookingFlowStore.getState().reset();
+  });
+
+  it("shows what each matrix package includes on the service step", async () => {
+    seedMatrixFlow();
+    server.use(
+      http.get(`${API}/services/catalog/`, () =>
+        HttpResponse.json(paginated([MATRIX_SERVICE])),
+      ),
+      http.get(`${API}/services/grooming/menu/`, ({ request }) => {
+        const url = new URL(request.url);
+        expect(url.searchParams.get("business_unit")).toBe("bu-grooming");
+        return HttpResponse.json(GROOMING_MENU);
+      }),
+    );
+
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWizard("/book/service");
+
+    expect(await screen.findByText("El look completo")).toBeInTheDocument();
+    expect(screen.getByText("Desde")).toBeInTheDocument();
+    expect(screen.getByText("$350")).toBeInTheDocument();
+    expect(screen.getByText("45–180 min")).toBeInTheDocument();
+    // includes_service → "Todo el Baño" + chips with Baño's features,
+    // then "Y además:" + its own features (on_request marked).
+    expect(screen.getByText("Todo el Baño")).toBeInTheDocument();
+    expect(screen.getByText("Baño con shampoo")).toBeInTheDocument();
+    expect(screen.getByText("Secado")).toBeInTheDocument();
+    expect(screen.getByText("Y además:")).toBeInTheDocument();
+    expect(screen.getByText("Corte de raza")).toBeInTheDocument();
+    expect(screen.getByText("Corte de uñas")).toBeInTheDocument();
+    expect(screen.getByText(/solo si lo solicitas/i)).toBeInTheDocument();
+
+    // ≤2 packages → expanded by default; it can be collapsed.
+    await user.click(screen.getByRole("button", { name: /ocultar detalle/i }));
+    expect(screen.queryByText("Corte de raza")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /ver qué incluye/i }));
+    expect(screen.getByText("Corte de raza")).toBeInTheDocument();
+
+    // Picking it stores the service and advances to the pet step.
+    server.use(
+      http.get(`${API}/pets/`, () => HttpResponse.json(paginated([]))),
+    );
+    await user.click(screen.getByRole("button", { name: /elegir este paquete/i }));
+    expect(
+      await screen.findByRole("heading", { name: /para cuál de tus doggos/i }),
+    ).toBeInTheDocument();
+    expect(useBookingFlowStore.getState().service?.id).toBe("srv-matrix");
+  });
+
+  it("captures missing weight and coat type inline, PATCHes the pet and continues", { timeout: 20000 }, async () => {
+    seedMatrixFlow();
+    let patched: Record<string, unknown> | null = null;
+    server.use(
+      http.get(`${API}/pets/`, () =>
+        HttpResponse.json(paginated([makePetListItem({ id: "pet-1", name: "Nala" })])),
+      ),
+      http.get(`${API}/pets/pet-1/`, () =>
+        HttpResponse.json(
+          patched
+            ? makePet({ id: "pet-1", weight: "5.20", coat_type: "SHORT" })
+            : makePet({ id: "pet-1", weight: null, coat_type: null }),
+        ),
+      ),
+      http.get(`${API}/services/grooming/quote/`, () =>
+        patched
+          ? HttpResponse.json(QUOTE_OK)
+          : HttpResponse.json(
+              { error: "La mascota no tiene peso registrado." },
+              { status: 400 },
+            ),
+      ),
+      http.patch(`${API}/pets/pet-1/update-complete/`, async ({ request }) => {
+        patched = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          makePet({ id: "pet-1", weight: "5.20", coat_type: "SHORT" }),
+        );
+      }),
+    );
+
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWizard("/book/pet");
+
+    await user.click(await screen.findByRole("button", { name: /nala/i }));
+
+    const weight = await screen.findByLabelText(/peso \(kg\)/i);
+    expect(screen.getByText(/pegado al cuerpo/i)).toBeInTheDocument();
+    expect(screen.getByText(/largo, rizado o doble capa/i)).toBeInTheDocument();
+    // The old "Completar perfil" redirect is gone.
+    expect(screen.queryByRole("link", { name: /completar perfil/i })).not.toBeInTheDocument();
+
+    // Client-side validation: > 150 kg and no coat chosen.
+    await user.type(weight, "200");
+    await user.click(screen.getByRole("button", { name: /guardar y continuar/i }));
+    expect(await screen.findByText(/ingresa un peso válido/i)).toBeInTheDocument();
+    expect(screen.getByText(/elige el tipo de pelo/i)).toBeInTheDocument();
+    expect(patched).toBeNull();
+
+    await user.clear(weight);
+    await user.type(weight, "5.2");
+    await user.click(screen.getByRole("radio", { name: /pelo corto/i }));
+    await user.click(screen.getByRole("button", { name: /guardar y continuar/i }));
+
+    // Re-quotes and continues to the grooming-extras step.
+    expect(await screen.findByRole("button", { name: /perfume/i })).toBeInTheDocument();
+    expect(patched).toEqual({ weight: "5.20", coat_type: "SHORT" });
+    expect(useBookingFlowStore.getState().pet?.id).toBe("pet-1");
+    expect(useBookingFlowStore.getState().service?.price).toBe("350.00");
+  });
+
+  it("only asks for the missing field and surfaces API errors inline", async () => {
+    seedMatrixFlow();
+    server.use(
+      http.get(`${API}/pets/`, () =>
+        HttpResponse.json(paginated([makePetListItem({ id: "pet-1", name: "Nala" })])),
+      ),
+      http.get(`${API}/pets/pet-1/`, () =>
+        HttpResponse.json(makePet({ id: "pet-1", weight: "8.00", coat_type: null })),
+      ),
+      http.get(`${API}/services/grooming/quote/`, () =>
+        HttpResponse.json({ error: "Falta el tipo de pelo." }, { status: 400 }),
+      ),
+      http.patch(`${API}/pets/pet-1/update-complete/`, () =>
+        HttpResponse.json(
+          { coat_type: ["Valor inválido."] },
+          { status: 400 },
+        ),
+      ),
+    );
+
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWizard("/book/pet");
+
+    await user.click(await screen.findByRole("button", { name: /nala/i }));
+    await user.click(await screen.findByRole("radio", { name: /pelo largo/i }));
+    expect(screen.queryByLabelText(/peso \(kg\)/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /guardar y continuar/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Valor inválido.");
+  });
+
+  it("sends the customer back to the pet step when availability says pet_missing_data", async () => {
+    seedMatrixFlow({ pet: { id: "pet-1", name: "Nala" } });
+    server.use(
+      http.get(`${API}/appointments/availability/`, () =>
+        HttpResponse.json(
+          {
+            error: "La mascota no tiene tipo de pelo.",
+            code: "pet_missing_data",
+            missing: ["coat_type"],
+          },
+          { status: 400 },
+        ),
+      ),
+      http.get(`${API}/services/grooming/quote/`, () =>
+        HttpResponse.json({ error: "Falta el tipo de pelo." }, { status: 400 }),
+      ),
+      http.get(`${API}/pets/`, () =>
+        HttpResponse.json(paginated([makePetListItem({ id: "pet-1", name: "Nala" })])),
+      ),
+      http.get(`${API}/pets/pet-1/`, () =>
+        HttpResponse.json(makePet({ id: "pet-1", weight: "8.00", coat_type: null })),
+      ),
+    );
+
+    renderWizard("/book/slot");
+
+    expect(
+      await screen.findByRole("heading", { name: /para cuál de tus doggos/i }),
+    ).toBeInTheDocument();
+    // The inline capture opens for that pet straight away.
+    expect(await screen.findByText("Tipo de pelo")).toBeInTheDocument();
+  });
+
+  it("slot back button goes to grooming-extras only when that step has options", async () => {
+    seedMatrixFlow({ pet: { id: "pet-1", name: "Nala" } });
+    let extras = QUOTE_OK.extras;
+    server.use(
+      http.get(`${API}/appointments/availability/`, () =>
+        HttpResponse.json({
+          service: "srv-matrix",
+          date: "2030-06-01",
+          duration_minutes: 45,
+          starts: [],
+        }),
+      ),
+      http.get(`${API}/services/grooming/quote/`, () =>
+        HttpResponse.json({ ...QUOTE_OK, extras }),
+      ),
+    );
+
+    const { unmount } = renderWizard("/book/slot");
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: /atrás/i })).toHaveAttribute(
+        "href",
+        "/book/grooming-extras",
+      ),
+    );
+    expect(screen.getByText(/duración aprox\. 45 min para nala/i)).toBeInTheDocument();
+    unmount();
+
+    // Empty extras catalog → grooming-extras would auto-forward back
+    // here, so "Atrás" must go to the pet step instead.
+    extras = [];
+    renderWizard("/book/slot");
+    expect(await screen.findByText(/no hay horarios disponibles/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /atrás/i })).toHaveAttribute(
+      "href",
+      "/book/pet",
+    );
+  });
+
+  it("slot back button goes to the pet step for FLAT services", async () => {
+    seedMatrixFlow({
+      pet: { id: "pet-1", name: "Nala" },
+      service: {
+        id: "srv-1",
+        name: "Corte",
+        price: "450.00",
+        durationMinutes: 60,
+        requiresPet: true,
+        pricingMode: "FLAT",
+      },
+    });
+    server.use(
+      http.get(`${API}/appointments/availability/`, () =>
+        HttpResponse.json({
+          service: "srv-1",
+          date: "2030-06-01",
+          duration_minutes: 60,
+          starts: [],
+        }),
+      ),
+    );
+
+    renderWizard("/book/slot");
+    expect(await screen.findByText(/no hay horarios disponibles/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /atrás/i })).toHaveAttribute(
+      "href",
+      "/book/pet",
+    );
+  });
+
+  it("landing resumes at the pet step before the slot step", async () => {
+    seedMatrixFlow({
+      service: {
+        id: "srv-1",
+        name: "Corte",
+        price: "450.00",
+        durationMinutes: 60,
+        requiresPet: true,
+        pricingMode: "FLAT",
+      },
+      slot: {
+        slotId: "slot-1",
+        start: "2030-06-01T16:00:00Z",
+        end: "2030-06-01T17:00:00Z",
+        resource: null,
+      },
+      pet: null,
+    });
+    server.use(
+      http.get(`${API}/pets/`, () =>
+        HttpResponse.json(paginated([makePetListItem({ id: "pet-1", name: "Nala" })])),
+      ),
+    );
+
+    renderWizard("/book");
+    expect(
+      await screen.findByRole("heading", { name: /para cuál de tus doggos/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("landing resumes a matrix booking with a pet at grooming-extras, a FLAT one at slot", async () => {
+    seedMatrixFlow({ pet: { id: "pet-1", name: "Nala" } });
+    server.use(
+      http.get(`${API}/services/grooming/quote/`, () => HttpResponse.json(QUOTE_OK)),
+    );
+
+    const { unmount } = renderWizard("/book");
+    expect(
+      await screen.findByRole("heading", { name: /algo más para tu doggo/i }),
+    ).toBeInTheDocument();
+    unmount();
+
+    seedMatrixFlow({
+      pet: { id: "pet-1", name: "Nala" },
+      service: {
+        id: "srv-1",
+        name: "Corte",
+        price: "450.00",
+        durationMinutes: 60,
+        requiresPet: true,
+        pricingMode: "FLAT",
+      },
+    });
+    server.use(
+      http.get(`${API}/appointments/availability/`, () =>
+        HttpResponse.json({
+          service: "srv-1",
+          date: "2030-06-01",
+          duration_minutes: 60,
+          starts: [],
+        }),
+      ),
+    );
+    renderWizard("/book");
+    expect(await screen.findByRole("heading", { name: /cuándo/i })).toBeInTheDocument();
   });
 });

@@ -3,11 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatRelativeAppointment } from "@/lib/format-date";
 import type { PetListItem } from "@/types/pet";
-import type { AvailableSlot } from "@/types/appointment";
+import type { AvailabilityStart } from "@/types/appointment";
 
 export interface FollowUpSuggestion {
   pet: PetListItem;
-  slot: AvailableSlot;
+  slot: AvailabilityStart;
 }
 
 interface Props {

@@ -2,12 +2,12 @@ import type { ReactNode } from "react";
 import { Sun, CloudSun, Moon, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatTime, getLocalHour } from "@/lib/format-date";
-import type { AvailableSlot } from "@/types/appointment";
+import type { AvailabilityStart } from "@/types/appointment";
 
 interface Props {
-  slots: AvailableSlot[];
+  slots: AvailabilityStart[];
   selectedStart: string | null;
-  onSelect: (slot: AvailableSlot) => void;
+  onSelect: (slot: AvailabilityStart) => void;
 }
 
 interface Period {
@@ -43,50 +43,25 @@ const PERIODS: Period[] = [
   },
 ];
 
-function durationMin(slot: AvailableSlot): number {
-  const ms = new Date(slot.end).getTime() - new Date(slot.start).getTime();
-  return Math.round(ms / 60_000);
-}
-
-/** F-Slots B: agrupa slots que comparten inicio+fin (misma capacidad
- *  agregada). Antes con 2 recursos el cliente veía 2 chips
- *  idénticos "09:30" — confuso y sugería 2 opciones distintas. Ahora
- *  ve UN chip con "N disponibles". Al reservar tomamos el primer
- *  slot libre del grupo — backend valida capacidad al confirmar. */
+/** GET /appointments/availability/ devuelve un mismo inicio una vez
+ *  por carril (recurso/staff) que lo puede atender. Mostramos UN chip
+ *  por inicio (el chip ya muestra a qué hora termina, no cabe más en
+ *  móvil); al reservar se toma el primer carril — el backend vuelve a
+ *  validarlo al confirmar. Todos vienen ya disponibles. */
 interface SlotGroup {
-  /** El slot que se reserva al hacer click. Es el primer bookable
-   *  del grupo (o el primero si ninguno es bookable, aunque en ese
-   *  caso el chip queda disabled). */
-  primary: AvailableSlot;
-  /** Cantidad total de slots en el mismo (start, end) que están
-   *  disponibles — se muestra como "N disponibles". */
-  availableCount: number;
+  primary: AvailabilityStart;
 }
 
-function groupIdenticalSlots(slots: AvailableSlot[]): SlotGroup[] {
+function groupByStart(slots: AvailabilityStart[]): SlotGroup[] {
   const map = new Map<string, SlotGroup>();
   for (const s of slots) {
-    const key = `${s.start}|${s.end}`;
-    const prev = map.get(key);
-    if (!prev) {
-      map.set(key, {
-        primary: s,
-        availableCount: s.is_available ? 1 : 0,
-      });
-    } else {
-      // Preferimos como primary el primer bookable — si el primero
-      // no lo era, lo reemplazamos por este.
-      if (!prev.primary.is_available && s.is_available) {
-        prev.primary = s;
-      }
-      if (s.is_available) prev.availableCount += 1;
-    }
+    if (!map.has(s.start)) map.set(s.start, { primary: s });
   }
   return Array.from(map.values());
 }
 
 export function SlotGrid({ slots, selectedStart, onSelect }: Props) {
-  const grouped = groupIdenticalSlots(slots);
+  const grouped = groupByStart(slots);
   const groups = PERIODS.map((period) => ({
     period,
     items: grouped.filter(
@@ -118,15 +93,12 @@ export function SlotGrid({ slots, selectedStart, onSelect }: Props) {
           <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
             {items.map((group) => {
               const slot = group.primary;
-              const disabled = group.availableCount === 0;
               const active = slot.start === selectedStart;
-              const showMulti = group.availableCount > 1;
               return (
                 <button
-                  key={`${slot.start}-${slot.end}`}
+                  key={slot.start}
                   type="button"
-                  onClick={() => !disabled && onSelect(slot)}
-                  disabled={disabled}
+                  onClick={() => onSelect(slot)}
                   aria-pressed={active}
                   className={cn(
                     "group relative flex flex-col items-center justify-center gap-0.5 overflow-hidden rounded-2xl border px-2 py-3.5 outline-none transition-all duration-200",
@@ -134,8 +106,6 @@ export function SlotGrid({ slots, selectedStart, onSelect }: Props) {
                     active
                       ? "border-transparent bg-gradient-to-br from-primary to-accent text-white shadow-lg shadow-accent/30 scale-[1.04]"
                       : "border-accent/15 bg-surface-soft text-foreground hover:-translate-y-1 hover:border-accent hover:bg-accent/10 hover:shadow-lg hover:shadow-accent/20 active:scale-95",
-                    disabled &&
-                      "pointer-events-none opacity-40 hover:translate-y-0 hover:border-accent/15 hover:bg-surface-soft hover:shadow-none",
                   )}
                 >
                   <span
@@ -160,8 +130,7 @@ export function SlotGrid({ slots, selectedStart, onSelect }: Props) {
                       active ? "text-white/80" : "text-muted-foreground",
                     )}
                   >
-                    {durationMin(slot)} min
-                    {showMulti && ` · ${group.availableCount} disponibles`}
+                    termina {formatTime(slot.end)}
                   </span>
                 </button>
               );

@@ -13,6 +13,25 @@ import { makePetListItem } from "@/test/fixtures";
 
 const API = "http://localhost/api";
 
+function start(slotId: string, startISO: string, endISO: string) {
+  return {
+    start: startISO,
+    end: endISO,
+    slot_id: slotId,
+    resource: "res-1",
+    staff_user: null,
+  };
+}
+
+function availability(starts: ReturnType<typeof start>[]) {
+  return {
+    service: "srv-1",
+    date: "2030-01-15",
+    duration_minutes: 60,
+    starts,
+  };
+}
+
 function seedFlow() {
   useBookingFlowStore.setState({
     businessUnitCode: "GROOMING",
@@ -59,6 +78,10 @@ function renderReview(queryClient: QueryClient = makeTestQueryClient()) {
           <Route
             path="/book/location"
             element={<div data-testid="location-page">Location picker</div>}
+          />
+          <Route
+            path="/book/slot"
+            element={<div data-testid="slot-page">Slot picker</div>}
           />
         </Routes>
         <Toaster />
@@ -108,10 +131,11 @@ describe("BookingReviewPage", () => {
       business_unit: "bu-1",
       pet: "pet-1",
       scheduled_start: "2030-01-15T16:00:00Z",
-      scheduled_end: "2030-01-15T17:00:00Z",
       channel: "web",
-      items: [{ service: "srv-1", resource: "res-1" }],
+      items: [{ service: "srv-1", resource: "res-1", slot_id: "slot-1" }],
     });
+    // F-G windows: the server computes the end from the real duration.
+    expect(capturedPayload).not.toHaveProperty("scheduled_end");
 
     // Critical: NOT back at the BU picker thanks to the success branch.
     expect(screen.queryByTestId("bu-page")).not.toBeInTheDocument();
@@ -201,6 +225,45 @@ describe("BookingReviewPage", () => {
     expect(screen.queryByTestId("appointments-page")).not.toBeInTheDocument();
   });
 
+  it("sends the customer back to the slot step when the slot was taken meanwhile", async () => {
+    seedFlow();
+    server.use(
+      http.post(`${API}/appointments/`, () =>
+        HttpResponse.json(
+          { scheduled_start: "Ese horario ya no está disponible. Elige otro." },
+          { status: 400 },
+        ),
+      ),
+    );
+
+    const user = userEvent.setup();
+    renderReview();
+    await user.click(screen.getByRole("button", { name: /confirmar reserva/i }));
+
+    expect(await screen.findByTestId("slot-page")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Ese horario ya no está disponible. Elige otro."),
+    ).toBeInTheDocument();
+    expect(useBookingFlowStore.getState().slot).toBeNull();
+    // The rest of the wizard survives so the customer only re-picks a time.
+    expect(useBookingFlowStore.getState().pet?.id).toBe("pet-1");
+  });
+
+  it("shows the duration of the booked window (start → end), not the service default", () => {
+    seedFlow();
+    useBookingFlowStore.setState({
+      slot: {
+        slotId: "slot-1",
+        start: "2030-01-15T16:00:00Z",
+        end: "2030-01-15T17:10:00Z",
+        resource: "res-1",
+      },
+    });
+    renderReview();
+    expect(screen.getByText(/70 min/)).toBeInTheDocument();
+    expect(screen.getByText(/10:00 – 11:10/)).toBeInTheDocument();
+  });
+
   it("redirects to the earliest missing step when the store is incomplete", () => {
     useBookingFlowStore.getState().reset();
     renderReview();
@@ -242,26 +305,17 @@ describe("BookingReviewPage", () => {
           ],
         }),
       ),
-      http.get(`${API}/appointments/slots/`, () =>
-        HttpResponse.json({
-          count: 1,
-          next: null,
-          previous: null,
-          results: [
-            {
-              id: "slot-2",
-              business_unit: "bu-1",
-              service: "srv-1",
-              service_name: "Corte completo",
-              staff_user: null,
-              resource: "res-1",
-              start: "2030-01-15T17:00:00Z",
-              end: "2030-01-15T18:00:00Z",
-              is_available: true,
-            },
-          ],
-        }),
-      ),
+      http.get(`${API}/appointments/availability/`, ({ request }) => {
+        const url = new URL(request.url);
+        expect(url.searchParams.get("service")).toBe("srv-1");
+        expect(url.searchParams.get("date")).toBe("2030-01-15");
+        expect(url.searchParams.get("pet")).toBe("pet-2");
+        return HttpResponse.json(
+          availability([
+            start("slot-2", "2030-01-15T17:00:00Z", "2030-01-15T18:00:00Z"),
+          ]),
+        );
+      }),
     );
 
     const user = userEvent.setup();
@@ -291,10 +345,12 @@ describe("BookingReviewPage", () => {
   it("books every suggestion at once when the user taps 'Reservar las N citas'", async () => {
     seedFlow();
     const postedPets: string[] = [];
+    const postedBodies: Record<string, unknown>[] = [];
     server.use(
       http.post(`${API}/appointments/`, async ({ request }) => {
         const body = (await request.json()) as { pet: string };
         postedPets.push(body.pet);
+        postedBodies.push(body);
         return HttpResponse.json(
           {
             id: `appt-${postedPets.length}`,
@@ -327,37 +383,15 @@ describe("BookingReviewPage", () => {
           ],
         }),
       ),
-      // Two follow-up slots — one per remaining pet.
-      http.get(`${API}/appointments/slots/`, () =>
-        HttpResponse.json({
-          count: 2,
-          next: null,
-          previous: null,
-          results: [
-            {
-              id: "slot-2",
-              business_unit: "bu-1",
-              service: "srv-1",
-              service_name: "Corte completo",
-              staff_user: null,
-              resource: "res-1",
-              start: "2030-01-15T17:00:00Z",
-              end: "2030-01-15T18:00:00Z",
-              is_available: true,
-            },
-            {
-              id: "slot-3",
-              business_unit: "bu-1",
-              service: "srv-1",
-              service_name: "Corte completo",
-              staff_user: null,
-              resource: "res-1",
-              start: "2030-01-15T18:00:00Z",
-              end: "2030-01-15T19:00:00Z",
-              is_available: true,
-            },
-          ],
-        }),
+      // Availability is per pet; both see the same two starts on the
+      // same lane, so they must be paired with non-overlapping ones.
+      http.get(`${API}/appointments/availability/`, () =>
+        HttpResponse.json(
+          availability([
+            start("slot-2", "2030-01-15T17:00:00Z", "2030-01-15T18:00:00Z"),
+            start("slot-3", "2030-01-15T18:00:00Z", "2030-01-15T19:00:00Z"),
+          ]),
+        ),
       ),
     );
 
@@ -384,6 +418,15 @@ describe("BookingReviewPage", () => {
     await waitFor(() =>
       expect(postedPets).toEqual(["pet-1", "pet-2", "pet-3"]),
     );
+    expect(postedBodies[1]).toMatchObject({
+      scheduled_start: "2030-01-15T17:00:00Z",
+      items: [{ service: "srv-1", slot_id: "slot-2", resource: "res-1" }],
+    });
+    expect(postedBodies[2]).toMatchObject({
+      scheduled_start: "2030-01-15T18:00:00Z",
+      items: [{ slot_id: "slot-3" }],
+    });
+    expect(postedBodies[1]).not.toHaveProperty("scheduled_end");
     await waitFor(() =>
       expect(screen.getByTestId("appointments-page")).toBeInTheDocument(),
     );

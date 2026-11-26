@@ -33,6 +33,9 @@ export interface BookingServiceSnapshot {
   pricingMode: PricingMode;
 }
 
+/** Inicio elegido en el paso de horario (GET /appointments/availability/).
+ *  `end` = start + duración real; solo se usa para mostrar — al crear la
+ *  cita el backend recalcula el fin. */
 export interface BookingSlotSnapshot {
   slotId: string;
   start: string;
@@ -98,6 +101,11 @@ interface BookingFlowState {
    *  pasar en el flujo normal). */
   updateServicePricing: (price: string, durationMinutes: number) => void;
   setSlot: (slot: BookingSlotSnapshot) => void;
+  /** Limpia el horario elegido — p. ej. cuando el backend responde
+   *  que ya no está disponible al confirmar. */
+  clearSlot: () => void;
+  /** Cambiar de mascota limpia el horario: la duración (y por tanto
+   *  los inicios disponibles) depende de la mascota. */
   setPet: (pet: BookingPetSnapshot) => void;
   setAddonQuantity: (
     product: Omit<BookingAddonSnapshot, "quantity">,
@@ -165,7 +173,12 @@ export const useBookingFlowStore = create<BookingFlowState>()(
 
       setSlot: (slot) => set({ slot }),
 
-      setPet: (pet) => set({ pet }),
+      clearSlot: () => set({ slot: null }),
+
+      setPet: (pet) =>
+        set((state) =>
+          state.pet?.id === pet.id ? { pet } : { pet, slot: null },
+        ),
 
       setAddonQuantity: (product, quantity) =>
         set((state) => {
