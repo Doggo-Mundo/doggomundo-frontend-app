@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { toast } from "sonner";
 import {
   Calendar,
   Clock,
@@ -49,12 +50,14 @@ import type {
   BookingPetSnapshot,
 } from "@/stores/booking-flow-store";
 import {
-  useAvailableSlots,
+  useAvailabilityForPets,
   useCreateAppointment,
 } from "@/api/hooks/use-appointments";
 import { usePets } from "@/api/hooks/use-pets";
-import { formatLongDate, formatTime } from "@/lib/format-date";
+import { useGroomingQuote } from "@/api/hooks/use-services";
+import { formatLongDate, formatTime, toLocalDateISO } from "@/lib/format-date";
 import type { BusinessUnitCode } from "@/types/business-unit";
+import type { AvailabilityStart } from "@/types/appointment";
 
 // Search window around the just-booked slot for follow-up suggestions.
 // Looking before the booking too matters: with sparse slot grids the next
@@ -69,6 +72,30 @@ interface BookingSnapshot {
   service: BookingServiceSnapshot;
   slot: BookingSlotSnapshot;
   pet: BookingPetSnapshot;
+}
+
+/** 400 `{"scheduled_start": "Ese horario ya no está disponible…"}` —
+ *  alguien más tomó el carril entre que se eligió y se confirmó. */
+function extractSlotTakenError(err: unknown): string | null {
+  if (!axios.isAxiosError(err) || err.response?.status !== 400) return null;
+  const data = err.response.data as
+    | Record<string, string[] | string | undefined>
+    | undefined;
+  const val = data && typeof data === "object" ? data.scheduled_start : undefined;
+  if (!val) return null;
+  return Array.isArray(val) ? String(val[0]) : String(val);
+}
+
+function slotMinutes(slot: { start: string; end: string }): number {
+  return Math.round(
+    (new Date(slot.end).getTime() - new Date(slot.start).getTime()) / 60_000,
+  );
+}
+
+/** Carril (recurso/staff) de un inicio — dos sugerencias en el mismo
+ *  carril no se pueden encimar. */
+function laneKey(s: AvailabilityStart): string {
+  return `${s.resource ?? ""}|${s.staff_user ?? ""}`;
 }
 
 function extractApiError(err: unknown): string {
@@ -98,6 +125,7 @@ export function BookingReviewPage() {
   const state = useBookingFlowStore();
   const reset = useBookingFlowStore((s) => s.reset);
   const setNotes = useBookingFlowStore((s) => s.setNotes);
+  const clearSlot = useBookingFlowStore((s) => s.clearSlot);
   const addons = useBookingFlowStore((s) => s.addons);
   const addonsSubtotal = useBookingFlowStore(selectBookingAddonsSubtotal);
   const create = useCreateAppointment();
@@ -143,6 +171,13 @@ export function BookingReviewPage() {
 
   const { data: petsData } = usePets();
 
+  const isMatrix = state.service?.pricingMode === "SIZE_COAT_MATRIX";
+  const { data: reviewQuote } = useGroomingQuote(
+    isMatrix && state.service && state.pet
+      ? { service: state.service.id, pet: state.pet.id }
+      : null,
+  );
+
   // Other active pets the customer owns minus any they've already booked
   // in this success-screen chain (the just-booked one plus prior picks).
   const otherPets = useMemo(() => {
@@ -155,65 +190,70 @@ export function BookingReviewPage() {
     );
   }, [petsData, snapshot, bookedInSession]);
 
-  // Query a window AROUND the just-booked slot — before and after — so we
-  // can surface a slot 30 min earlier when that's closer than the next free
-  // slot 2h later. The backend's `is_available` flag already excludes the
-  // just-booked one (it's taken now), so it can't appear in suggestions.
+  // Sugerencias en una ventana ALREDEDOR del horario recién reservado
+  // (antes y después) — con huecos dispersos, 30 min antes puede estar
+  // más cerca que el siguiente libre 2h después. La disponibilidad se
+  // pide por mascota: con calculadora de tamaño/pelo cada una tiene su
+  // propia duración. Availability ya excluye lo recién reservado.
   const justBookedStart = snapshot?.slot.start ?? null;
   const justBookedEnd = snapshot?.slot.end ?? null;
-  const startAfter = useMemo(() => {
-    if (!justBookedStart) return null;
-    const t = new Date(justBookedStart).getTime();
-    return new Date(
-      t - FOLLOWUP_WINDOW_BEFORE_HOURS * 60 * 60 * 1000,
-    ).toISOString();
-  }, [justBookedStart]);
-  const startBefore = useMemo(() => {
-    if (!justBookedEnd) return null;
-    const t = new Date(justBookedEnd).getTime();
-    return new Date(
-      t + FOLLOWUP_WINDOW_AFTER_HOURS * 60 * 60 * 1000,
-    ).toISOString();
-  }, [justBookedEnd]);
   const followUpEnabled =
-    !!snapshot &&
-    otherPets.length > 0 &&
-    !!startAfter &&
-    !!startBefore;
-  const { data: nextSlotsData, isLoading: slotsLoading } = useAvailableSlots(
+    !!snapshot && otherPets.length > 0 && !!justBookedStart;
+  const followUpQueries = useAvailabilityForPets(
     followUpEnabled
       ? {
-          business_unit: snapshot!.location.businessUnitId,
           service: snapshot!.service.id,
-          start_after: startAfter!,
-          start_before: startBefore!,
+          date: toLocalDateISO(new Date(justBookedStart!)),
         }
       : null,
-    followUpEnabled,
+    followUpEnabled ? otherPets.map((p) => p.id) : [],
   );
+  const slotsLoading = followUpQueries.some((q) => q.isLoading);
 
-  // Pair each remaining pet with a distinct slot. Sort by closeness to the
-  // just-booked time so "13:30" beats "16:00" when the booked slot is
-  // 14:00. Ties (equidistant before vs after) prefer AFTER — the more
-  // natural "while you're already here" flow.
+  // Empareja cada mascota restante con el inicio más cercano al recién
+  // reservado ("13:30" gana a "16:00" si se reservó a las 14:00); empate
+  // → el posterior ("ya que estás aquí"). Mascotas cuya disponibilidad
+  // falla (p. ej. sin peso/pelo) simplemente no se sugieren.
   const suggestions: FollowUpSuggestion[] = useMemo(() => {
-    if (!followUpEnabled || !nextSlotsData || !justBookedStart) return [];
+    if (!followUpEnabled || !justBookedStart || !justBookedEnd) return [];
     const bookedT = new Date(justBookedStart).getTime();
-    const available = nextSlotsData.results
-      .filter((s) => s.is_available)
-      .sort((a, b) => {
-        const aT = new Date(a.start).getTime();
-        const bT = new Date(b.start).getTime();
-        const aDist = Math.abs(aT - bookedT);
-        const bDist = Math.abs(bT - bookedT);
-        if (aDist !== bDist) return aDist - bDist;
-        // Tie: prefer the later slot (after the booking).
-        return bT - aT;
-      });
-    return otherPets
-      .slice(0, available.length)
-      .map((pet, i) => ({ pet, slot: available[i] }));
-  }, [followUpEnabled, nextSlotsData, otherPets, justBookedStart]);
+    const windowStart = bookedT - FOLLOWUP_WINDOW_BEFORE_HOURS * 3_600_000;
+    const windowEnd =
+      new Date(justBookedEnd).getTime() +
+      FOLLOWUP_WINDOW_AFTER_HOURS * 3_600_000;
+    const taken: AvailabilityStart[] = [];
+    const result: FollowUpSuggestion[] = [];
+    otherPets.forEach((pet, i) => {
+      const starts = followUpQueries[i]?.data?.starts ?? [];
+      const candidates = starts
+        .filter((s) => {
+          const t = new Date(s.start).getTime();
+          return t >= windowStart && t <= windowEnd;
+        })
+        .sort((a, b) => {
+          const aT = new Date(a.start).getTime();
+          const bT = new Date(b.start).getTime();
+          const aDist = Math.abs(aT - bookedT);
+          const bDist = Math.abs(bT - bookedT);
+          if (aDist !== bDist) return aDist - bDist;
+          return bT - aT;
+        });
+      const pick = candidates.find(
+        (c) =>
+          !taken.some(
+            (t) =>
+              laneKey(t) === laneKey(c) &&
+              new Date(c.start) < new Date(t.end) &&
+              new Date(t.start) < new Date(c.end),
+          ),
+      );
+      if (pick) {
+        taken.push(pick);
+        result.push({ pet, slot: pick });
+      }
+    });
+    return result;
+  }, [followUpEnabled, followUpQueries, otherPets, justBookedStart, justBookedEnd]);
 
   // No follow-up to show → keep the legacy "auto-navigate after a beat"
   // so the user isn't stuck. Hold off until snapshot is captured AND the
@@ -246,14 +286,15 @@ export function BookingReviewPage() {
         await create.mutateAsync({
           business_unit: snapshot.location.businessUnitId,
           pet: s.pet.id,
+          // Sin scheduled_end: el backend calcula start + duración
+          // real de esta mascota.
           scheduled_start: s.slot.start,
-          scheduled_end: s.slot.end,
           channel: "web",
           items: [
             {
               service: snapshot.service.id,
               resource: s.slot.resource ?? undefined,
-              slot_id: s.slot.id,
+              slot_id: s.slot.slot_id,
             },
           ],
         });
@@ -278,7 +319,13 @@ export function BookingReviewPage() {
       <SuccessScreen
         suggestions={suggestions}
         serviceName={snapshot.service.name}
-        servicePriceLabel={formatPriceLabel(snapshot.service.price)}
+        servicePriceLabel={
+          // Con calculadora cada mascota tiene su propio precio — el
+          // del snapshot es el de la mascota recién reservada.
+          snapshot.service.pricingMode === "SIZE_COAT_MATRIX"
+            ? null
+            : formatPriceLabel(snapshot.service.price)
+        }
         error={error}
         isBulkBooking={isBulkBooking}
         onPickSuggestion={(s) => {
@@ -291,7 +338,7 @@ export function BookingReviewPage() {
             location: snapshot.location,
             service: snapshot.service,
             slot: {
-              slotId: s.slot.id,
+              slotId: s.slot.slot_id,
               start: s.slot.start,
               end: s.slot.end,
               resource: s.slot.resource,
@@ -314,7 +361,13 @@ export function BookingReviewPage() {
   if (!state.pet) return <Navigate to="/book/pet" replace />;
   if (!state.slot) return <Navigate to="/book/slot" replace />;
 
-  const price = Number(state.service.price);
+  // Precio: con calculadora, el de la cotización de ESTA mascota (puede
+  // venir de una sugerencia post-reserva con otra mascota); duración:
+  // la del horario elegido en availability (start → end real).
+  const price = Number(
+    isMatrix && reviewQuote ? reviewQuote.price : state.service.price,
+  );
+  const durationMinutes = slotMinutes(state.slot);
   const priceLabel =
     Number.isFinite(price) && price > 0
       ? `$${price.toLocaleString("es-MX")}`
@@ -358,8 +411,8 @@ export function BookingReviewPage() {
       await create.mutateAsync({
         business_unit: state.location.businessUnitId,
         pet: state.pet.id,
+        // Sin scheduled_end: el backend calcula start + duración real.
         scheduled_start: state.slot.start,
-        scheduled_end: state.slot.end,
         channel: "web",
         notes: state.notes || undefined,
         items: [
@@ -404,6 +457,14 @@ export function BookingReviewPage() {
       });
       reset();
     } catch (err) {
+      const slotTaken = extractSlotTakenError(err);
+      if (slotTaken) {
+        // Alguien más tomó el horario — de vuelta a elegir otro.
+        toast.error(slotTaken);
+        clearSlot();
+        navigate("/book/slot");
+        return;
+      }
       setError(extractApiError(err));
     }
   }
@@ -427,7 +488,7 @@ export function BookingReviewPage() {
             <div className="min-w-0 flex-1">
               <p className="font-medium">{state.service.name}</p>
               <p className="text-xs text-muted-foreground">
-                {state.service.durationMinutes} min
+                {durationMinutes} min
                 {priceLabel && ` · ${priceLabel}`}
               </p>
             </div>
