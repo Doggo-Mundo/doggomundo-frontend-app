@@ -33,5 +33,11 @@ export function StripeProvider({ children }: Props) {
     return <>{children}</>;
   }
 
-  return <Elements stripe={stripePromise}>{children}</Elements>;
+  // locale "es": sin esto Stripe.js usa el idioma del navegador y los
+  // errores de tarjeta (confirmCardPayment) llegan en inglés.
+  return (
+    <Elements stripe={stripePromise} options={{ locale: "es" }}>
+      {children}
+    </Elements>
+  );
 }

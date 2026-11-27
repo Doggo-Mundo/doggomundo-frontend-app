@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Package, ShoppingCart, Zap } from "lucide-react";
+import { MapPin, Package, ShoppingCart, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,13 +16,21 @@ import { BackLink } from "@/features/pets/components/BackLink";
 import { QuantitySelector } from "@/features/shop/components/QuantitySelector";
 import { useProduct } from "@/api/hooks/use-retail";
 import { formatMoney } from "@/features/orders/lib/format-money";
-import { useCartStore } from "@/stores/cart-store";
+import { itemCap, useCartStore } from "@/stores/cart-store";
+import { cn } from "@/lib/utils";
+
+/** Debajo de este stock mostramos "Hasta N disponibles" — arriba es
+ *  ruido (nadie compra 10+ unidades del mismo producto). */
+const MAX_HINT_THRESHOLD = 10;
 
 export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: product, isLoading, isError } = useProduct(id ?? "");
   const addToCart = useCartStore((s) => s.add);
+  const inCart = useCartStore(
+    (s) => s.items.find((i) => i.productId === id)?.quantity ?? 0,
+  );
 
   const [qty, setQty] = useState(1);
 
@@ -49,19 +57,32 @@ export function ProductDetailPage() {
     );
   }
 
+  // Un pedido se recoge en UNA sucursal → el tope es lo que hay en la
+  // sucursal con más stock (max_available), menos lo que ya está en el
+  // carrito.
+  const soldOut = !product.in_stock || product.max_available <= 0;
+  const cap = itemCap(product.max_available);
+  const remaining = Math.max(0, cap - inCart);
+  const cartAtMax = !soldOut && remaining === 0;
+  // Deriva la cantidad efectiva en vez de sincronizar con un effect:
+  // si el tope baja (se agregó al carrito), el selector se ajusta solo.
+  const effectiveQty = Math.min(qty, Math.max(remaining, 1));
+
   function handleAddToCart() {
-    if (!product) return;
-    addToCart(product, qty);
+    if (!product || remaining === 0) return;
+    addToCart(product, effectiveQty);
+    setQty(1);
     toast.success(
-      qty === 1
+      effectiveQty === 1
         ? `Agregamos ${product.name} al carrito.`
-        : `Agregamos ${qty} × ${product.name} al carrito.`,
+        : `Agregamos ${effectiveQty} × ${product.name} al carrito.`,
     );
   }
 
   function handleBuyNow() {
-    if (!product) return;
-    addToCart(product, qty);
+    if (!product || soldOut) return;
+    // Con el carrito ya al tope no agregamos más — solo vamos a pagar.
+    if (remaining > 0) addToCart(product, effectiveQty);
     navigate("/checkout");
   }
 
@@ -100,26 +121,87 @@ export function ProductDetailPage() {
 
           <p className="text-3xl font-semibold">{formatMoney(product.price)}</p>
 
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">Cantidad</span>
-            <QuantitySelector value={qty} onChange={setQty} />
-          </div>
+          {!soldOut && (
+            <div className="space-y-1.5">
+              {!cartAtMax && (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground">
+                    Cantidad
+                  </span>
+                  <QuantitySelector
+                    value={effectiveQty}
+                    onChange={setQty}
+                    max={remaining}
+                  />
+                </div>
+              )}
+              {inCart > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {cartAtMax
+                    ? `Ya tienes ${inCart} en tu carrito, el máximo disponible.`
+                    : `Ya tienes ${inCart} en tu carrito; puedes agregar hasta ${remaining} más.`}
+                </p>
+              ) : (
+                cap < MAX_HINT_THRESHOLD && (
+                  <p className="text-xs text-muted-foreground">
+                    {cap === 1
+                      ? "Queda 1 disponible."
+                      : `Hasta ${cap} disponibles.`}
+                  </p>
+                )
+              )}
+            </div>
+          )}
 
           <div className="space-y-2">
-            <Button size="lg" className="w-full" onClick={handleAddToCart}>
+            <Button
+              size="lg"
+              className="w-full"
+              onClick={handleAddToCart}
+              disabled={soldOut || cartAtMax}
+            >
               <ShoppingCart />
-              Agregar al carrito
+              {soldOut ? "Agotado" : "Agregar al carrito"}
             </Button>
             <Button
               size="lg"
               variant="outline"
               className="w-full"
               onClick={handleBuyNow}
+              disabled={soldOut}
             >
               <Zap />
-              Comprar ahora
+              {soldOut ? "Agotado" : "Comprar ahora"}
             </Button>
           </div>
+
+          {product.availability && product.availability.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  Disponibilidad para recoger
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <ul className="space-y-1.5 text-sm">
+                  {product.availability.map((row) => (
+                    <li
+                      key={row.location_id}
+                      className={cn(
+                        "flex items-center gap-2",
+                        row.available <= 0 && "text-muted-foreground",
+                      )}
+                    >
+                      <MapPin className="h-3.5 w-3.5 shrink-0" />
+                      {row.available > 0
+                        ? `Disponible en ${row.location_name} (${row.available})`
+                        : `Agotado en ${row.location_name}`}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
 
           {product.description && (
             <Card>

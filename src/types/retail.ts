@@ -24,6 +24,20 @@ export interface Product {
   fulfillment_type: FulfillmentType;
   fulfillment_type_display: string;
   is_addon_offering: boolean;
+  /** true cuando al menos una sucursal activa tiene stock. */
+  in_stock: boolean;
+  /** Máximo de unidades que se pueden pedir en UNA sola sucursal
+   *  (un pedido se recoge en una sucursal). 0 = agotado. */
+  max_available: number;
+  /** Solo en el detalle (`GET /retail/products/{id}/`): una fila por
+   *  sucursal activa. */
+  availability?: ProductLocationAvailability[];
+}
+
+export interface ProductLocationAvailability {
+  location_id: string;
+  location_name: string;
+  available: number;
 }
 
 export interface ProductListParams {
@@ -41,6 +55,41 @@ export interface ProductListParams {
 export interface CheckoutRequestItem {
   product_id: string;
   quantity: number;
+}
+
+// -----------------------------------------------------------------------------
+// Cart availability (POST /retail/cart/availability/)
+// -----------------------------------------------------------------------------
+
+export interface CartAvailabilityMissing {
+  product_id: string;
+  product_name: string;
+  requested: number;
+  available: number;
+}
+
+export interface CartAvailabilityLocation {
+  id: string;
+  name: string;
+  address: string;
+  /** true = la sucursal tiene TODO el carrito en las cantidades pedidas. */
+  can_fulfill: boolean;
+  missing: CartAvailabilityMissing[];
+}
+
+export interface CartAvailabilityItem {
+  product_id: string;
+  product_name: string;
+  requested: number;
+  /** Máximo pedible en una sola sucursal. */
+  max_available: number;
+  /** Nombres de las sucursales que tienen la cantidad pedida. */
+  available_at: string[];
+}
+
+export interface CartAvailabilityResponse {
+  locations: CartAvailabilityLocation[];
+  items: CartAvailabilityItem[];
 }
 
 export interface CheckoutRequest {
@@ -72,6 +121,10 @@ export interface CheckoutOrderLine {
 
 export type CheckoutOrderStatus = "draft" | "paid" | "void";
 
+/** Estado de preparación de un pedido para recoger en sucursal. "" =
+ *  la orden no es de recoger (p. ej. orden de una cita). */
+export type PickupStatus = "" | "pending" | "ready" | "picked_up";
+
 export interface CheckoutOrder {
   id: string;
   status: CheckoutOrderStatus;
@@ -81,16 +134,23 @@ export interface CheckoutOrder {
   paid_at: string | null;
   stock_hold_expires_at: string | null;
   lines: CheckoutOrderLine[];
+  pickup_status: PickupStatus;
+  pickup_status_display: string;
+  location_name: string;
+  location_address: string;
+  ready_at: string | null;
+  picked_up_at: string | null;
 }
 
 /**
  * Shape of the 400 body when the checkout endpoint rejects due to
- * insufficient stock. The view assembles this via ValidationError
- * (payments/views.py) so we can render a targeted "Solo quedan N de
- * X" message with the exact product.
+ * insufficient stock. `detail` already comes as a customer-facing
+ * sentence ("Solo queda 1 de “Kong” en Carso Palmas.") — render it
+ * as-is.
  */
 export interface OutOfStockDetail {
   detail: string;
+  code: "out_of_stock";
   product_id: string;
   product_name: string;
   requested: number;
