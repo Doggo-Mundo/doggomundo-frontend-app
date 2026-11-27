@@ -1,8 +1,14 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+} from "@tanstack/react-query";
 import { api } from "@/api/client";
 import type {
+  CartAvailabilityResponse,
   CheckoutOrder,
   CheckoutRequest,
+  CheckoutRequestItem,
   CheckoutResponse,
   Product,
   ProductCategory,
@@ -17,6 +23,11 @@ export const retailKeys = {
       [...retailKeys.products.all, "list", params] as const,
     detail: (id: string) =>
       [...retailKeys.products.all, "detail", id] as const,
+  },
+  cartAvailability: {
+    all: ["retail-cart-availability"] as const,
+    detail: (items: CheckoutRequestItem[]) =>
+      [...retailKeys.cartAvailability.all, items] as const,
   },
   orders: {
     all: ["retail-orders"] as const,
@@ -52,6 +63,32 @@ export function useProduct(id: string) {
     queryFn: () =>
       api.get<Product>(`/retail/products/${id}/`).then((r) => r.data),
     enabled: !!id,
+  });
+}
+
+/**
+ * Stock del carrito por sucursal (`POST /retail/cart/availability/`,
+ * público). Es un POST porque manda el carrito en el body, pero es de
+ * solo lectura — por eso vive como query: se re-pide solo cuando
+ * cambian los productos/cantidades y se puede invalidar tras un error
+ * de stock en el checkout.
+ *
+ * `keepPreviousData` evita que la lista parpadee al cambiar una
+ * cantidad; quien gatee acciones con esta respuesta debe revisar
+ * `isPlaceholderData` (la respuesta vieja no corresponde al carrito
+ * actual).
+ */
+export function useCartAvailability(items: CheckoutRequestItem[]) {
+  return useQuery({
+    queryKey: retailKeys.cartAvailability.detail(items),
+    queryFn: () =>
+      api
+        .post<CartAvailabilityResponse>("/retail/cart/availability/", {
+          items,
+        })
+        .then((r) => r.data),
+    enabled: items.length > 0,
+    placeholderData: keepPreviousData,
   });
 }
 

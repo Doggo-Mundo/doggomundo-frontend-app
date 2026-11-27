@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   Building2,
@@ -38,19 +38,23 @@ import {
   selectCartSubtotal,
   useCartStore,
 } from "@/stores/cart-store";
-import { useRetailCheckout } from "@/api/hooks/use-retail";
-import { useLocations } from "@/api/hooks/use-locations";
+import {
+  useCartAvailability,
+  useRetailCheckout,
+} from "@/api/hooks/use-retail";
 import { usePaymentMethods } from "@/api/hooks/use-payments";
 import { useMySubscriptions } from "@/api/hooks/use-memberships";
 import {
   computeDiscount,
   selectRetailDiscountPct,
 } from "@/features/shop/lib/membership-discount";
+import { extractApiDetail } from "@/features/shop/lib/api-detail";
 import { getStripePromise } from "@/lib/stripe";
 import { cn } from "@/lib/utils";
 import type {
+  CartAvailabilityItem,
+  CartAvailabilityLocation,
   CheckoutResponse,
-  OutOfStockDetail,
 } from "@/types/retail";
 
 /**
@@ -58,7 +62,9 @@ import type {
  * Elements. Split into two phases:
  *
  *   1. **Location + Review** (no Elements mounted yet). The user picks
- *      a pickup sucursal from the paginated list. Clicking "Continuar
+ *      a pickup sucursal from POST /retail/cart/availability/ — only
+ *      sucursales that can supply the WHOLE cart are selectable (an
+ *      order is picked up at a single sucursal). Clicking "Continuar
  *      con el pago" fires POST /api/retail/checkout/ which reserves
  *      stock server-side and returns a PaymentIntent client_secret.
  *   2. **Payment** (Elements mounted with the returned clientSecret).
@@ -79,7 +85,7 @@ export function CheckoutPage() {
   const user = useAuthStore((s) => s.user);
 
   // Track only the user's explicit choice — the effective location is
-  // derived below (userPick ?? first available). Storing the derived
+  // derived below (userPick ?? first fulfilling). Storing the derived
   // value in state would need a useEffect to sync when the query
   // resolves; deriving avoids the cascading render.
   const [userPickedLocationId, setUserPickedLocationId] = useState<string | null>(null);
@@ -87,18 +93,37 @@ export function CheckoutPage() {
   const [checkout, setCheckout] = useState<CheckoutResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const locations = useLocations();
-  const activeLocations = useMemo(
-    () => locations.data?.results ?? [],
-    [locations.data],
+  const requestItems = useMemo(
+    () =>
+      items.map((it) => ({ product_id: it.productId, quantity: it.quantity })),
+    [items],
   );
-  // Default to the first sucursal so the customer can just hit
-  // "Continuar" without a manual click when only one option exists
-  // (common in early launch with a single sucursal).
-  const pickupLocationId =
-    userPickedLocationId ?? activeLocations[0]?.id ?? "";
+  const availability = useCartAvailability(requestItems);
+  // Placeholder = respuesta de un carrito anterior → no sirve para
+  // decidir qué sucursal puede surtir el actual.
+  const availabilityData = availability.isPlaceholderData
+    ? undefined
+    : availability.data;
+  const locations = useMemo(
+    () => availabilityData?.locations ?? [],
+    [availabilityData],
+  );
+  // Default = primera sucursal que puede surtir todo el carrito (no
+  // solo la primera de la lista). Si la elegida dejó de poder surtir
+  // (refresco tras un error de stock), caemos al default.
+  const pickupLocationId = useMemo(() => {
+    const fulfilling = locations.filter((l) => l.can_fulfill);
+    if (
+      userPickedLocationId &&
+      fulfilling.some((l) => l.id === userPickedLocationId)
+    ) {
+      return userPickedLocationId;
+    }
+    return fulfilling[0]?.id ?? "";
+  }, [locations, userPickedLocationId]);
 
   const checkoutMutation = useRetailCheckout();
+  const refetchAvailability = availability.refetch;
 
   const handleStartPayment = useCallback(async () => {
     if (!pickupLocationId || items.length === 0) return;
@@ -115,8 +140,11 @@ export function CheckoutPage() {
       setPhase("payment");
     } catch (err: unknown) {
       setErrorMsg(extractCheckoutError(err));
+      // El stock cambió entre que cargamos la página y el submit:
+      // refrescamos para que la lista de sucursales refleje lo real.
+      if (isOutOfStockError(err)) void refetchAvailability();
     }
-  }, [pickupLocationId, items, checkoutMutation]);
+  }, [pickupLocationId, items, checkoutMutation, refetchAvailability]);
 
   if (items.length === 0 && phase === "review") {
     return <Navigate to="/cart" replace />;
@@ -148,12 +176,21 @@ export function CheckoutPage() {
           items={items}
           subtotal={subtotal}
           userEmail={user?.email ?? ""}
-          activeLocations={activeLocations}
+          locations={locations}
+          availabilityItems={availabilityData?.items ?? []}
           pickupLocationId={pickupLocationId}
           onPickLocation={setUserPickedLocationId}
           onSubmit={handleStartPayment}
           isSubmitting={checkoutMutation.isPending}
-          locationsLoading={locations.isLoading}
+          locationsLoading={!availabilityData && !availability.isError}
+          availabilityError={
+            availability.isError && !availabilityData
+              ? extractApiDetail(
+                  availability.error,
+                  "No pudimos revisar la disponibilidad de tu carrito.",
+                )
+              : null
+          }
         />
       )}
 
@@ -183,19 +220,24 @@ interface ReviewProps {
   items: ReturnType<typeof useCartStore.getState>["items"];
   subtotal: number;
   userEmail: string;
-  activeLocations: Array<{ id: string; name: string; address: string }>;
+  locations: CartAvailabilityLocation[];
+  availabilityItems: CartAvailabilityItem[];
   pickupLocationId: string;
   onPickLocation: (id: string) => void;
   onSubmit: () => void;
   isSubmitting: boolean;
   locationsLoading: boolean;
+  availabilityError: string | null;
 }
 
 function ReviewPhase(props: ReviewProps) {
   const {
-    items, subtotal, userEmail, activeLocations, pickupLocationId,
-    onPickLocation, onSubmit, isSubmitting, locationsLoading,
+    items, subtotal, userEmail, locations, availabilityItems,
+    pickupLocationId, onPickLocation, onSubmit, isSubmitting,
+    locationsLoading, availabilityError,
   } = props;
+  const noneCanFulfill =
+    locations.length > 0 && !locations.some((l) => l.can_fulfill);
 
   // F-B: preview del descuento en el review antes de crear la orden.
   // El backend recalcula al momento del checkout — este preview solo
@@ -216,18 +258,41 @@ function ReviewPhase(props: ReviewProps) {
           {locationsLoading && (
             <div className="h-12 animate-pulse rounded-md bg-muted" />
           )}
-          {!locationsLoading && activeLocations.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              No hay sucursales disponibles por ahora.
-            </p>
+          {availabilityError && (
+            <div
+              role="alert"
+              className="space-y-1 text-sm text-destructive"
+            >
+              <p>{availabilityError}</p>
+              <Link to="/cart" className="font-medium underline underline-offset-2">
+                Revisar mi carrito
+              </Link>
+            </div>
           )}
-          {activeLocations.map((loc) => (
+          {!locationsLoading &&
+            !availabilityError &&
+            locations.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No hay sucursales disponibles por ahora.
+              </p>
+            )}
+          {noneCanFulfill && (
+            <NoSingleLocationNotice
+              items={availabilityItems}
+              locationCount={locations.length}
+            />
+          )}
+          {locations.map((loc) => (
             <LocationOption
               key={loc.id}
               active={pickupLocationId === loc.id}
+              disabled={!loc.can_fulfill}
               onClick={() => onPickLocation(loc.id)}
               name={loc.name}
               address={loc.address}
+              missingText={
+                loc.can_fulfill ? null : describeMissing(loc)
+              }
             />
           ))}
         </CardContent>
@@ -781,24 +846,30 @@ function NewCardInner({
 
 interface LocationOptionProps {
   active: boolean;
+  disabled?: boolean;
   onClick: () => void;
   name: string;
   address: string;
+  /** "Falta: Kong (hay 0)" — solo para sucursales que no surten. */
+  missingText?: string | null;
 }
 
 function LocationOption({
-  active, onClick, name, address,
+  active, disabled = false, onClick, name, address, missingText,
 }: LocationOptionProps) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-pressed={active}
       className={cn(
         "flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-        active
-          ? "border-primary bg-secondary"
-          : "border-border bg-background hover:bg-muted",
+        disabled
+          ? "cursor-not-allowed border-border bg-muted/40 opacity-70"
+          : active
+            ? "border-primary bg-secondary"
+            : "border-border bg-background hover:bg-muted",
       )}
     >
       <span
@@ -819,8 +890,77 @@ function LocationOption({
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium">{name}</span>
         <span className="block text-xs text-muted-foreground">{address}</span>
+        {missingText && (
+          <span className="mt-1 block text-xs font-medium text-destructive">
+            {missingText}
+          </span>
+        )}
       </span>
     </button>
+  );
+}
+
+/** "Falta: Kong (hay 0), Pelota (hay 1)". */
+function describeMissing(loc: CartAvailabilityLocation): string {
+  if (loc.missing.length === 0) return "No tiene todo tu pedido.";
+  return (
+    "Falta: " +
+    loc.missing.map((m) => `${m.product_name} (hay ${m.available})`).join(", ")
+  );
+}
+
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} y ${names[names.length - 1]}`;
+}
+
+/**
+ * Ninguna sucursal tiene todo el carrito. Un pedido se recoge en una
+ * sola sucursal, así que explicamos dónde está cada producto para que
+ * el cliente quite productos o haga pedidos separados.
+ */
+function NoSingleLocationNotice({
+  items, locationCount,
+}: {
+  items: CartAvailabilityItem[];
+  locationCount: number;
+}) {
+  return (
+    <div
+      role="alert"
+      className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+    >
+      <p className="flex items-start gap-2 font-medium">
+        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+        Ninguna sucursal tiene todo tu pedido.
+      </p>
+      <p className="text-xs">
+        Cada pedido se recoge en una sola sucursal. Quita productos del
+        carrito o haz pedidos separados.
+      </p>
+      {items.length > 0 && (
+        <ul className="space-y-0.5 text-xs">
+          {items.map((it) => (
+            <li key={it.product_id}>
+              <span className="font-medium">{it.product_name}:</span>{" "}
+              {it.available_at.length >= locationCount
+                ? "disponible en todas las sucursales"
+                : it.available_at.length > 0
+                ? `solo en ${joinNames(it.available_at)}`
+                : it.max_available <= 0
+                  ? "agotado"
+                  : `no hay ${it.requested} en una misma sucursal (máximo ${it.max_available})`}
+            </li>
+          ))}
+        </ul>
+      )}
+      <Link
+        to="/cart"
+        className="inline-block text-xs font-medium underline underline-offset-2"
+      >
+        Ajustar mi carrito
+      </Link>
+    </div>
   );
 }
 
@@ -830,28 +970,21 @@ function LocationOption({
 
 /**
  * Turn a checkout mutation failure into a friendly message. The
- * backend's OutOfStockError arrives as a 400 with a structured body
- * (see OutOfStockDetail); everything else is a generic fallback.
+ * backend's out-of-stock 400 already carries a customer-facing
+ * `detail` ("Solo queda 1 de “Kong” en Carso Palmas.") — show it as-is;
+ * anything without a usable detail falls back to a generic message.
  */
 function extractCheckoutError(err: unknown): string {
-  const anyErr = err as {
-    response?: { data?: OutOfStockDetail | { detail?: string } };
-  };
-  const data = anyErr?.response?.data;
-  if (data && "available" in data) {
-    const oos = data as OutOfStockDetail;
-    if (oos.available === 0) {
-      return `“${oos.product_name}” no está disponible en esta sucursal.`;
-    }
-    return (
-      `Solo quedan ${oos.available} de “${oos.product_name}”. ` +
-      `Ajusta la cantidad en el carrito.`
-    );
-  }
-  if (data && "detail" in data && typeof data.detail === "string") {
-    return data.detail;
-  }
-  return "No pudimos iniciar el pago. Intenta de nuevo en unos momentos.";
+  return extractApiDetail(
+    err,
+    "No pudimos iniciar el pago. Intenta de nuevo en unos momentos.",
+  );
+}
+
+function isOutOfStockError(err: unknown): boolean {
+  const data = (err as { response?: { data?: { code?: unknown } } } | null)
+    ?.response?.data;
+  return data?.code === "out_of_stock";
 }
 
 function stripeErrorMessage(err: unknown): string {

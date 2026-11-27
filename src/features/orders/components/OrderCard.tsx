@@ -1,7 +1,15 @@
 import { Link } from "react-router-dom";
-import { Calendar, ChevronRight, Crown, PawPrint, Receipt } from "lucide-react";
+import {
+  Calendar,
+  ChevronRight,
+  Crown,
+  MapPin,
+  PawPrint,
+  Receipt,
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { OrderStatusBadge } from "./OrderStatusBadge";
+import { PickupStatusBadge } from "./PickupStatusBadge";
 import { formatMoney } from "@/features/orders/lib/format-money";
 import { formatDate } from "@/lib/format-date";
 import type { OrderListItem } from "@/types/order";
@@ -86,6 +94,27 @@ export function OrderCard({ order, petName }: Props) {
                 ? `Pagada el ${formatDate(order.paid_at)}`
                 : `Creada el ${formatDate(order.created_at)}`}
             </p>
+            {order.pickup_status && (
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <PickupStatusBadge
+                  status={order.pickup_status}
+                  label={order.pickup_status_display}
+                />
+                {order.location_name && (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <MapPin className="h-3 w-3" />
+                    {order.location_name}
+                  </span>
+                )}
+              </div>
+            )}
+            {order.pickup_status === "ready" && (
+              <p className="text-xs font-medium text-emerald-700">
+                {order.location_name
+                  ? `Pasa a recogerlo a ${order.location_name}`
+                  : "Pasa a recogerlo a la sucursal"}
+              </p>
+            )}
             {petName && (
               <p className="flex items-center gap-1 text-xs text-muted-foreground">
                 <PawPrint className="h-3 w-3" />

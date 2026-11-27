@@ -4,6 +4,7 @@ import {
   CalendarDays,
   ChevronRight,
   Crown,
+  MapPin,
   PawPrint,
   Receipt,
 } from "lucide-react";
@@ -17,6 +18,7 @@ import { LoadingState } from "@/components/shared/LoadingState";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { BackLink } from "@/features/pets/components/BackLink";
 import { OrderStatusBadge } from "@/features/orders/components/OrderStatusBadge";
+import { PickupStatusBadge } from "@/features/orders/components/PickupStatusBadge";
 import { formatMoney } from "@/features/orders/lib/format-money";
 import { useOrder } from "@/api/hooks/use-orders";
 import { usePets } from "@/api/hooks/use-pets";
@@ -138,6 +140,48 @@ export function OrderDetailPage() {
             : `Creada el ${formatDateTime(order.created_at)}`}
         </p>
       </header>
+
+      {order.pickup_status && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Recoger en sucursal</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 pt-0 text-sm">
+            <PickupStatusBadge
+              status={order.pickup_status}
+              label={order.pickup_status_display}
+            />
+            {order.location_name && (
+              <p className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                {order.location_name}
+              </p>
+            )}
+            {order.pickup_status === "pending" && (
+              <p className="text-xs text-muted-foreground">
+                Te avisamos por correo cuando esté listo para recoger.
+              </p>
+            )}
+            {order.pickup_status === "ready" && (
+              <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">
+                {order.location_name
+                  ? `Pasa a recogerlo a ${order.location_name}.`
+                  : "Pasa a recogerlo a la sucursal."}
+                {order.ready_at && (
+                  <span className="block text-xs font-normal">
+                    Listo desde el {formatDateTime(order.ready_at)}
+                  </span>
+                )}
+              </p>
+            )}
+            {order.pickup_status === "picked_up" && order.picked_up_at && (
+              <p className="text-xs text-muted-foreground">
+                Entregado el {formatDateTime(order.picked_up_at)}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

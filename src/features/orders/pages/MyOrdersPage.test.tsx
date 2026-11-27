@@ -67,4 +67,46 @@ describe("MyOrdersPage", () => {
     expect(screen.getAllByText(/pagada/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/pendiente/i)).toBeInTheDocument();
   });
+
+  it("shows the pickup status badge and sucursal for store pickup orders", async () => {
+    server.use(
+      http.get(`${API}/orders/`, () =>
+        HttpResponse.json(
+          paginated([
+            makeOrderListItem({
+              id: "o-ready",
+              appointment: null,
+              pet: null,
+              pickup_status: "ready",
+              pickup_status_display: "Listo para recoger",
+              location_name: "Carso Palmas",
+              ready_at: "2026-01-06T10:00:00Z",
+            }),
+            makeOrderListItem({
+              id: "o-pending",
+              appointment: null,
+              pet: null,
+              pickup_status: "pending",
+              pickup_status_display: "Por preparar",
+              location_name: "Polanco",
+            }),
+            // Orden de cita: sin badge de recoger.
+            makeOrderListItem({ id: "o-appt", pet: null }),
+          ]),
+        ),
+      ),
+      http.get(`${API}/pets/`, () => HttpResponse.json(paginated([]))),
+    );
+
+    renderWithProviders(<MyOrdersPage />);
+
+    const ready = await screen.findByText("Listo para recoger");
+    expect(ready.className).toMatch(/emerald/);
+    expect(
+      screen.getByText("Pasa a recogerlo a Carso Palmas"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Por preparar")).toBeInTheDocument();
+    expect(screen.getByText("Polanco")).toBeInTheDocument();
+    expect(screen.queryByText("Entregado")).not.toBeInTheDocument();
+  });
 });
