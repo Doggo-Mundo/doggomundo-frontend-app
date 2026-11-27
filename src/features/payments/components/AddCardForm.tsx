@@ -10,6 +10,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useCreateSetupIntent } from "@/api/hooks/use-payments";
+import { TestCardHint } from "@/components/environment/TestCardHint";
 
 // loadStripe once per session — same singleton pattern as PaymentSection.
 let _stripePromise: Promise<Stripe | null> | null = null;
@@ -111,6 +112,7 @@ function ElementsInner({ onAdded, onCancel }: Props) {
 
   return (
     <div className="space-y-3">
+      <TestCardHint />
       <PaymentElement
         options={{
           layout: "tabs",
