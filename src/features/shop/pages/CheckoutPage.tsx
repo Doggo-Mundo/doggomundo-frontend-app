@@ -56,6 +56,7 @@ import type {
   CartAvailabilityLocation,
   CheckoutResponse,
 } from "@/types/retail";
+import { TestCardHint } from "@/components/environment/TestCardHint";
 
 /**
  * Retail checkout — cart summary + pickup location picker + Stripe
@@ -812,6 +813,7 @@ function NewCardInner({
 
   return (
     <div className="space-y-4">
+      <TestCardHint />
       <PaymentElement
         onReady={() => setReady(true)}
         options={{ layout: "tabs" }}
