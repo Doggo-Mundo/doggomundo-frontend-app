@@ -29,6 +29,7 @@ import {
   usePaymentMethods,
 } from "@/api/hooks/use-payments";
 import { StripeInlineError } from "@/features/booking/components/payment-section-errors";
+import { TestCardHint } from "@/components/environment/TestCardHint";
 
 /**
  * Imperative API: the parent calls `confirm()` to validate the card
@@ -347,6 +348,7 @@ function ElementsInner({ onMount }: { onMount: (h: InnerHandle) => void }) {
 
   return (
     <div className="space-y-3">
+      <TestCardHint />
       <PaymentElement
         onReady={() => setReady(true)}
         options={{
